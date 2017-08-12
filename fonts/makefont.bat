@@ -1,0 +1,1 @@
+ftrasterize -r -m -f DSEG7Bold -s 24 DSEG7ClassicMini-Bold.ttf -p 48 -e 58
