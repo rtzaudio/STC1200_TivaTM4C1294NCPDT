@@ -80,21 +80,22 @@
 
 /* External Data Items */
 
-extern SYSDATA g_sysData;
+//extern SYSDATA g_sysData;
 
 /* Static Data Items */
 
 /* Static Function Prototypes */
 
-int ReceiveCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead);
-int SendResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite);
+int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead);
+int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite);
 
 //*****************************************************************************
-// MIDI MMC Task
+// MIDI MCC Task
 //*****************************************************************************
 
 Void MidiTaskFxn(UArg arg0, UArg arg1)
 {
+    int rc;
 	UART_Params uartParams;
 	UART_Handle handle;
 	size_t	uNumBytesRead;
@@ -112,7 +113,7 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
 
 	uartParams.readMode       = UART_MODE_BLOCKING;
 	uartParams.writeMode      = UART_MODE_BLOCKING;
-	uartParams.readTimeout    = 1000;					// 1 second read timeout
+	uartParams.readTimeout    = 2000;					// 2 second read timeout
 	uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
 	uartParams.readCallback   = NULL;
 	uartParams.writeCallback  = NULL;
@@ -128,47 +129,80 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
 
 	if (handle == NULL)
 	    System_abort("Error opening MIDI UART\n");
-	    
+
+	byDeviceID = 0x00;
+
     while (true)
     {
-    	/* Attempt to read a MIDI MMC command */
+    	/* Attempt to read a MIDI MCC command */
 
     	memset(&rxBuffer, 0, sizeof(rxBuffer));
 
-    	if (ReceiveCommand(handle, &byDeviceID, rxBuffer, &uNumBytesRead) == 0)
+    	rc = Midi_RxCommand(handle, &byDeviceID, rxBuffer, &uNumBytesRead);
+
+        if (rc < 0)
+        {
+            System_printf("MidiRxError %d\n", rc);
+            System_flush();
+        }
+        else
     	{
     		switch(rxBuffer[0])
     		{
-    		case MMC_RESET:
-    			break;
+                case MCC_STOP:
+                    System_printf("STOP\n");
+                    break;
 
-    		case MMC_STOP:
-    			break;
+                case MCC_PLAY:
+                    System_printf("PLAY\n");
+                    break;
 
-    		case MMC_PLAY:
-    			break;
+                case MCC_DEFERRED_PLAY:
+                    System_printf("DEF-PLAY\n");
+                    break;
 
-    		case MMC_DEFERRED_PLAY:
-    			break;
+                case MCC_FAST_FORWARD:
+                    System_printf("FFWD\n");
+                    break;
 
-    		case MMC_FAST_FORWARD:
-    			break;
+                case MCC_REWIND:
+                    System_printf("REW\n");
+                    break;
 
-    		case MMC_REWIND:
-    			break;
+                case MCC_RECORD_STROBE:
+                    System_printf("REC-STROBE\n");
+                    break;
 
-    		case MMC_RECORD_STROBE:
-    			break;
+                case MCC_RECORD_EXIT:
+                    System_printf("REC-EXIT\n");
+                    break;
 
-    		case MMC_RECORD_EXIT:
-    			break;
+                case MCC_RECORD_PAUSE:
+                    System_printf("REC-PAUSE\n");
+                    break;
 
-    		case MMC_RECORD_PAUSE:
-    			break;
+                case MCC_PAUSE:
+                    System_printf("PAUSE\n");
+                    break;
 
-    		case MMC_LOCATE:
-    			break;
+                case MCC_EJECT:
+                    System_printf("EJECT\n");
+                    break;
+
+                case MCC_CHASE:
+                    System_printf("CHASE\n");
+                    break;
+
+                case MCC_COMMAND_ERROR_RESET:
+                    System_printf("CMD ERROR RESET\n");
+                    break;
+
+                case MCC_MMC_RESET:
+                    System_printf("RESET\n");
+                    break;
     		}
+
+            System_flush();
     	}
     }
 }
@@ -177,7 +211,7 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
 //
 //*****************************************************************************
 
-int ReceiveCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead)
+int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead)
 {
 	uint8_t b;
 	size_t i;
@@ -186,27 +220,38 @@ int ReceiveCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
     *puNumBytesRead = 0;
     *pbyDeviceID = 0;
     
-    /* Read the 0xF0 Preamble */      
-    if (UART_read(handle, &b, 1) != 1)
-        return -1;
-    if (b != 0xF0)
-        return -2;
+    i = 0;
+
+    do
+    {
+        /* Read a byte looking for 0xF0 Preamble */
+        if (UART_read(handle, &b, 1) != 1)
+            return -1;  /* timeout */
+
+        if (i++ > MAX_PACKET_SIZE)
+            return -2;
+
+    } while (b != 0xF0);
     
     /* Read the 0x7F Preamble */
     if (UART_read(handle, &b, 1) != 1)
         return -1;
+
+    /* If not the second preamble 0x7F byte, then out of sync */
     if (b != 0x7F)
         return -3;
     
     /* Read the device ID */
     if (UART_read(handle, &b, 1) != 1)
         return -1;
+
     *pbyDeviceID = b;
         
-    /* Read the MCC ID byte */
+    /* Read the MCC (motion control command) type byte */
     if (UART_read(handle, &b, 1) != 1)
         return -1;
-    if (b != 0x06)
+
+    if (b != MIDI_MCC)
         return -4;
         
     /* Read the MIDI packet data up to the 0x7F end of packet marker */
@@ -219,14 +264,17 @@ int ReceiveCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
             rc = -1;
             break;
         }
-    	
-    	pBuffer[i] = b;
-    	
+
+        /* End of packet 0x7F indicator */
     	if (b == 0x7F)
         {
             *puNumBytesRead = i;
+            rc = 0;
     	    break;
     	}
+
+    	/* Store the data byte read */
+    	*pBuffer++ = b;
     }    
     
     return rc;
@@ -236,7 +284,7 @@ int ReceiveCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
 //
 //*****************************************************************************
 
-int SendResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite)
+int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite)
 {
 	uint8_t b;
 
@@ -245,22 +293,22 @@ int SendResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_
     UART_write(handle, &b, 1);
     
     /* Write the 0x7F Preamble */      
-    b = 0x74;
+    b = 0x7F;
     UART_write(handle, &b, 1);
 
     /* Write the Device ID */
     b = byDeviceID;
     UART_write(handle, &b, 1);
 
-    /* Read the MCR ID byte */
-    b = 0x07;
+    /* Write the MCR (motion control response) byte */
+    b = MIDI_MCR;
     UART_write(handle, &b, 1);
 
     /* Write the user response data */
    	if (UART_write(handle, &b, uNumBytesToWrite) != uNumBytesToWrite)
    		return -1;
 
-   	/* Write the response packet termination indictor byte */
+   	/* Write the response packet termination indicator byte */
     b = 0x7F;
     UART_write(handle, &b, 1);
 
