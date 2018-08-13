@@ -92,7 +92,7 @@ static Hwi_Struct qeiHwiStruct;
 
 void InitQEI(void);
 void btime(const uint32_t time, uint8_t sign, TAPETIME* p);
-void Write7SegDisplay(SPI_Handle handle, uint8_t cmd, uint8_t data);
+void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 
 static Void QEIHwi(UArg arg);
 
@@ -103,8 +103,8 @@ static Void QEIHwi(UArg arg);
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
 	uint8_t sign;
-	SPI_Handle spiHandle;
-	SPI_Params spiParams;
+	UART_Params uartParams;
+	UART_Handle uartHandle;
 
 	/* Initialize the quadrature encoder module */
 	InitQEI();
@@ -116,25 +116,23 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	/* Tape direction output pin */
 	GPIO_write(Board_TAPE_DIR, PIN_HIGH);
 
-	/* Configure and open the SPI port to the Atmega88
-	 * 7-segment display multiplex driver.
-	 */
-	SPI_Params_init(&spiParams);
+	UART_Params_init(&uartParams);
 
-	spiParams.transferMode	= SPI_MODE_BLOCKING;
-	spiParams.mode 			= SPI_MASTER;
-	spiParams.frameFormat 	= SPI_POL0_PHA0;
-	spiParams.bitRate 		= 100000;
-	spiParams.dataSize 		= 8;
+	uartParams.readMode       = UART_MODE_BLOCKING;
+	uartParams.writeMode      = UART_MODE_BLOCKING;
+	uartParams.readTimeout    = 1000;					// 1 second read timeout
+	uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
+	uartParams.readCallback   = NULL;
+	uartParams.writeCallback  = NULL;
+	uartParams.readReturnMode = UART_RETURN_FULL;
+	uartParams.writeDataMode  = UART_DATA_BINARY;
+	uartParams.readDataMode   = UART_DATA_BINARY;
+	uartParams.readEcho       = UART_ECHO_OFF;
+	uartParams.baudRate       = 9600;		//115200;
+	uartParams.stopBits       = UART_STOP_ONE;
+	uartParams.parityType     = UART_PAR_NONE;
 
-	/* Deassert SS to Atmega */
-	GPIO_write(STC1200_AVR_SS, PIN_HIGH);
-
-	/* Open SPI driver to the IO Expander */
-	if ((spiHandle = SPI_open(Board_SPI_AVR, &spiParams)) == NULL)
-	{
-		System_abort("Error opening SPI port to ATMEGA88\n");
-	}
+	uartHandle = UART_open(Board_UART_ATMEGA88, &uartParams);
 
 	/* This is the main tape position/counter task. Here we read the tape
 	 * roller quadrature encoder to keep track of the absolute tape position.
@@ -243,10 +241,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	btime(seconds, sign, &g_sysData.tapeTime);
 
     	/* Refresh the 7-segment display with the new values */
-    	Write7SegDisplay(spiHandle, 0x00, g_sysData.tapeTime.secs);
-    	Write7SegDisplay(spiHandle, 0x01, g_sysData.tapeTime.mins);
-    	Write7SegDisplay(spiHandle, 0x02, g_sysData.tapeTime.hour);
-    	Write7SegDisplay(spiHandle, 0x03, g_sysData.tapeTime.sign);
+    	Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
     }
 }
 
@@ -362,33 +357,37 @@ void btime(const uint32_t time, uint8_t sign, TAPETIME* p)
 //
 //*****************************************************************************
 
-void Write7SegDisplay(SPI_Handle handle, uint8_t cmd, uint8_t data)
+void Write7SegDisplay(UART_Handle handle, TAPETIME* p)
 {
-	uint8_t ulWord;
-	uint8_t ulReply = 0;
-	bool transferOK;
-	SPI_Transaction masterTransaction;
+	uint16_t data;
 
-    /* Setup 16-bit word to write to Atmega */
+	/* Read two bytes from the UART for a 16-bit word. This
+	 * word specifies the sign, hour, minutes and seconds to
+	 * display on the 7-segment H:MM:SS display with sign.
+	 *
+	 *    S (bits 1-6)     Specifies the SECONDS (0-59).
+	 *    M (bits 7-12)    Specifies the MINUTES (0-59).
+	 *    H (bit 13)       Specifies the HOUR digit (0 or 1).
+	 *    N (bit 16)       Specifies the SIGN as negative.
+	 *
+	 *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 *    |N|0|0|H|M|M|M|M|M|M|S|S|S|S|S|S|
+	 *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+	 */
 
-    ulWord = (uint8_t)cmd << 4 | data;
+	/* Encode seconds/minutes bit values */
+	data = ((uint16_t)(p->secs & 0x3F)) | (((uint16_t)(p->mins & 0x3F)) << 6);
 
-	masterTransaction.count = sizeof(uint8_t);
-	masterTransaction.txBuf = (Ptr)ulWord;
-	masterTransaction.rxBuf = (Ptr)ulReply;
+	/* set hour segment value */
+	if (p->hour)
+		data |= 0x400;
 
-	/* Assert SS to Atmega */
-	GPIO_write(Board_AVR_SS, PIN_LOW);
+	/* set plus segment value */
+	if (p->sign)
+		data |= 0x8000;
 
-	/* Write the 16-bit data to the Atmega */
-	transferOK = SPI_transfer(handle, &masterTransaction);
-
-	/* Deassert SS to Atmega */
-	GPIO_write(Board_AVR_SS, PIN_HIGH);
-
-	if (!transferOK) {
-	    System_printf("Unsuccessful master SPI transfer to DAC");
-	}
+	/* Write the 16-bit word to the UART */
+	UART_write(handle, &data, 2);
 }
 
 /* End-Of-File */

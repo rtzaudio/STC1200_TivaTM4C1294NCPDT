@@ -115,7 +115,7 @@ int main(void)
     GrOffScreenMonoInit();
 
     /* Deassert the Atmega88 reset line */
-    GPIO_write(Board_AVR_RESET_N, PIN_HIGH);
+    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
 
     GPIO_write(Board_TAPE_DIR, PIN_HIGH);
     GPIO_write(Board_MOTION_FWD, PIN_HIGH);
@@ -171,63 +171,6 @@ int main(void)
     BIOS_start();
 
     return (0);
-}
-
-//*****************************************************************************
-// This function attempts to ready the unique serial number
-// from the I2C
-//*****************************************************************************
-
-int ReadSerialNumber(uint8_t ui8SerialNumber[16])
-{
-	bool			ret;
-	uint8_t			txByte;
-	I2C_Handle      handle;
-	I2C_Params      params;
-	I2C_Transaction i2cTransaction;
-
-    /* default invalid serial number is all FF's */
-    memset(ui8SerialNumber, 0xFF, sizeof(ui8SerialNumber));
-
-	I2C_Params_init(&params);
-
-	params.transferCallbackFxn = NULL;
-	params.transferMode = I2C_MODE_BLOCKING;
-	params.bitRate = I2C_100kHz;
-
-	handle = I2C_open(Board_I2C_AT24CS01, &params);
-
-	if (!handle) {
-		System_printf("I2C did not open\n");
-		System_flush();
-		return 0;
-	}
-
-	/* Note the Upper bit of the word address must be set
-	 * in order to read the serial number. Thus 80H would
-	 * set the starting address to zero prior to reading
-	 * this sixteen bytes of serial number data.
-	 */
-
-	txByte = 0x80;
-
-	i2cTransaction.slaveAddress = Board_AT24CS01_SERIAL_ADDR;
-	i2cTransaction.writeBuf     = &txByte;
-	i2cTransaction.writeCount   = 1;
-	i2cTransaction.readBuf      = ui8SerialNumber;
-	i2cTransaction.readCount    = 16;
-
-	ret = I2C_transfer(handle, &i2cTransaction);
-
-	if (!ret)
-	{
-		System_printf("Unsuccessful I2C transfer\n");
-		System_flush();
-	}
-
-	I2C_close(handle);
-
-	return ret;
 }
 
 //*****************************************************************************
@@ -407,6 +350,64 @@ void gpioButtonRew(void)
 
     GPIO_clearInt(Board_REW_N);
 }
+
+//*****************************************************************************
+// This function attempts to ready the unique serial number
+// from the I2C
+//*****************************************************************************
+
+int ReadSerialNumber(uint8_t ui8SerialNumber[16])
+{
+	bool			ret;
+	uint8_t			txByte;
+	I2C_Handle      handle;
+	I2C_Params      params;
+	I2C_Transaction i2cTransaction;
+
+    /* default invalid serial number is all FF's */
+    memset(ui8SerialNumber, 0xFF, sizeof(ui8SerialNumber));
+
+	I2C_Params_init(&params);
+
+	params.transferCallbackFxn = NULL;
+	params.transferMode = I2C_MODE_BLOCKING;
+	params.bitRate = I2C_100kHz;
+
+	handle = I2C_open(Board_I2C_AT24CS01, &params);
+
+	if (!handle) {
+		System_printf("I2C did not open\n");
+		System_flush();
+		return 0;
+	}
+
+	/* Note the Upper bit of the word address must be set
+	 * in order to read the serial number. Thus 80H would
+	 * set the starting address to zero prior to reading
+	 * this sixteen bytes of serial number data.
+	 */
+
+	txByte = 0x80;
+
+	i2cTransaction.slaveAddress = Board_AT24CS01_SERIAL_ADDR;
+	i2cTransaction.writeBuf     = &txByte;
+	i2cTransaction.writeCount   = 1;
+	i2cTransaction.readBuf      = ui8SerialNumber;
+	i2cTransaction.readCount    = 16;
+
+	ret = I2C_transfer(handle, &i2cTransaction);
+
+	if (!ret)
+	{
+		System_printf("Unsuccessful I2C transfer\n");
+		System_flush();
+	}
+
+	I2C_close(handle);
+
+	return ret;
+}
+
 //*****************************************************************************
 // Set default runtime values
 //*****************************************************************************

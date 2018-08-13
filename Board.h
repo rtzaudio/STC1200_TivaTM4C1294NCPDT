@@ -58,10 +58,10 @@ extern "C" {
 
 #define Board_I2C_AT24CS01          STC1200_I2C0
 
-#define Board_SPI_AVR				STC1200_SPI0
 #define Board_SPI_SDCARD          	STC1200_SDSPI1
+#define Board_SPI_EXPIO_SSI0       	STC1200_SPI0
 #define Board_SPI_S25FL127        	STC1200_SPI2
-#define Board_SPI_EXPIO             STC1200_SPI3
+#define Board_SPI_EXPIO_SIO3        STC1200_SPI3
 
 #define Board_UART_RS232_DTC1200	STC1200_UART0
 #define Board_UART_RS232_COM1       STC1200_UART1
@@ -78,19 +78,20 @@ extern "C" {
 
 /* GPIO Pin Definitions */
 
-#define Board_AVR_SS				STC1200_AVR_SS
-#define Board_AVR_RESET_N			STC1200_AVR_RESET_N
-
+#define Board_RESET_AVR_N			STC1200_RESET_AVR_N
+#define Board_RESET_BL652			STC1200_RESET_BL652
+#define Board_AIRLOAD				STC1200_AIRLOAD
+#define Board_AUTORUN_N				STC1200_AUTORUN_N
 #define Board_STAT_LED				STC1200_STAT_LED
 
-#define Board_EXPIO_PIN_7			STC1200_EXPIO_PD4
-#define Board_EXPIO_PIN_9			STC1200_EXPIO_PD5
-#define Board_EXPIO_PIN_11			STC1200_EXPIO_PK2
-#define Board_EXPIO_PIN_12			STC1200_EXPIO_PP2
-#define Board_EXPIO_PIN_13			STC1200_EXPIO_PK3
-#define Board_EXPIO_PIN_14			STC1200_EXPIO_PP3
-#define Board_EXPIO_PIN_15			STC1200_EXPIO_PP5
-#define Board_EXPIO_PIN_16			STC1200_EXPIO_PP4
+#define Board_EXPIO_PD4				STC1200_EXPIO_PD4
+#define Board_EXPIO_PD5				STC1200_EXPIO_PD5
+#define Board_EXPIO_PP2				STC1200_EXPIO_PP2
+#define Board_EXPIO_PP3				STC1200_EXPIO_PP3
+#define Board_EXPIO_PP4				STC1200_EXPIO_PP4
+#define Board_EXPIO_PP5				STC1200_EXPIO_PP5
+#define Board_EXPIO_PK2				STC1200_EXPIO_PK2
+#define Board_EXPIO_PK3				STC1200_EXPIO_PK3
 
 #define Board_RS422_RE_N			STC1200_RS422_RE_N
 #define Board_RS422_DE				STC1200_RS422_DE
@@ -99,11 +100,6 @@ extern "C" {
 #define Board_BTN_CUE				STC1200_BTN_CUE
 #define Board_BTN_SEARCH			STC1200_BTN_SEARCH
 
-#define Board_DIPSW_CFG1			STC1200_DIPSW_CFG1
-#define Board_DIPSW_CFG2			STC1200_DIPSW_CFG2
-#define Board_DIPSW_CFG3			STC1200_DIPSW_CFG3
-#define Board_DIPSW_CFG4			STC1200_DIPSW_CFG4
-
 #define Board_STOP_DETECT_N			STC1200_STOP_DETECT_N
 #define Board_PLAY_DETECT_N			STC1200_PLAY_DETECT_N
 
@@ -111,6 +107,9 @@ extern "C" {
 #define Board_PLAY_N				STC1200_PLAY_N
 #define Board_FWD_N					STC1200_FWD_N
 #define Board_REW_N					STC1200_REW_N
+
+#define Board_DIPSW_CFG1			STC1200_DIPSW_CFG1
+#define Board_DIPSW_CFG2			STC1200_DIPSW_CFG2
 
 #define Board_MOTION_REW			STC1200_MOTION_REW
 #define Board_MOTION_FWD			STC1200_MOTION_FWD
