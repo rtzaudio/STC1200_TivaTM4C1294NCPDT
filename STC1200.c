@@ -193,7 +193,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /*
      * Create the display task priority 15
      */
-
+#if 0
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
@@ -205,7 +205,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.stackSize = 1024;
     taskParams.priority  = 12;
     Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
-
+#endif
     /* Now begin the main program command task processing loop */
 
     while (true)
