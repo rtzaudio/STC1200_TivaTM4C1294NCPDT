@@ -83,6 +83,7 @@ typedef struct CommandMessage {
 //*****************************************************************************
 
 int main(void);
+void EnableClockDivOutput(uint32_t div);
 Void CommandTaskFxn(UArg arg0, UArg arg1);
 int ReadSerialNumber(uint8_t ui8SerialNumber[16]);
 

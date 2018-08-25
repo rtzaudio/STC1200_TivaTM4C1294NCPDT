@@ -68,8 +68,14 @@
 #include <stdbool.h>
 
 /* Tivaware Driver files */
+#include <inc/hw_memmap.h>
+#include <inc/hw_gpio.h>
 #include <driverlib/eeprom.h>
 #include <driverlib/sysctl.h>
+#include <driverlib/gpio.h>
+#include <driverlib/pin_map.h>
+#include <driverlib/sysctl.h>
+#include <driverlib/fpu.h>
 
 /* Graphiclib Header file */
 #include <grlib/grlib.h>
@@ -79,6 +85,7 @@
 #include "Board.h"
 #include "DisplayTask.h"
 #include "RemoteTask.h"
+#include "PositionTask.h"
 #include "STC1200.h"
 
 /* Global STC-1200 System data */
@@ -111,11 +118,16 @@ int main(void)
     Board_initUART();
     Board_initEMAC();
 
+    /* Enables Floating Point Hardware Unit */
+    FPUEnable();
+    /* Allows the FPU to be used inside interrupt service routines */
+    //FPULazyStackingEnable();
+
     /* Initialize a 1 BPP off-screen OLED display buffer that will draw into */
     GrOffScreenMonoInit();
 
     /* Deassert the Atmega88 reset line */
-    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
+    //GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
 
     GPIO_write(Board_TAPE_DIR, PIN_HIGH);
     GPIO_write(Board_MOTION_FWD, PIN_HIGH);
@@ -123,6 +135,10 @@ int main(void)
 
     /* Turn on the status LED */
     GPIO_write(Board_STAT_LED, Board_LED_ON);
+
+    /* Turn off the play and shuttle lamps */
+    GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
+    GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
 
     /* Deassert the RS-422 DE & RE pins */
     GPIO_write(Board_RS422_DE, PIN_LOW);
@@ -136,6 +152,13 @@ int main(void)
     GPIO_enableInt(Board_FWD_N, GPIO_INT_RISING);
     GPIO_enableInt(Board_REW_N, GPIO_INT_RISING);
 #endif
+
+    /* This enables the DIVSCLK output pin on PQ4
+     * and generates a 1.2 Mhz clock signal on the.
+     * expansion header and pin 16 of the edge
+     * connector if a clock signal is required.
+     */
+    //EnableClockDivOutput(100);
 
     /* Create interrupt signal event */
     Error_init(&eb);
@@ -174,6 +197,24 @@ int main(void)
 }
 
 //*****************************************************************************
+// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
+// from the main cpu clock divided by 'div' parameter. A value of 100 gives
+// a clock of 1.2 Mhz.
+//*****************************************************************************
+
+void EnableClockDivOutput(uint32_t div)
+{
+    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
+    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
+
+    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
+
+    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+
+    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
+}
+
+//*****************************************************************************
 // This function attempts to ready the unique serial number
 // from the I2C
 //*****************************************************************************
@@ -191,8 +232,15 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     }
 
     /*
-     * Create the display task priority 15
+     * Create the various system tasks
      */
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 14;
+    Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
+
 #if 0
     Error_init(&eb);
     Task_Params_init(&taskParams);
@@ -206,6 +254,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.priority  = 12;
     Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
 #endif
+
     /* Now begin the main program command task processing loop */
 
     while (true)

@@ -161,7 +161,6 @@ void STC1200_initGeneral(void)
     GPIOPinConfigure(GPIO_PL2_PHB0);
     GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_2);
 }
-
 /*
  *  =============================== EMAC ===============================
  */
@@ -351,11 +350,11 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
     /* STC1200_TAPE_DIR */
     GPIOTiva_PQ_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
     /* STC1200_LAMP_PLAY */
-    GPIOTiva_PQ_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
+    GPIOTiva_PQ_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
     /* STC1200_LAMP_FWDREW */
-    GPIOTiva_PL_0 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
+    GPIOTiva_PL_0 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
     /* STC1200_STAT_LED */
-    GPIOTiva_PF_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
+    GPIOTiva_PF_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
 };
 
 /*
@@ -464,10 +463,6 @@ void STC1200_initGPIO(void)
     // Enable pin PQ2 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_2);
 
-    // Enable pin PQ4 for DIVSCLK0 DIVSCLK
-    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
-    GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_4);
-    
 	/* Once GPIO_init is called, GPIO_config cannot be changed */
     GPIO_init();
 }

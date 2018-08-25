@@ -22,10 +22,10 @@
  */
 #define ROLLER_TICKS_PER_REV        80
 
-/* This is the maxium signed position value we can have. Anything past
+/* This is the maximum signed position value we can have. Anything past
  * this is treated as a negative position value.
  */
-#define MAX_ROLLER_POSITION			0x7FFFFFFF
+#define MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 

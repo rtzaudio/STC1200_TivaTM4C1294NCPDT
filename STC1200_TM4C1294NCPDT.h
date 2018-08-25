@@ -52,11 +52,15 @@ extern "C" {
 #include <ti/drivers/GPIO.h>
 
 /* LEDs on STC1200 are active high. */
-#define STC1200_LED_OFF	( 0)
-#define STC1200_LED_ON	(~0)
+#define STC1200_LED_OFF		( 0)
+#define STC1200_LED_ON		(~0)
 
-#define PIN_LOW			( 0)
-#define PIN_HIGH		(~0)
+/* Lamps on STC1200 are active high. */
+#define STC1200_LAMP_OFF	( 0)
+#define STC1200_LAMP_ON		(~0)
+
+#define PIN_LOW				( 0)
+#define PIN_HIGH			(~0)
 
 /*** Hardware Constants ****************************************************/
 

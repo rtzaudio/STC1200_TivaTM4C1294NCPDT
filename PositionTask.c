@@ -1,4 +1,14 @@
-/*
+/* ============================================================================
+ *
+ * STC-1200 Search/Timer/Comm Controller for Ampex MM-1200 Tape Machines
+ *
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ * ============================================================================
+ *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -128,7 +138,8 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	uartParams.writeDataMode  = UART_DATA_BINARY;
 	uartParams.readDataMode   = UART_DATA_BINARY;
 	uartParams.readEcho       = UART_ECHO_OFF;
-	uartParams.baudRate       = 9600;		//115200;
+	uartParams.dataLength	  = UART_LEN_8;
+	uartParams.baudRate       = 250000;	//38400;
 	uartParams.stopBits       = UART_STOP_ONE;
 	uartParams.parityType     = UART_PAR_NONE;
 
@@ -145,11 +156,12 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for any ISR events to be posted */
-    	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 100);
+    	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 25);
 
     	if (events & Event_Id_00)
     	{
-
+    		System_printf("QEI Phase Error: %d\n", g_sysData.qei_error_cnt);
+    		System_flush();
     	}
 
     	/* Read the tape direction status from the QEI controller */
@@ -164,41 +176,50 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     		GPIO_write(Board_TAPE_DIR, PIN_LOW);
 
     	/* Read the absolute position from the QEI controller */
-    	int nPos = (int32_t)QEIPositionGet(QEI_BASE_ROLLER);
+    	uint32_t pos = QEIPositionGet(QEI_BASE_ROLLER);
+    	int npos;
 
     	/* Check for max position wrap around to negative */
-    	if (nPos >= MAX_ROLLER_POSITION)
+    	if (pos >= (MAX_ROLLER_POSITION / 2))
     	{
-    		nPos = nPos - MAX_ROLLER_POSITION;
-    		sign = 0x01;
+    		sign = 0x00;
+    		npos = pos - (int)MAX_ROLLER_POSITION;
+        	g_sysData.tapePosition = npos;
     	}
     	else
     	{
-    		sign = 0x00;
+    		sign = 0x01;
+    		npos = (int)pos;
+        	g_sysData.tapePosition = npos;
     	}
-
-    	/* Save the signed position value */
-    	g_sysData.tapePosition = nPos;
 
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,
     	 * then we assume tape is moving and set the motion indicator outputs accordingly.
     	 */
 
-    	if (g_sysData.tapePosition != g_sysData.tapePositionPrev)
-    	{
-    		if (g_sysData.tapeDirection > 0)
-    			GPIO_write(Board_MOTION_FWD, PIN_LOW);
-    	    else
-    	    	GPIO_write(Board_MOTION_REW, PIN_LOW);
-
-    		/* Update the previous position */
-        	g_sysData.tapePositionPrev = g_sysData.tapePosition;
-    	}
-    	else
+    	if (g_sysData.tapePosition == g_sysData.tapePositionPrev)
     	{
 			GPIO_write(Board_MOTION_FWD, PIN_HIGH);
 	    	GPIO_write(Board_MOTION_REW, PIN_HIGH);
+	    	continue;
+    	}
+
+    	/* Position Changed - Update the previous position */
+        g_sysData.tapePositionPrev = g_sysData.tapePosition;
+
+        /* Update the direction outputs to the old Ampex controller */
+    	if (g_sysData.tapeDirection > 0)
+    	{
+    		// FWD pin low - active direction
+    		GPIO_write(Board_MOTION_FWD, PIN_LOW);
+    		GPIO_write(Board_MOTION_REW, PIN_HIGH);
+    	}
+    	else
+    	{
+    		// REW pin low - active direction
+    	   	GPIO_write(Board_MOTION_REW, PIN_LOW);
+    		GPIO_write(Board_MOTION_FWD, PIN_HIGH);
     	}
 
     	/* The MM1200 timer-counter roller wheel measures closely to 1.592”
@@ -222,8 +243,11 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	 *     time = (distance inches / 30 inches) * second
 	     */
 
+    	System_printf("%d\n", g_sysData.tapePosition);
+    	System_flush();
+
     	/* Get the current encoder position */
-    	float position = fabsf((float)nPos);
+    	float position = fabsf((float)npos);
 
     	/* Calculate the number of revolutions from the position */
     	float revolutions = position / (float)ROLLER_TICKS_PER_REV;
@@ -234,7 +258,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Get the current speed setting */
     	float speed = GPIO_read(Board_SPEED_SELECT) ? 30.0f : 15.0f;
     	    
-    	/* Calculate the time in secsonds from the distance and speed */
+    	/* Calculate the time in seconds from the distance and speed */
     	uint32_t seconds = (uint32_t)(distance / speed);
 
     	/* Convert the total seconds value into binary HH:MM:SS values */
@@ -243,58 +267,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Refresh the 7-segment display with the new values */
     	Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
     }
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-void InitQEI(void)
-{
-	Error_Block eb;
-	Hwi_Params  hwiParams;
-	
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_QEI0);
-
-	/* Enable pin PL3 for QEI0 IDX0 */
-	GPIOPinConfigure(GPIO_PL3_IDX0);
-	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_3);
-
-	/* Enable pin PL1 for QEI0 PHA0 */
-	GPIOPinConfigure(GPIO_PL1_PHA0);
-	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_1);
-
-	/* Enable pin PL2 for QEI0 PHB0 */
-	GPIOPinConfigure(GPIO_PL2_PHB0);
-	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_2);
-
-	/* Configure the quadrature encoder to capture edges on both signals and
-	 * maintain an absolute position by resetting on index pulses. Using a
-	 * 360 CPR encoder at four edges per line, there are 1440 pulses per
-	 * revolution; therefore set the maximum position to 1439 since the
-	 * count is zero based.
-	 */
-
-	QEIConfigure(QEI_BASE_ROLLER,
-			(QEI_CONFIG_CAPTURE_A | QEI_CONFIG_NO_RESET | 
-			 QEI_CONFIG_QUADRATURE | QEI_CONFIG_NO_SWAP),
-			 MAX_ROLLER_POSITION);
-
-	QEIPositionSet(QEI_BASE_ROLLER, 0);
-
-	/* Enable both quadrature encoder interfaces */
-	QEIEnable(QEI_BASE_ROLLER);
-
-	/* Construct hwi object for quadrature encoder interface */
-	Error_init(&eb);
-    Hwi_Params_init(&hwiParams);
-    Hwi_construct(&(qeiHwiStruct), INT_QEI0, QEIHwi, &hwiParams, &eb);
-    if (Error_check(&eb)) {
-        System_abort("Couldn't construct QEI hwi");
-    }
-
-    /* Enable the QEI interrupts */
-	QEIIntEnable(QEI_BASE_ROLLER, QEI_INTERROR|QEI_INTDIR|QEI_INTTIMER|QEI_INTINDEX);
 }
 
 /*****************************************************************************
@@ -336,8 +308,60 @@ Void QEIHwi(UArg arg)
     QEIIntEnable(QEI_BASE_ROLLER, ulIntStat);
 }
 
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void InitQEI(void)
+{
+	Error_Block eb;
+	Hwi_Params  hwiParams;
+
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_QEI0);
+
+	/* Enable pin PL3 for QEI0 IDX0 */
+	GPIOPinConfigure(GPIO_PL3_IDX0);
+	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_3);
+
+	/* Enable pin PL1 for QEI0 PHA0 */
+	GPIOPinConfigure(GPIO_PL1_PHA0);
+	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_1);
+
+	/* Enable pin PL2 for QEI0 PHB0 */
+	GPIOPinConfigure(GPIO_PL2_PHB0);
+	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_2);
+
+	/* Configure the quadrature encoder to capture edges on both signals and
+	 * maintain an absolute position by resetting on index pulses. Using a
+	 * 360 CPR encoder at four edges per line, there are 1440 pulses per
+	 * revolution; therefore set the maximum position to 1439 since the
+	 * count is zero based.
+	 */
+
+	QEIConfigure(QEI_BASE_ROLLER,
+			(QEI_CONFIG_CAPTURE_A | QEI_CONFIG_NO_RESET |
+			 QEI_CONFIG_QUADRATURE | QEI_CONFIG_SWAP),
+			 MAX_ROLLER_POSITION);
+
+	QEIPositionSet(QEI_BASE_ROLLER, 0);
+
+	/* Enable both quadrature encoder interfaces */
+	QEIEnable(QEI_BASE_ROLLER);
+
+	/* Construct hwi object for quadrature encoder interface */
+	Error_init(&eb);
+    Hwi_Params_init(&hwiParams);
+    Hwi_construct(&(qeiHwiStruct), INT_QEI0, QEIHwi, &hwiParams, &eb);
+    if (Error_check(&eb)) {
+        System_abort("Couldn't construct QEI hwi");
+    }
+
+    /* Enable the QEI interrupts */
+	QEIIntEnable(QEI_BASE_ROLLER, QEI_INTERROR|QEI_INTDIR|QEI_INTTIMER|QEI_INTINDEX);
+}
+
 /****************************************************************************
- * This function takes a 32-bit time value, in total seconds, and
+ * This function takes a 32-bit time value in total seconds and
  * calculates the hours, minutes and seconds members.
  ***************************************************************************/
 
@@ -359,35 +383,54 @@ void btime(const uint32_t time, uint8_t sign, TAPETIME* p)
 
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p)
 {
-	uint16_t data;
+	uint8_t	 b;
+	uint16_t csum;
 
-	/* Read two bytes from the UART for a 16-bit word. This
-	 * word specifies the sign, hour, minutes and seconds to
-	 * display on the 7-segment H:MM:SS display with sign.
+    /* Write a display packet of data to the UART. The display
+     * packet is composed in the following form.
 	 *
-	 *    S (bits 1-6)     Specifies the SECONDS (0-59).
-	 *    M (bits 7-12)    Specifies the MINUTES (0-59).
-	 *    H (bit 13)       Specifies the HOUR digit (0 or 1).
-	 *    N (bit 16)       Specifies the SIGN as negative.
-	 *
-	 *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-	 *    |N|0|0|H|M|M|M|M|M|M|S|S|S|S|S|S|
-	 *    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     *    Byte   Description
+	 *    ----   -------------------------------------
+     *    [0]    Preamble 1, must be 0x89
+	 *    [1]    Preamble 2, must be 0xFC
+     *    [2]    The SECONDS (0-59)
+	 *    [3]    The MINUTES (0-59)
+     *    [4]    The HOUR digit (0 or 1)
+     *    [5]    The SIGN (negative if non-zero)
+     *    [6]    8-Bit Checksum
 	 */
 
-	/* Encode seconds/minutes bit values */
-	data = ((uint16_t)(p->secs & 0x3F)) | (((uint16_t)(p->mins & 0x3F)) << 6);
+	/* Write the 0x89 and 0xFC preamble bytes out */
 
-	/* set hour segment value */
-	if (p->hour)
-		data |= 0x400;
+	b = 0x89;
+	UART_write(handle, &b, 1);
 
-	/* set plus segment value */
-	if (p->sign)
-		data |= 0x8000;
+	b = 0xFC;
+	UART_write(handle, &b, 1);
 
-	/* Write the 16-bit word to the UART */
-	UART_write(handle, &data, 2);
+	/* Write the secs, mins, hour & sign values out */
+
+	csum = 0;
+
+	b = p->secs;
+	csum += b;
+	UART_write(handle, &b, 1);
+
+	b = p->mins;
+	csum += b;
+	UART_write(handle, &b, 1);
+
+	b = p->hour;
+	csum += b;
+	UART_write(handle, &b, 1);
+
+	b = p->sign;
+	csum += b;
+	UART_write(handle, &b, 1);
+
+	/* Write the 8 checksum values out */
+	b = csum & 0xFF;
+	UART_write(handle, &b, 1);
 }
 
 /* End-Of-File */

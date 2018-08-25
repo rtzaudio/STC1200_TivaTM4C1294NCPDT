@@ -56,6 +56,9 @@ extern "C" {
 #define Board_LED_ON                STC1200_LED_ON
 #define Board_LED_OFF               STC1200_LED_OFF
 
+#define Board_LAMP_ON               STC1200_LAMP_ON
+#define Board_LAMP_OFF              STC1200_LAMP_OFF
+
 #define Board_I2C_AT24CS01          STC1200_I2C0
 
 #define Board_SPI_SDCARD          	STC1200_SDSPI1
@@ -83,6 +86,8 @@ extern "C" {
 #define Board_AIRLOAD				STC1200_AIRLOAD
 #define Board_AUTORUN_N				STC1200_AUTORUN_N
 #define Board_STAT_LED				STC1200_STAT_LED
+#define Board_LAMP_PLAY				STC1200_LAMP_PLAY
+#define Board_LAMP_FWDREW			STC1200_LAMP_FWDREW
 
 #define Board_EXPIO_PD4				STC1200_EXPIO_PD4
 #define Board_EXPIO_PD5				STC1200_EXPIO_PD5
