@@ -29,6 +29,7 @@
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
+void PositionReset(void);
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 
 #endif /* __POSITIONTASK_H */

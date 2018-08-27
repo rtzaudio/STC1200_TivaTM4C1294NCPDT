@@ -101,18 +101,31 @@ static Hwi_Struct qeiHwiStruct;
 /* Static Function Prototypes */
 
 void InitQEI(void);
-void btime(const uint32_t time, uint8_t sign, TAPETIME* p);
+void btime(const uint32_t time, uint8_t flags, TAPETIME* p);
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 
 static Void QEIHwi(UArg arg);
 
+/*****************************************************************************
+ * Reset the QEI position to ZERO.
+ *****************************************************************************/
+
+void PositionReset(void)
+{
+	QEIPositionSet(QEI_BASE_ROLLER, 0);
+}
+
 //*****************************************************************************
-//
+// Position reader/display task. This function reads the tape roller
+// quadrature encoder and stores the current position data. The 7-segement
+// tape position display is also updated via the task so the current tape
+// position is always being shown on the machine's display on the transport.
 //*****************************************************************************
 
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
-	uint8_t sign;
+	int ipos;
+	uint8_t flags = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
 
@@ -176,21 +189,20 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     		GPIO_write(Board_TAPE_DIR, PIN_LOW);
 
     	/* Read the absolute position from the QEI controller */
-    	uint32_t pos = QEIPositionGet(QEI_BASE_ROLLER);
-    	int npos;
+    	g_sysData.tapePositionAbs = QEIPositionGet(QEI_BASE_ROLLER);
 
-    	/* Check for max position wrap around to negative */
-    	if (pos >= (MAX_ROLLER_POSITION / 2))
+    	/* Check for max position wrap around if negative position */
+    	if (g_sysData.tapePositionAbs >= ((MAX_ROLLER_POSITION / 2) + 1))
     	{
-    		sign = 0x00;
-    		npos = pos - (int)MAX_ROLLER_POSITION;
-        	g_sysData.tapePosition = npos;
+    		flags &= ~(F_PLUS);
+    		ipos = (int)g_sysData.tapePositionAbs - (int)MAX_ROLLER_POSITION;
+        	g_sysData.tapePosition = ipos;
     	}
     	else
     	{
-    		sign = 0x01;
-    		npos = (int)pos;
-        	g_sysData.tapePosition = npos;
+    		flags |= F_PLUS;
+    		ipos = (int)g_sysData.tapePositionAbs;
+        	g_sysData.tapePosition = ipos;
     	}
 
     	/* Here we're determining if any motion is present by looking at the previous
@@ -202,24 +214,28 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	{
 			GPIO_write(Board_MOTION_FWD, PIN_HIGH);
 	    	GPIO_write(Board_MOTION_REW, PIN_HIGH);
-	    	continue;
-    	}
-
-    	/* Position Changed - Update the previous position */
-        g_sysData.tapePositionPrev = g_sysData.tapePosition;
-
-        /* Update the direction outputs to the old Ampex controller */
-    	if (g_sysData.tapeDirection > 0)
-    	{
-    		// FWD pin low - active direction
-    		GPIO_write(Board_MOTION_FWD, PIN_LOW);
-    		GPIO_write(Board_MOTION_REW, PIN_HIGH);
     	}
     	else
     	{
-    		// REW pin low - active direction
-    	   	GPIO_write(Board_MOTION_REW, PIN_LOW);
-    		GPIO_write(Board_MOTION_FWD, PIN_HIGH);
+			/* Position Changed - Update the previous position */
+			g_sysData.tapePositionPrev = g_sysData.tapePosition;
+
+			/* Update the direction outputs to the old Ampex controller */
+			if (g_sysData.tapeDirection > 0)
+			{
+				// FWD pin low - active direction
+				GPIO_write(Board_MOTION_FWD, PIN_LOW);
+				GPIO_write(Board_MOTION_REW, PIN_HIGH);
+			}
+			else
+			{
+				// REW pin low - active direction
+				GPIO_write(Board_MOTION_REW, PIN_LOW);
+				GPIO_write(Board_MOTION_FWD, PIN_HIGH);
+			}
+
+	    	//System_printf("%d\n", g_sysData.tapePosition);
+	    	//System_flush();
     	}
 
     	/* The MM1200 timer-counter roller wheel measures closely to 1.592”
@@ -243,11 +259,8 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	 *     time = (distance inches / 30 inches) * second
 	     */
 
-    	System_printf("%d\n", g_sysData.tapePosition);
-    	System_flush();
-
     	/* Get the current encoder position */
-    	float position = fabsf((float)npos);
+    	float position = fabsf((float)ipos);
 
     	/* Calculate the number of revolutions from the position */
     	float revolutions = position / (float)ROLLER_TICKS_PER_REV;
@@ -262,7 +275,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	uint32_t seconds = (uint32_t)(distance / speed);
 
     	/* Convert the total seconds value into binary HH:MM:SS values */
-    	btime(seconds, sign, &g_sysData.tapeTime);
+    	btime(seconds, flags, &g_sysData.tapeTime);
 
     	/* Refresh the 7-segment display with the new values */
     	Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
@@ -367,14 +380,14 @@ void InitQEI(void)
 
 #define SECS_DAY    (24L * 60L * 60L)
 
-void btime(const uint32_t time, uint8_t sign, TAPETIME* p)
+void btime(const uint32_t time, uint8_t flags, TAPETIME* p)
 {
     uint32_t dayclock = time % SECS_DAY;
 
-    p->secs = (uint8_t)(dayclock % 60);
-    p->mins = (uint8_t)((dayclock % 3600) / 60);
-    p->hour = (uint8_t)(dayclock / 3600);
-    p->sign = sign;
+    p->secs  = (uint8_t)(dayclock % 60);
+    p->mins  = (uint8_t)((dayclock % 3600) / 60);
+    p->hour  = (uint8_t)(dayclock / 3600);
+    p->flags = flags;
 }
 
 //*****************************************************************************
@@ -384,7 +397,7 @@ void btime(const uint32_t time, uint8_t sign, TAPETIME* p)
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p)
 {
 	uint8_t	 b;
-	uint16_t csum;
+	uint16_t csum = 0;
 
     /* Write a display packet of data to the UART. The display
      * packet is composed in the following form.
@@ -396,7 +409,7 @@ void Write7SegDisplay(UART_Handle handle, TAPETIME* p)
      *    [2]    The SECONDS (0-59)
 	 *    [3]    The MINUTES (0-59)
      *    [4]    The HOUR digit (0 or 1)
-     *    [5]    The SIGN (negative if non-zero)
+     *    [5]    Bit flags (+sign, blink, blank)
      *    [6]    8-Bit Checksum
 	 */
 
@@ -410,8 +423,6 @@ void Write7SegDisplay(UART_Handle handle, TAPETIME* p)
 
 	/* Write the secs, mins, hour & sign values out */
 
-	csum = 0;
-
 	b = p->secs;
 	csum += b;
 	UART_write(handle, &b, 1);
@@ -424,7 +435,7 @@ void Write7SegDisplay(UART_Handle handle, TAPETIME* p)
 	csum += b;
 	UART_write(handle, &b, 1);
 
-	b = p->sign;
+	b = p->flags;
 	csum += b;
 	UART_write(handle, &b, 1);
 

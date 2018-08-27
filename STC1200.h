@@ -31,8 +31,13 @@ typedef struct _TAPETIME {
     uint8_t hour;   /* hour    */
     uint8_t mins;   /* minutes */
     uint8_t secs;   /* seconds */
-    uint8_t sign;	/* sign 1=positive */
+    uint8_t flags;	/* flags   */
 } TAPETIME;
+
+/* TAPETIME.flags */
+#define F_PLUS		0x01	/* 7-seg plus segment, negative if clear */
+#define F_BLINK		0x02	/* blink all seven segment displays      */
+#define F_BLANK		0x80	/* blank the entire display if set       */
 
 //*****************************************************************************
 // GLOBAL MEMORY REAL-TIME DATA
@@ -42,9 +47,10 @@ typedef struct _SYSDATA
 {
     uint8_t		ui8SerialNumber[16];	/* unique serial number */
 
-    int32_t 	tapeDirection;
+    uint32_t	tapePositionAbs;
     int32_t 	tapePosition;
     int32_t 	tapePositionPrev;
+    int32_t 	tapeDirection;
 
     uint32_t	qei_error_cnt;
 

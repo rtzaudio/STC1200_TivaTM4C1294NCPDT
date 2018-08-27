@@ -99,6 +99,12 @@ Mailbox_Handle mailboxCommand = NULL;
 Event_Handle g_eventQEI;
 
 /* Static Function Prototypes */
+static void gpioButtonResetHwi(unsigned int index);
+static void gpioButtonSearchHwi(unsigned int index);
+static void gpioButtonCueHwi(unsigned int index);
+
+static int Debounce_buttonHI(uint32_t index);
+static int Debounce_buttonLO(uint32_t index);
 
 //*****************************************************************************
 // Main Entry Point
@@ -143,15 +149,6 @@ int main(void)
     /* Deassert the RS-422 DE & RE pins */
     GPIO_write(Board_RS422_DE, PIN_LOW);
     GPIO_write(Board_RS422_RE_N, PIN_HIGH);
-
-    /* Init and enable interrupts */
-#if 0
-    GPIO_setupCallbacks(&STC1200_gpioPortMCallbacks);
-    GPIO_enableInt(Board_STOP_N, GPIO_INT_RISING);
-    GPIO_enableInt(Board_PLAY_N, GPIO_INT_RISING);
-    GPIO_enableInt(Board_FWD_N, GPIO_INT_RISING);
-    GPIO_enableInt(Board_REW_N, GPIO_INT_RISING);
-#endif
 
     /* This enables the DIVSCLK output pin on PQ4
      * and generates a 1.2 Mhz clock signal on the.
@@ -206,11 +203,10 @@ void EnableClockDivOutput(uint32_t div)
 {
     /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
     GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
-
+    /* Configure the output pin for the clock output */
     GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
-
     GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
-
+    /* Enable the clock output */
     SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
 }
 
@@ -255,6 +251,16 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
 #endif
 
+    /* Setup the callback Hwi handler for each button */
+    GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
+    GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
+    GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
+
+    /* Enable keypad button interrupts */
+    GPIO_enableInt(Board_BTN_RESET);
+    GPIO_enableInt(Board_BTN_CUE);
+    GPIO_enableInt(Board_BTN_SEARCH);
+
     /* Now begin the main program command task processing loop */
 
     while (true)
@@ -266,138 +272,157 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     		GPIO_toggle(Board_STAT_LED);
     		continue;
         }
+
+        switch(msgCmd.command)
+        {
+			case SWITCHPRESS:
+
+				/* Handle switch debounce */
+
+				if (msgCmd.ui32Data == Board_BTN_RESET)
+				{
+					if (Debounce_buttonHI(Board_BTN_RESET))
+					{
+						System_printf("RESET\n");
+						System_flush();
+						PositionReset();
+					}
+					Debounce_buttonLO(Board_BTN_RESET);
+					GPIO_enableInt(Board_BTN_RESET);
+				}
+				else if (msgCmd.ui32Data == Board_BTN_CUE)
+				{
+					if (Debounce_buttonHI(Board_BTN_CUE))
+					{
+						System_printf("CUE\n");
+						System_flush();
+					}
+					Debounce_buttonLO(Board_BTN_CUE);
+					GPIO_enableInt(Board_BTN_CUE);
+				}
+				else if (msgCmd.ui32Data == Board_BTN_SEARCH)
+				{
+					if (Debounce_buttonHI(Board_BTN_SEARCH))
+					{
+						System_printf("SEARCH\n");
+						System_flush();
+					}
+					Debounce_buttonLO(Board_BTN_SEARCH);
+					GPIO_enableInt(Board_BTN_SEARCH);
+				}
+				break;
+
+			default:
+				break;
+        }
     }
+}
+
+//*****************************************************************************
+// This function attempts to debounce an I/O pin button state by attempting
+// to read the button state repeatedly for DEBOUNCE cycles. If the pin goes
+// low during this time, then it's considered and invalid button press.
+//*****************************************************************************
+
+#define DEBOUNCE_HI	30
+#define DEBOUNCE_LO	50
+
+int Debounce_buttonHI(uint32_t index)
+{
+	int i;
+	int f = 1;
+
+	for (i=0; i < DEBOUNCE_LO; i++)
+	{
+		if (!GPIO_read(index))
+		{
+			f = 0;
+			break;
+		}
+
+		Task_sleep(1);
+	}
+
+	return f;
+}
+
+int Debounce_buttonLO(uint32_t index)
+{
+	int i;
+	int f = 0;
+
+	for (i=0; i < DEBOUNCE_LO; i++)
+	{
+		Task_sleep(1);
+
+		if (GPIO_read(index))
+		{
+			f = 0;
+		}
+	}
+
+	return f;
 }
 
 //*****************************************************************************
 // HWI Callback function for top left button
 //*****************************************************************************
 
-void gpioButtonStop(void)
+void gpioButtonResetHwi(unsigned int index)
 {
-	UInt32 timeLO;
-	UInt32 timeHI;
 	uint32_t btn;
     CommandMessage msg;
-    //unsigned int key;
 
     /* Read the stop button press state */
-    btn = GPIO_read(Board_STOP_N);
+    btn = GPIO_read(Board_BTN_RESET);
 
-    /* Check for low transition initially */
-    if ((btn & 0x04) == 0)
+    if (btn)
     {
-    	/* Edge went low on button on press */
-        timeLO = timeHI = Clock_getTicks();
+    	GPIO_disableInt(Board_BTN_RESET);
+	    msg.command  = SWITCHPRESS;
+	    msg.ui32Data = Board_BTN_RESET;
+		Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
     }
-    else
-    {
-    	/* Edge went high on button release */
-        timeHI = Clock_getTicks();
-
-        if ((timeHI - timeLO) >= 250)
-		{
-		    msg.command  = SWITCHPRESS;
-		    msg.ui32Data = Board_STOP_N;
-
-			Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
-		}
-    }
-
-    GPIO_clearInt(Board_STOP_N);
 }
 
 //*****************************************************************************
 // HWI Callback function for the top right button
 //*****************************************************************************
 
-void gpioButtonPlay(void)
+void gpioButtonCueHwi(unsigned int index)
 {
-    //unsigned int key;
-    CommandMessage msg;
 	uint32_t btn;
+    CommandMessage msg;
 
-    msg.command  = SWITCHPRESS;
-    msg.ui32Data = Board_PLAY_N;
+    /* Read the stop button press state */
+    btn = GPIO_read(Board_BTN_CUE);
 
-    btn = GPIO_read(Board_PLAY_N);
-
-    SysCtlDelay(3000);
-
-    if (btn == GPIO_read(Board_PLAY_N))
+    if (btn)
     {
-    	//key = Gate_enterSystem();
-    	/* Clear the last command */
-    	//lastCommand[0] = 0x0;
-    	//Gate_leaveSystem(key);
-
-    	/* Do not wait if there is no room for the new mail */
-    	Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+	    msg.command  = SWITCHPRESS;
+	    msg.ui32Data = Board_BTN_CUE;
+		Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
     }
-
-    GPIO_clearInt(Board_PLAY_N);
 }
 
 //*****************************************************************************
 // HWI Callback function for the middle left button
 //*****************************************************************************
 
-void gpioButtonFwd(void)
+void gpioButtonSearchHwi(unsigned int index)
 {
-    //unsigned int key;
 	uint32_t btn;
     CommandMessage msg;
 
-    msg.command  = SWITCHPRESS;
-    msg.ui32Data = Board_FWD_N;
+    /* Read the stop button press state */
+    btn = GPIO_read(Board_BTN_SEARCH);
 
-    btn = GPIO_read(Board_FWD_N);
-
-    SysCtlDelay(3000);
-
-    if (btn == GPIO_read(Board_FWD_N))
+    if (btn)
     {
-    	//key = Gate_enterSystem();
-    	/* Clear the last command */
-    	//lastCommand[0] = 0x0;
-    	//Gate_leaveSystem(key);
-
-    	/* Do not wait if there is no room for the new mail */
-    	Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+	    msg.command  = SWITCHPRESS;
+	    msg.ui32Data = Board_BTN_SEARCH;
+		Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
     }
-
-    GPIO_clearInt(Board_FWD_N);
-}
-
-//*****************************************************************************
-// HWI Callback function for the middle right button
-//*****************************************************************************
-
-void gpioButtonRew(void)
-{
-    //unsigned int key;
-	uint32_t btn;
-    CommandMessage msg;
-
-    msg.command  = SWITCHPRESS;
-    msg.ui32Data = Board_REW_N;
-
-    btn = GPIO_read(Board_REW_N);
-
-    SysCtlDelay(3000);
-
-    if (btn == GPIO_read(Board_REW_N))
-    {
-    	//key = Gate_enterSystem();
-    	/* Clear the last command */
-    	//lastCommand[0] = 0x0;
-    	//Gate_leaveSystem(key);
-
-    	/* Do not wait if there is no room for the new mail */
-    	Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
-    }
-
-    GPIO_clearInt(Board_REW_N);
 }
 
 //*****************************************************************************

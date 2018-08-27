@@ -232,7 +232,7 @@ void DrawScreen(uint32_t uScreenNum)
 			height = GrStringHeightGet(&g_context);
 
 			len = sprintf(buf, "%c%02u:%02u:%02u",
-					(g_sysData.tapeTime.sign) ? '+' : '-',
+					(g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
 					g_sysData.tapeTime.hour,
 					g_sysData.tapeTime.mins,
 					g_sysData.tapeTime.secs);
