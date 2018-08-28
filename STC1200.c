@@ -111,6 +111,7 @@ static int Debounce_buttonLO(uint32_t index);
 //*****************************************************************************
 
 int main(void)
+
 {
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
@@ -156,10 +157,6 @@ int main(void)
      * connector if a clock signal is required.
      */
     //EnableClockDivOutput(100);
-
-    /* Create interrupt signal event */
-    Error_init(&eb);
-    g_eventQEI = Event_create(NULL, &eb);
 
     /* Create command task mailbox */
     Error_init(&eb);
@@ -285,6 +282,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 					{
 						System_printf("RESET\n");
 						System_flush();
+						/* Zero tape timer at current tape location */
 						PositionReset();
 					}
 					Debounce_buttonLO(Board_BTN_RESET);
@@ -296,6 +294,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 					{
 						System_printf("CUE\n");
 						System_flush();
+						/* Store the current position at cue point zero */
+						CuePointStore(0);
 					}
 					Debounce_buttonLO(Board_BTN_CUE);
 					GPIO_enableInt(Board_BTN_CUE);

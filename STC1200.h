@@ -26,7 +26,8 @@
 // GLOBAL DATA STRUCTURES
 //*****************************************************************************
 
-/* Tape Time(Position) Data */
+/*** Tape Time(Position) Data ***/
+
 typedef struct _TAPETIME {
     uint8_t hour;   /* hour    */
     uint8_t mins;   /* minutes */
@@ -39,6 +40,15 @@ typedef struct _TAPETIME {
 #define F_BLINK		0x02	/* blink all seven segment displays      */
 #define F_BLANK		0x80	/* blank the entire display if set       */
 
+/*** Cue point table structure ***/
+
+typedef struct _CUE_POINT {
+    uint32_t position;		/* absolute encoder position */
+    uint32_t flags;			/* reserved for future use   */
+} CUE_POINT;
+
+#define MAX_CUE_POINTS		64
+
 //*****************************************************************************
 // GLOBAL MEMORY REAL-TIME DATA
 //*****************************************************************************
@@ -46,15 +56,13 @@ typedef struct _TAPETIME {
 typedef struct _SYSDATA
 {
     uint8_t		ui8SerialNumber[16];	/* unique serial number */
-
     uint32_t	tapePositionAbs;
     int32_t 	tapePosition;
     int32_t 	tapePositionPrev;
     int32_t 	tapeDirection;
-
     uint32_t	qei_error_cnt;
-
     TAPETIME	tapeTime;
+    CUE_POINT	cuePoint[MAX_CUE_POINTS];
 } SYSDATA;
 
 //*****************************************************************************

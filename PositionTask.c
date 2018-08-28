@@ -107,12 +107,63 @@ void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 static Void QEIHwi(UArg arg);
 
 /*****************************************************************************
+ * This functions stores the current tape position to a cue point in the
+ * cue point locate table. The parameter index must be the range of
+ * zero to MAX_CUE_POINTS-1.
+ *****************************************************************************/
+
+void CuePointStore(size_t index)
+{
+    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+	if (index < MAX_CUE_POINTS)
+	{
+		g_sysData.cuePoint[index].position = g_sysData.tapePositionAbs;
+		g_sysData.cuePoint[index].flags    = 0x01;
+	}
+
+	Semaphore_post(g_semaCue);
+}
+
+void CuePointClear(size_t index)
+{
+	Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+	if (index < MAX_CUE_POINTS)
+	{
+		g_sysData.cuePoint[index].position = 0x00;
+		g_sysData.cuePoint[index].flags    = 0x00;
+	}
+
+	Semaphore_post(g_semaCue);
+}
+
+/*****************************************************************************
  * Reset the QEI position to ZERO.
  *****************************************************************************/
 
 void PositionReset(void)
 {
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
+}
+
+//*****************************************************************************
+// This function accepts an unsigned 32 bit absolute tape position parameter
+// and returns the result as a signed integer.
+//*****************************************************************************
+
+int PTOI(uint32_t apos)
+{
+	int ipos;
+
+	/* Check for max position wrap around if negative position */
+
+	if (apos >= ((MAX_ROLLER_POSITION / 2) + 0))
+		ipos = (int)apos - (int)MAX_ROLLER_POSITION;
+	else
+		ipos = (int)apos;
+
+	return ipos;
 }
 
 //*****************************************************************************
@@ -128,6 +179,11 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	uint8_t flags = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
+    Error_Block eb;
+
+	/* Create interrupt signal event */
+    Error_init(&eb);
+    g_eventQEI = Event_create(NULL, &eb);
 
 	/* Initialize the quadrature encoder module */
 	InitQEI();
@@ -191,19 +247,8 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Read the absolute position from the QEI controller */
     	g_sysData.tapePositionAbs = QEIPositionGet(QEI_BASE_ROLLER);
 
-    	/* Check for max position wrap around if negative position */
-    	if (g_sysData.tapePositionAbs >= ((MAX_ROLLER_POSITION / 2) + 1))
-    	{
-    		flags &= ~(F_PLUS);
-    		ipos = (int)g_sysData.tapePositionAbs - (int)MAX_ROLLER_POSITION;
-        	g_sysData.tapePosition = ipos;
-    	}
-    	else
-    	{
-    		flags |= F_PLUS;
-    		ipos = (int)g_sysData.tapePositionAbs;
-        	g_sysData.tapePosition = ipos;
-    	}
+    	/* Convert absolute tape position to signed relative position */
+    	g_sysData.tapePosition = PTOI(g_sysData.tapePositionAbs);
 
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,
@@ -259,8 +304,14 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	 *     time = (distance inches / 30 inches) * second
 	     */
 
+    	/* Set display flags to indicate proper direction sign */
+    	if (g_sysData.tapePosition < 0)
+    		flags &= ~(F_PLUS);
+    	else
+    		flags |= F_PLUS;
+
     	/* Get the current encoder position */
-    	float position = fabsf((float)ipos);
+    	float position = fabsf((float)g_sysData.tapePosition);
 
     	/* Calculate the number of revolutions from the position */
     	float revolutions = position / (float)ROLLER_TICKS_PER_REV;

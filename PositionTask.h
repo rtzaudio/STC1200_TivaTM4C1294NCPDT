@@ -1,12 +1,13 @@
-/*
- * PMX42.h : created 5/18/2015
+/* ============================================================================
  *
- * Copyright (C) 2015, Robert E. Starr. ALL RIGHTS RESERVED.
+ * STC-1200 Search/Timer/Comm Controller for Ampex MM-1200 Tape Machines
  *
- * THIS MATERIAL CONTAINS  CONFIDENTIAL, PROPRIETARY AND TRADE
- * SECRET INFORMATION. NO DISCLOSURE OR USE OF ANY
- * PORTIONS OF THIS MATERIAL MAY BE MADE WITHOUT THE EXPRESS
- * WRITTEN CONSENT OF THE AUTHOR.
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ * ============================================================================
  */
 
 #ifndef __POSITIONTASK_H
@@ -27,9 +28,29 @@
  */
 #define MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
 
+/*** MESSAGE STRUCTURES ****************************************************/
+
+typedef enum LocateType {
+	LOCATE_CANCEL=0,
+    LOCATE_POSITION,
+} LocateType;
+
+typedef struct _LocateMessage {
+    LocateType	command;
+    uint32_t 	param1;
+    uint32_t	param2;
+} LocateMessage;
+
 /*** FUNCTION PROTOTYPES ***************************************************/
 
+int PTOI(uint32_t apos);
+
 void PositionReset(void);
+
+void CuePointStore(size_t index);
+void CuePointClear(size_t index);
+
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 
 #endif /* __POSITIONTASK_H */
+
