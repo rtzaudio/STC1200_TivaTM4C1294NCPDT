@@ -12,6 +12,9 @@
 #ifndef __STC1200_H
 #define __STC1200_H
 
+#include "PositionTask.h"
+#include "LocateTask.h"
+
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
 //*****************************************************************************
@@ -21,33 +24,6 @@
 
 #define MAGIC               0xCEB0FACE  /* magic number for EEPROM data */
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
-
-//*****************************************************************************
-// GLOBAL DATA STRUCTURES
-//*****************************************************************************
-
-/*** Tape Time(Position) Data ***/
-
-typedef struct _TAPETIME {
-    uint8_t hour;   /* hour    */
-    uint8_t mins;   /* minutes */
-    uint8_t secs;   /* seconds */
-    uint8_t flags;	/* flags   */
-} TAPETIME;
-
-/* TAPETIME.flags */
-#define F_PLUS		0x01	/* 7-seg plus segment, negative if clear */
-#define F_BLINK		0x02	/* blink all seven segment displays      */
-#define F_BLANK		0x80	/* blank the entire display if set       */
-
-/*** Cue point table structure ***/
-
-typedef struct _CUE_POINT {
-    uint32_t position;		/* absolute encoder position */
-    uint32_t flags;			/* reserved for future use   */
-} CUE_POINT;
-
-#define MAX_CUE_POINTS		64
 
 //*****************************************************************************
 // GLOBAL MEMORY REAL-TIME DATA

@@ -88,7 +88,6 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
-#include "PositionTask.h"
 
 /* External Data Items */
 
@@ -107,63 +106,12 @@ void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 static Void QEIHwi(UArg arg);
 
 /*****************************************************************************
- * This functions stores the current tape position to a cue point in the
- * cue point locate table. The parameter index must be the range of
- * zero to MAX_CUE_POINTS-1.
- *****************************************************************************/
-
-void CuePointStore(size_t index)
-{
-    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
-
-	if (index < MAX_CUE_POINTS)
-	{
-		g_sysData.cuePoint[index].position = g_sysData.tapePositionAbs;
-		g_sysData.cuePoint[index].flags    = 0x01;
-	}
-
-	Semaphore_post(g_semaCue);
-}
-
-void CuePointClear(size_t index)
-{
-	Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
-
-	if (index < MAX_CUE_POINTS)
-	{
-		g_sysData.cuePoint[index].position = 0x00;
-		g_sysData.cuePoint[index].flags    = 0x00;
-	}
-
-	Semaphore_post(g_semaCue);
-}
-
-/*****************************************************************************
  * Reset the QEI position to ZERO.
  *****************************************************************************/
 
 void PositionReset(void)
 {
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
-}
-
-//*****************************************************************************
-// This function accepts an unsigned 32 bit absolute tape position parameter
-// and returns the result as a signed integer.
-//*****************************************************************************
-
-int PTOI(uint32_t apos)
-{
-	int ipos;
-
-	/* Check for max position wrap around if negative position */
-
-	if (apos >= ((MAX_ROLLER_POSITION / 2) + 0))
-		ipos = (int)apos - (int)MAX_ROLLER_POSITION;
-	else
-		ipos = (int)apos;
-
-	return ipos;
 }
 
 //*****************************************************************************
@@ -175,7 +123,6 @@ int PTOI(uint32_t apos)
 
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
-	int ipos;
 	uint8_t flags = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
@@ -248,7 +195,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	g_sysData.tapePositionAbs = QEIPositionGet(QEI_BASE_ROLLER);
 
     	/* Convert absolute tape position to signed relative position */
-    	g_sysData.tapePosition = PTOI(g_sysData.tapePositionAbs);
+    	g_sysData.tapePosition = POSITION_TO_INT(g_sysData.tapePositionAbs);
 
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,

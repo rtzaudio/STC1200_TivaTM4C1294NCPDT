@@ -28,27 +28,41 @@
  */
 #define MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
 
-/*** MESSAGE STRUCTURES ****************************************************/
+/* Converts encoder absolute position to relative signed position */
 
-typedef enum LocateType {
-	LOCATE_CANCEL=0,
-    LOCATE_POSITION,
-} LocateType;
+static inline int POSITION_TO_INT(uint32_t apos)
+{
+	int ipos;
 
-typedef struct _LocateMessage {
-    LocateType	command;
-    uint32_t 	param1;
-    uint32_t	param2;
-} LocateMessage;
+	/* Check for max position wrap around if negative position */
+
+	if (apos >= ((MAX_ROLLER_POSITION / 2) + 0))
+		ipos = (int)apos - (int)MAX_ROLLER_POSITION;
+	else
+		ipos = (int)apos;
+
+	return ipos;
+}
+
+/*** TAPE TIME/POSITION DATA ***********************************************/
+
+typedef struct _TAPETIME {
+    uint8_t hour;   /* hour    */
+    uint8_t mins;   /* minutes */
+    uint8_t secs;   /* seconds */
+    uint8_t flags;	/* flags   */
+} TAPETIME;
+
+/* TAPETIME.flags */
+#define F_PLUS		0x01	/* 7-seg plus segment, negative if clear */
+#define F_BLINK		0x02	/* blink all seven segment displays      */
+#define F_BLANK		0x80	/* blank the entire display if set       */
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 int PTOI(uint32_t apos);
 
 void PositionReset(void);
-
-void CuePointStore(size_t index);
-void CuePointClear(size_t index);
 
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 

@@ -85,7 +85,7 @@
 #include "Board.h"
 #include "DisplayTask.h"
 #include "RemoteTask.h"
-#include "PositionTask.h"
+
 #include "STC1200.h"
 
 /* Global STC-1200 System data */
@@ -93,8 +93,9 @@ SYSDATA g_sysData;
 SYSPARMS g_sysParms;
 
 /* Handles created dynamically */
+Mailbox_Handle g_mailboxLocate  = NULL;
 Mailbox_Handle g_mailboxDisplay = NULL;
-Mailbox_Handle mailboxCommand = NULL;
+Mailbox_Handle g_mailboxCommand = NULL;
 
 Event_Handle g_eventQEI;
 
@@ -111,7 +112,6 @@ static int Debounce_buttonLO(uint32_t index);
 //*****************************************************************************
 
 int main(void)
-
 {
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
@@ -161,8 +161,16 @@ int main(void)
     /* Create command task mailbox */
     Error_init(&eb);
     Mailbox_Params_init(&mboxParams);
-    mailboxCommand = Mailbox_create(sizeof(CommandMessage), 8, &mboxParams, &eb);
-    if (mailboxCommand == NULL) {
+    g_mailboxCommand = Mailbox_create(sizeof(CommandMessage), 8, &mboxParams, &eb);
+    if (g_mailboxCommand == NULL) {
+        System_abort("Mailbox create failed\nAborting...");
+    }
+
+    /* Create locater task mailbox */
+    Error_init(&eb);
+    Mailbox_Params_init(&mboxParams);
+    g_mailboxLocate = Mailbox_create(sizeof(LocateMessage), 8, &mboxParams, &eb);
+    if (g_mailboxLocate == NULL) {
         System_abort("Mailbox create failed\nAborting...");
     }
 
@@ -217,6 +225,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
+    LocateMessage msgLocate;
 
     /* Read the globally unique serial number from EPROM */
     if (!ReadSerialNumber(g_sysData.ui8SerialNumber)) {
@@ -231,8 +240,15 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 1024;
-    taskParams.priority  = 14;
+    taskParams.priority  = 10;
     Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 12;
+    Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
+
 
 #if 0
     Error_init(&eb);
@@ -263,7 +279,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(mailboxCommand, &msgCmd, 1000))
+        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 1000))
         {
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED);
@@ -280,8 +296,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_RESET))
 					{
-						System_printf("RESET\n");
-						System_flush();
 						/* Zero tape timer at current tape location */
 						PositionReset();
 					}
@@ -292,8 +306,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_CUE))
 					{
-						System_printf("CUE\n");
-						System_flush();
 						/* Store the current position at cue point zero */
 						CuePointStore(0);
 					}
@@ -304,8 +316,11 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_SEARCH))
 					{
-						System_printf("SEARCH\n");
-						System_flush();
+						/* Cue up locate-0 request */
+						msgLocate.command = LOCATE_SEARCH;
+						msgLocate.param1  = 0;
+						msgLocate.param2  = 0;
+						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
 					}
 					Debounce_buttonLO(Board_BTN_SEARCH);
 					GPIO_enableInt(Board_BTN_SEARCH);
@@ -381,7 +396,7 @@ void gpioButtonResetHwi(unsigned int index)
     	GPIO_disableInt(Board_BTN_RESET);
 	    msg.command  = SWITCHPRESS;
 	    msg.ui32Data = Board_BTN_RESET;
-		Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
 }
 
@@ -401,7 +416,7 @@ void gpioButtonCueHwi(unsigned int index)
     {
 	    msg.command  = SWITCHPRESS;
 	    msg.ui32Data = Board_BTN_CUE;
-		Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
 }
 
@@ -421,7 +436,7 @@ void gpioButtonSearchHwi(unsigned int index)
     {
 	    msg.command  = SWITCHPRESS;
 	    msg.ui32Data = Board_BTN_SEARCH;
-		Mailbox_post(mailboxCommand, &msg, BIOS_NO_WAIT);
+		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
 }
 
