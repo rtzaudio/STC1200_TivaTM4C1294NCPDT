@@ -66,14 +66,14 @@ extern "C" {
 #define Board_SPI_S25FL127        	STC1200_SPI2
 #define Board_SPI_EXPIO_SIO3        STC1200_SPI3
 
-#define Board_UART_RS232_DTC1200	STC1200_UART0
+#define Board_UART_RS232_DEBUG		STC1200_UART0
 #define Board_UART_RS232_COM1       STC1200_UART1
 #define Board_UART_RS232_COM2       STC1200_UART2
 #define Board_UART_BLUETOOTH        STC1200_UART3
 #define Board_UART_MIDI			    STC1200_UART4
 #define Board_UART_RS422_REMOTE     STC1200_UART5
 #define Board_UART_ATMEGA88         STC1200_UART6
-#define Board_UART_RESERVED         STC1200_UART7
+#define Board_UART_IPC         		STC1200_UART7
 
 #define Board_WATCHDOG0             STC1200_WATCHDOG0
 

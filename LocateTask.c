@@ -109,8 +109,8 @@ void CuePointStore(size_t index)
 
 	if (index < MAX_CUE_POINTS)
 	{
-		g_sysData.cuePoint[index].position = g_sysData.tapePositionAbs;
-		g_sysData.cuePoint[index].flags    = 0x01;
+		g_sysData.cuePoint[index].ipos  = g_sysData.tapePosition;
+		g_sysData.cuePoint[index].flags = 0x01;
 	}
 
 	Semaphore_post(g_semaCue);
@@ -126,8 +126,8 @@ void CuePointClear(size_t index)
 
 	if (index < MAX_CUE_POINTS)
 	{
-		g_sysData.cuePoint[index].position = 0x00;
-		g_sysData.cuePoint[index].flags    = 0x00;
+		g_sysData.cuePoint[index].ipos  = 0;
+		g_sysData.cuePoint[index].flags = 0x00;
 	}
 
 	Semaphore_post(g_semaCue);
@@ -157,35 +157,60 @@ void QueueLocateCommand(LocateType command, uint32_t param1, uint32_t param2)
 
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
-	//int ipos;
+	uint32_t key;
+	size_t index;
     LocateMessage msg;
 
     while (true)
     {
+    	/* Clear SEARCHING_OUT status i/o pin */
+    	GPIO_write(Board_SEARCHING, PIN_HIGH);
+
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxLocate, &msg, 1000))
-        {
+        if (!Mailbox_pend(g_mailboxLocate, &msg, 500))
         	continue;
-        }
 
-        switch(msg.command)
-        {
-        case LOCATE_SEARCH:
-        	System_printf("LOCATE(%d)\n", msg.param1);
-        	System_flush();
-        	break;
+        if (msg.command != LOCATE_SEARCH)
+        	continue;
 
-        case LOCATE_CANCEL:
-        	System_printf("Locate Cancel\n");
-        	System_flush();
-        	break;
+        if ((index = msg.param1) >= MAX_CUE_POINTS)
+        	continue;
 
-        case LOCATE_CUE_POINT_SET:
-        	break;
+        if (g_sysData.cuePoint[index].flags == 0)
+        	continue;
 
-        case LOCATE_CUE_POINT_CLEAR:
-        	break;
-        }
+        System_printf("LOCATE[%d] %d\n", index, g_sysData.cuePoint[index].ipos);
+		System_flush();
+
+		/* Set SEARCHING_OUT status i/o pin */
+		GPIO_write(Board_SEARCHING, PIN_LOW);
+
+		/*
+		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
+		 */
+
+	    key = Hwi_disable();
+	    g_sysData.searchActive = true;
+	    Hwi_restore(key);
+
+		while (g_sysData.searchActive)
+		{
+			/* Get distance in inches from zero reset point */
+			float distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
+
+			/* Calculate the current position delta from cue point */
+			int delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
+
+			float tach = TapeTach_read();
+
+			System_printf("%d : %d : %f\n", g_sysData.tapePosition, delta, tach);
+			System_flush();
+
+			Task_sleep(500);
+		}
+
+		System_printf("SEARCH CANCELED\n");
+		System_flush();
     }
 }
 

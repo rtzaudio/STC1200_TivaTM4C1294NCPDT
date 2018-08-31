@@ -88,6 +88,7 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
+#include "TapeTach.h"
 
 /* External Data Items */
 
@@ -109,7 +110,7 @@ static Void QEIHwi(UArg arg);
  * Reset the QEI position to ZERO.
  *****************************************************************************/
 
-void PositionReset(void)
+void PositionZeroReset(void)
 {
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
 }
@@ -124,6 +125,7 @@ void PositionReset(void)
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
 	uint8_t flags = 0;
+	uint32_t rcount = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
     Error_Block eb;
@@ -161,6 +163,9 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 	uartHandle = UART_open(Board_UART_ATMEGA88, &uartParams);
 
+	/* Initialize the tape tachometer for reading tape path speed */
+	TapeTach_initialize();
+
 	/* This is the main tape position/counter task. Here we read the tape
 	 * roller quadrature encoder to keep track of the absolute tape position.
 	 * This position is relative to the last counter reset, either at power
@@ -172,7 +177,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for any ISR events to be posted */
-    	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 25);
+    	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
 
     	if (events & Event_Id_00)
     	{
@@ -196,6 +201,9 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
     	/* Convert absolute tape position to signed relative position */
     	g_sysData.tapePosition = POSITION_TO_INT(g_sysData.tapePositionAbs);
+
+    	/* Read the tape roller tachometer for tape speed data */
+    	g_sysData.tapeTach = TapeTach_read();
 
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,
@@ -251,32 +259,37 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	 *     time = (distance inches / 30 inches) * second
 	     */
 
-    	/* Set display flags to indicate proper direction sign */
-    	if (g_sysData.tapePosition < 0)
-    		flags &= ~(F_PLUS);
-    	else
-    		flags |= F_PLUS;
+    	if (++rcount >= 10)
+    	{
+    		rcount = 0;
 
-    	/* Get the current encoder position */
-    	float position = fabsf((float)g_sysData.tapePosition);
+			/* Set display flags to indicate proper direction sign */
+			if (g_sysData.tapePosition < 0)
+				flags &= ~(F_PLUS);
+			else
+				flags |= F_PLUS;
 
-    	/* Calculate the number of revolutions from the position */
-    	float revolutions = position / (float)ROLLER_TICKS_PER_REV;
+			/* Get the current encoder position */
+			float position = fabsf((float)g_sysData.tapePosition);
 
-    	/* Calculate the distance based on the number of revolutions */
-    	float distance = revolutions * 5.0014f;
+			/* Calculate the number of revolutions from the position */
+			float revolutions = position / ROLLER_TICKS_PER_REV_F;
 
-    	/* Get the current speed setting */
-    	float speed = GPIO_read(Board_SPEED_SELECT) ? 30.0f : 15.0f;
-    	    
-    	/* Calculate the time in seconds from the distance and speed */
-    	uint32_t seconds = (uint32_t)(distance / speed);
+			/* Calculate the distance in inches based on the number of revolutions */
+			float distance = revolutions * ROLLER_CIRCUMFERENCE_F;
 
-    	/* Convert the total seconds value into binary HH:MM:SS values */
-    	btime(seconds, flags, &g_sysData.tapeTime);
+			/* Get the current speed setting */
+			float speed = GPIO_read(Board_SPEED_SELECT) ? 30.0f : 15.0f;
 
-    	/* Refresh the 7-segment display with the new values */
-    	Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
+			/* Calculate the time in seconds from the distance and speed */
+			uint32_t seconds = (uint32_t)(distance / speed);
+
+			/* Convert the total seconds value into binary HH:MM:SS values */
+			btime(seconds, flags, &g_sysData.tapeTime);
+
+			/* Refresh the 7-segment display with the new values */
+			Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
+    	}
     }
 }
 

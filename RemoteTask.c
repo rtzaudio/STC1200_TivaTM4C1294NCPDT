@@ -125,7 +125,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     /* Now begin the main program command task processing loop */
 
-	RAMP_InitFcb(&g_TxFcb, g_handleUart422);
+	RAMP_InitFcb(&g_TxFcb);
 
     while (true)
     {
@@ -140,7 +140,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
         g_TxFcb.address = 0x01;
         g_TxFcb.type    = MAKETYPE(F_PRIORITY, TYPE_MSG_ONLY);
 
-        RAMP_TxFrame(&g_TxFcb, GrGetScreenBuffer(), GrGetScreenBufferSize());
+        //RAMP_TxFrame(g_handleUart422, &g_TxFcb, GrGetScreenBuffer(), GrGetScreenBufferSize());
 
     	//GPIO_write(Board_STAT_LED2, Board_LED_OFF);
 

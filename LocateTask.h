@@ -16,8 +16,8 @@
 /*** CUE POINT DATA STRUCTURE **********************************************/
 
 typedef struct _CUE_POINT {
-    uint32_t position;		/* absolute encoder position */
-    uint32_t flags;			/* reserved for future use   */
+    int32_t		ipos;		/* relative tape position */
+    uint32_t	flags;
 } CUE_POINT;
 
 #define MAX_CUE_POINTS		64
@@ -27,8 +27,6 @@ typedef struct _CUE_POINT {
 typedef enum LocateType {
 	LOCATE_CANCEL=0,
     LOCATE_SEARCH,
-	LOCATE_CUE_POINT_SET,
-	LOCATE_CUE_POINT_CLEAR
 } LocateType;
 
 typedef struct _LocateMessage {

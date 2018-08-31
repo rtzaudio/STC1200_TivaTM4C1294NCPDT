@@ -21,31 +21,23 @@
  * gives 80 edges per revolution. If Cha-A/B mode is used this must be
  * set to 160.
  */
+
 #define ROLLER_TICKS_PER_REV        80
+#define ROLLER_TICKS_PER_REV_F      80.0f
+
+/* This is the diameter of the tape timer roller */
+#define ROLLER_CIRCUMFERENCE_F      5.0014f
 
 /* This is the maximum signed position value we can have. Anything past
  * this is treated as a negative position value.
  */
 #define MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
 
-/* Converts encoder absolute position to relative signed position */
-
-static inline int POSITION_TO_INT(uint32_t apos)
-{
-	int ipos;
-
-	/* Check for max position wrap around if negative position */
-
-	if (apos >= ((MAX_ROLLER_POSITION / 2) + 0))
-		ipos = (int)apos - (int)MAX_ROLLER_POSITION;
-	else
-		ipos = (int)apos;
-
-	return ipos;
-}
-
 /*** TAPE TIME/POSITION DATA ***********************************************/
 
+/* Tape position time as h:m:s form. These values get transmitted
+ * to the 7-segment ATMega88 display processor.
+ */
 typedef struct _TAPETIME {
     uint8_t hour;   /* hour    */
     uint8_t mins;   /* minutes */
@@ -60,11 +52,29 @@ typedef struct _TAPETIME {
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-int PTOI(uint32_t apos);
-
-void PositionReset(void);
+void PositionZeroReset(void);
 
 Void PositionTaskFxn(UArg arg0, UArg arg1);
+
+/*** INLINE FUNCTIONS ******************************************************/
+
+/* Converts encoder absolute position to relative signed position */
+
+static inline int POSITION_TO_INT(uint32_t upos)
+{
+	/* Check for max position wrap around if negative position */
+	if (upos >= (MAX_ROLLER_POSITION / 2))
+		return (int)upos - (int)MAX_ROLLER_POSITION;
+
+	return (int)upos;
+}
+
+/* This function calculates the distance in inches from a position */
+
+static inline float POSITION_TO_INCHES(float pos)
+{
+	return ((pos / ROLLER_TICKS_PER_REV_F) * ROLLER_CIRCUMFERENCE_F);
+}
 
 #endif /* __POSITIONTASK_H */
 

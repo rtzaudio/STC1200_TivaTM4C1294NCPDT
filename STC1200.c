@@ -104,8 +104,27 @@ static void gpioButtonResetHwi(unsigned int index);
 static void gpioButtonSearchHwi(unsigned int index);
 static void gpioButtonCueHwi(unsigned int index);
 
+static void gpioButtonStopHwi(unsigned int index);
+
 static int Debounce_buttonHI(uint32_t index);
 static int Debounce_buttonLO(uint32_t index);
+
+//*****************************************************************************
+// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
+// from the main cpu clock divided by 'div' parameter. A value of 100 gives
+// a clock of 1.2 Mhz.
+//*****************************************************************************
+
+void EnableClockDivOutput(uint32_t div)
+{
+    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
+    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
+    /* Configure the output pin for the clock output */
+    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
+    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    /* Enable the clock output */
+    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
+}
 
 //*****************************************************************************
 // Main Entry Point
@@ -134,19 +153,18 @@ int main(void)
     GrOffScreenMonoInit();
 
     /* Deassert the Atmega88 reset line */
-    //GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
-
+    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
+    /* Deassert motion status lines */
     GPIO_write(Board_TAPE_DIR, PIN_HIGH);
     GPIO_write(Board_MOTION_FWD, PIN_HIGH);
 	GPIO_write(Board_MOTION_REW, PIN_HIGH);
-
+	/* Clear SEARCHING_OUT status i/o pin */
+	GPIO_write(Board_SEARCHING, PIN_HIGH);
     /* Turn on the status LED */
     GPIO_write(Board_STAT_LED, Board_LED_ON);
-
     /* Turn off the play and shuttle lamps */
     GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
     GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
-
     /* Deassert the RS-422 DE & RE pins */
     GPIO_write(Board_RS422_DE, PIN_LOW);
     GPIO_write(Board_RS422_RE_N, PIN_HIGH);
@@ -199,141 +217,6 @@ int main(void)
 }
 
 //*****************************************************************************
-// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
-// from the main cpu clock divided by 'div' parameter. A value of 100 gives
-// a clock of 1.2 Mhz.
-//*****************************************************************************
-
-void EnableClockDivOutput(uint32_t div)
-{
-    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
-    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
-    /* Configure the output pin for the clock output */
-    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
-    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
-    /* Enable the clock output */
-    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
-}
-
-//*****************************************************************************
-// This function attempts to ready the unique serial number
-// from the I2C
-//*****************************************************************************
-
-Void CommandTaskFxn(UArg arg0, UArg arg1)
-{
-    Error_Block eb;
-	Task_Params taskParams;
-    CommandMessage msgCmd;
-    LocateMessage msgLocate;
-
-    /* Read the globally unique serial number from EPROM */
-    if (!ReadSerialNumber(g_sysData.ui8SerialNumber)) {
-    	System_printf("Read Serial Number Failed!\n");
-    	System_flush();
-    }
-
-    /*
-     * Create the various system tasks
-     */
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 12;
-    Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
-
-
-#if 0
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 2048;
-    taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 12;
-    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
-#endif
-
-    /* Setup the callback Hwi handler for each button */
-    GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
-    GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
-    GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
-
-    /* Enable keypad button interrupts */
-    GPIO_enableInt(Board_BTN_RESET);
-    GPIO_enableInt(Board_BTN_CUE);
-    GPIO_enableInt(Board_BTN_SEARCH);
-
-    /* Now begin the main program command task processing loop */
-
-    while (true)
-    {
-    	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 1000))
-        {
-        	/* No message, blink the LED */
-    		GPIO_toggle(Board_STAT_LED);
-    		continue;
-        }
-
-        switch(msgCmd.command)
-        {
-			case SWITCHPRESS:
-
-				/* Handle switch debounce */
-
-				if (msgCmd.ui32Data == Board_BTN_RESET)
-				{
-					if (Debounce_buttonHI(Board_BTN_RESET))
-					{
-						/* Zero tape timer at current tape location */
-						PositionReset();
-					}
-					Debounce_buttonLO(Board_BTN_RESET);
-					GPIO_enableInt(Board_BTN_RESET);
-				}
-				else if (msgCmd.ui32Data == Board_BTN_CUE)
-				{
-					if (Debounce_buttonHI(Board_BTN_CUE))
-					{
-						/* Store the current position at cue point zero */
-						CuePointStore(0);
-					}
-					Debounce_buttonLO(Board_BTN_CUE);
-					GPIO_enableInt(Board_BTN_CUE);
-				}
-				else if (msgCmd.ui32Data == Board_BTN_SEARCH)
-				{
-					if (Debounce_buttonHI(Board_BTN_SEARCH))
-					{
-						/* Cue up locate-0 request */
-						msgLocate.command = LOCATE_SEARCH;
-						msgLocate.param1  = 0;
-						msgLocate.param2  = 0;
-						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
-					}
-					Debounce_buttonLO(Board_BTN_SEARCH);
-					GPIO_enableInt(Board_BTN_SEARCH);
-				}
-				break;
-
-			default:
-				break;
-        }
-    }
-}
-
-//*****************************************************************************
 // This function attempts to debounce an I/O pin button state by attempting
 // to read the button state repeatedly for DEBOUNCE cycles. If the pin goes
 // low during this time, then it's considered and invalid button press.
@@ -377,6 +260,136 @@ int Debounce_buttonLO(uint32_t index)
 	}
 
 	return f;
+}
+
+//*****************************************************************************
+// This function attempts to ready the unique serial number
+// from the I2C
+//*****************************************************************************
+
+Void CommandTaskFxn(UArg arg0, UArg arg1)
+{
+    Error_Block eb;
+	Task_Params taskParams;
+    CommandMessage msgCmd;
+    LocateMessage msgLocate;
+
+    /* Read the globally unique serial number from EPROM */
+    if (!ReadSerialNumber(g_sysData.ui8SerialNumber)) {
+    	System_printf("Read Serial Number Failed!\n");
+    	System_flush();
+    }
+
+    /*
+     * Create the various system tasks
+     */
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 12;
+    Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
+
+
+#if 0
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 12;
+    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
+#endif
+
+    /* Setup the callback Hwi handler for each button */
+
+    GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
+    GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
+    GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
+
+    GPIO_setCallback(Board_STOP_DETECT_N, gpioButtonStopHwi);
+
+    /* Enable keypad button interrupts */
+
+    GPIO_enableInt(Board_BTN_RESET);
+    GPIO_enableInt(Board_BTN_CUE);
+    GPIO_enableInt(Board_BTN_SEARCH);
+
+    GPIO_enableInt(Board_STOP_DETECT_N);
+
+    /* Now begin the main program command task processing loop */
+
+    while (true)
+    {
+    	/* Wait for a message up to 1 second */
+        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 1000))
+        {
+        	/* No message, blink the LED */
+    		GPIO_toggle(Board_STAT_LED);
+    		continue;
+        }
+
+        switch(msgCmd.command)
+        {
+			case SWITCHPRESS:
+
+				/* Handle switch debounce */
+
+				if (msgCmd.ui32Data == Board_BTN_RESET)
+				{
+					if (Debounce_buttonHI(Board_BTN_RESET))
+					{
+						/* Zero tape timer at current tape location */
+						PositionZeroReset();
+					}
+
+					Debounce_buttonLO(Board_BTN_RESET);
+
+					GPIO_enableInt(Board_BTN_RESET);
+				}
+				else if (msgCmd.ui32Data == Board_BTN_CUE)
+				{
+					if (Debounce_buttonHI(Board_BTN_CUE))
+					{
+						/* Store the current position at cue point zero */
+						CuePointStore(0);
+					}
+
+					Debounce_buttonLO(Board_BTN_CUE);
+
+					GPIO_enableInt(Board_BTN_CUE);
+				}
+				else if (msgCmd.ui32Data == Board_BTN_SEARCH)
+				{
+					if (Debounce_buttonHI(Board_BTN_SEARCH))
+					{
+						/* Cue up locate-0 request */
+						msgLocate.command = LOCATE_SEARCH;
+						msgLocate.param1  = 0;
+						msgLocate.param2  = 0;
+						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
+					}
+
+					Debounce_buttonLO(Board_BTN_SEARCH);
+
+					GPIO_enableInt(Board_BTN_SEARCH);
+				}
+				break;
+
+			default:
+				break;
+        }
+    }
 }
 
 //*****************************************************************************
@@ -438,6 +451,21 @@ void gpioButtonSearchHwi(unsigned int index)
 	    msg.ui32Data = Board_BTN_SEARCH;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
+}
+
+//*****************************************************************************
+// HWI Callback function for STOP/PLAY/FWD/REWIND buttons
+//*****************************************************************************
+
+void gpioButtonStopHwi(unsigned int index)
+{
+	uint32_t btn;
+    /* Read the stop button press state */
+    btn = GPIO_read(Board_STOP_DETECT_N);
+
+    uint32_t key = Hwi_disable();
+    g_sysData.searchActive = false;
+    Hwi_restore(key);
 }
 
 //*****************************************************************************

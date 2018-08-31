@@ -31,14 +31,16 @@
 
 typedef struct _SYSDATA
 {
-    uint8_t		ui8SerialNumber[16];	/* unique serial number */
-    uint32_t	tapePositionAbs;
-    int32_t 	tapePosition;
-    int32_t 	tapePositionPrev;
-    int32_t 	tapeDirection;
-    uint32_t	qei_error_cnt;
-    TAPETIME	tapeTime;
-    CUE_POINT	cuePoint[MAX_CUE_POINTS];
+    uint8_t		ui8SerialNumber[16];		/* unique serial number       */
+    uint32_t	tapePositionAbs;			/* absolute tape position     */
+    int32_t 	tapePosition;				/* signed relative position   */
+    int32_t 	tapePositionPrev;			/* previous tape postion      */
+    int32_t 	tapeDirection;				/* direction 1=fwd, 0=rew     */
+    uint32_t	qei_error_cnt;				/* QEI phase error count      */
+    float		tapeTach;					/* tape speed from roller     */
+	bool		searchActive;
+    TAPETIME	tapeTime;					/* current tape time position */
+    CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
 
 //*****************************************************************************
