@@ -87,6 +87,7 @@
 
 /* PMX42 Board Header file */
 #include "Board.h"
+#include "TapeTach.h"
 #include "STC1200.h"
 
 /* External Data Items */
@@ -96,6 +97,8 @@ extern SYSDATA g_sysData;
 extern Mailbox_Handle g_mailboxLocate;
 
 /* Static Function Prototypes */
+
+static void GPIOPulseLow(uint32_t index, uint32_t duration);
 
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
@@ -107,7 +110,7 @@ void CuePointStore(size_t index)
 {
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-	if (index < MAX_CUE_POINTS)
+	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = g_sysData.tapePosition;
 		g_sysData.cuePoint[index].flags = 0x01;
@@ -124,28 +127,13 @@ void CuePointClear(size_t index)
 {
 	Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-	if (index < MAX_CUE_POINTS)
+	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = 0;
 		g_sysData.cuePoint[index].flags = 0x00;
 	}
 
 	Semaphore_post(g_semaCue);
-}
-
-/*****************************************************************************
- * Queues up a command to the locator task.
- *****************************************************************************/
-
-void QueueLocateCommand(LocateType command, uint32_t param1, uint32_t param2)
-{
-    LocateMessage msg;
-
-    msg.command = command;      /* Set the command message type */
-    msg.param1  = param1;
-    msg.param2  = param2;
-
-    Mailbox_post(g_mailboxLocate, &msg, 10);
 }
 
 //*****************************************************************************
@@ -173,7 +161,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (msg.command != LOCATE_SEARCH)
         	continue;
 
-        if ((index = msg.param1) >= MAX_CUE_POINTS)
+        if ((index = msg.param1) > MAX_CUE_POINTS)
         	continue;
 
         if (g_sysData.cuePoint[index].flags == 0)
@@ -193,8 +181,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    g_sysData.searchActive = true;
 	    Hwi_restore(key);
 
-		while (g_sysData.searchActive)
-		{
+	    /* Enter Search Loop */
+
+		do {
 			/* Get distance in inches from zero reset point */
 			float distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
 
@@ -207,11 +196,34 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			System_flush();
 
 			Task_sleep(500);
-		}
+
+		} while (g_sysData.searchActive);
 
 		System_printf("SEARCH CANCELED\n");
 		System_flush();
     }
+}
+
+//*****************************************************************************
+// Pulse and I/O line LOW for the specified ms duration. The following
+// gpio lines are used to control the transport directly.
+//
+// Board_STOP_N
+// Board_PLAY_N
+// Board_FWD_N
+// Board_REW_N
+//*****************************************************************************
+
+void GPIOPulseLow(uint32_t index, uint32_t duration)
+{
+	/* Set the i/o pin to low state */
+	GPIO_write(index, PIN_LOW);
+
+	/* Sleep for pulse duration */
+	Task_sleep(duration);
+
+	/* Return i/o pin to high state */
+	GPIO_write(index, PIN_HIGH);
 }
 
 /* End-Of-File */

@@ -51,10 +51,8 @@ typedef struct _SYSPARMS
 {
     uint32_t	magic;
     uint32_t	version;
-
     /*** GLOBAL PARAMETERS ***/
     uint32_t	debug;                     	/* debug level */
-
 } SYSPARMS;
 
 //*****************************************************************************

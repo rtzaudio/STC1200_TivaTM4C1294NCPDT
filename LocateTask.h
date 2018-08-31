@@ -40,8 +40,6 @@ typedef struct _LocateMessage {
 void CuePointStore(size_t index);
 void CuePointClear(size_t index);
 
-void QueueLocateCommand(LocateType command, uint32_t param1, uint32_t param2);
-
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 
 #endif /* __LOCATETASK_H */

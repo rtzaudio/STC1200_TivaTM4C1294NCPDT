@@ -361,8 +361,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_CUE))
 					{
-						/* Store the current position at cue point zero */
-						CuePointStore(0);
+						/* Store the current position at cue point 65 */
+						CuePointStore(MAX_CUE_POINTS);
 					}
 
 					Debounce_buttonLO(Board_BTN_CUE);
@@ -373,9 +373,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_SEARCH))
 					{
-						/* Cue up locate-0 request */
+						/* Cue up locate point 65 request */
 						msgLocate.command = LOCATE_SEARCH;
-						msgLocate.param1  = 0;
+						msgLocate.param1  = MAX_CUE_POINTS;
 						msgLocate.param2  = 0;
 						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
 					}
@@ -459,10 +459,9 @@ void gpioButtonSearchHwi(unsigned int index)
 
 void gpioButtonStopHwi(unsigned int index)
 {
-	uint32_t btn;
+	//uint32_t btn;
     /* Read the stop button press state */
-    btn = GPIO_read(Board_STOP_DETECT_N);
-
+    //btn = GPIO_read(Board_STOP_DETECT_N);
     uint32_t key = Hwi_disable();
     g_sysData.searchActive = false;
     Hwi_restore(key);
