@@ -90,6 +90,8 @@
 #include "TapeTach.h"
 #include "STC1200.h"
 
+#define BUTTON_PULSE_TIME	50
+
 /* External Data Items */
 
 extern SYSDATA g_sysData;
@@ -103,7 +105,9 @@ static void GPIOPulseLow(uint32_t index, uint32_t duration);
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
  * cue point locate table. The parameter index must be the range of
- * zero to MAX_CUE_POINTS-1.
+ * zero to MAX_CUE_POINTS-1. Cue point 0-63 are for the remote control
+ * memories. Cue point 64 is for the single memory cue point buttons
+ * on the machine.
  *****************************************************************************/
 
 void CuePointStore(size_t index)
@@ -137,81 +141,15 @@ void CuePointClear(size_t index)
 }
 
 //*****************************************************************************
-// Position reader/display task. This function reads the tape roller
-// quadrature encoder and stores the current position data. The 7-segement
-// tape position display is also updated via the task so the current tape
-// position is always being shown on the machine's display on the transport.
-//*****************************************************************************
-
-Void LocateTaskFxn(UArg arg0, UArg arg1)
-{
-	uint32_t key;
-	size_t index;
-    LocateMessage msg;
-
-    while (true)
-    {
-    	/* Clear SEARCHING_OUT status i/o pin */
-    	GPIO_write(Board_SEARCHING, PIN_HIGH);
-
-    	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxLocate, &msg, 500))
-        	continue;
-
-        if (msg.command != LOCATE_SEARCH)
-        	continue;
-
-        if ((index = msg.param1) > MAX_CUE_POINTS)
-        	continue;
-
-        if (g_sysData.cuePoint[index].flags == 0)
-        	continue;
-
-        System_printf("LOCATE[%d] %d\n", index, g_sysData.cuePoint[index].ipos);
-		System_flush();
-
-		/* Set SEARCHING_OUT status i/o pin */
-		GPIO_write(Board_SEARCHING, PIN_LOW);
-
-		/*
-		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
-		 */
-
-	    key = Hwi_disable();
-	    g_sysData.searchActive = true;
-	    Hwi_restore(key);
-
-	    /* Enter Search Loop */
-
-		do {
-			/* Get distance in inches from zero reset point */
-			float distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
-
-			/* Calculate the current position delta from cue point */
-			int delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
-
-			float tach = TapeTach_read();
-
-			System_printf("%d : %d : %f\n", g_sysData.tapePosition, delta, tach);
-			System_flush();
-
-			Task_sleep(500);
-
-		} while (g_sysData.searchActive);
-
-		System_printf("SEARCH CANCELED\n");
-		System_flush();
-    }
-}
-
-//*****************************************************************************
 // Pulse and I/O line LOW for the specified ms duration. The following
-// gpio lines are used to control the transport directly.
+// gpio lines are used to control the transport directly. Index should
+// be one of the following for the transport control buttons:
 //
-// Board_STOP_N
-// Board_PLAY_N
-// Board_FWD_N
-// Board_REW_N
+//   Board_STOP_N
+//   Board_PLAY_N
+//   Board_FWD_N
+//   Board_REW_N
+//
 //*****************************************************************************
 
 void GPIOPulseLow(uint32_t index, uint32_t duration)
@@ -224,6 +162,148 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
 
 	/* Return i/o pin to high state */
 	GPIO_write(index, PIN_HIGH);
+}
+
+//*****************************************************************************
+// Position reader/display task. This function reads the tape roller
+// quadrature encoder and stores the current position data. The 7-segement
+// tape position display is also updated via the task so the current tape
+// position is always being shown on the machine's display on the transport.
+//*****************************************************************************
+
+Void LocateTaskFxn(UArg arg0, UArg arg1)
+{
+	int dir;
+	int delta;
+    float distance;
+	uint32_t key;
+	size_t index;
+    LocateMessage msg;
+
+    /* Initialize single transport cue point to zero */
+    CuePointStore(MAX_CUE_POINTS);
+
+    while (true)
+    {
+    	/* Clear SEARCHING_OUT status i/o pin */
+    	GPIO_write(Board_SEARCHING, PIN_HIGH);
+
+    	/* Wait for a message up to 1 second */
+        if (!Mailbox_pend(g_mailboxLocate, &msg, 500))
+        {
+    		System_printf("%f\n", g_sysData.tapeTach);
+    		System_flush();
+        	continue;
+        }
+
+        if (msg.command != LOCATE_SEARCH)
+        	continue;
+
+        /* Get the cue point memory index */
+        index = (size_t)msg.param1;
+
+        if (index > MAX_CUE_POINTS)
+        	continue;
+
+        /* Make sure the cue point is active */
+        if (g_sysData.cuePoint[index].flags == 0)
+        	continue;
+#if 0
+		/*
+		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
+		 */
+
+        System_printf("LOCATE[%d] %d to %d\n", index,
+        		g_sysData.tapePosition,
+				g_sysData.cuePoint[index].ipos);
+
+		/* Calculate the current position delta from cue point */
+		delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
+
+		/* Determine which direction we need to go initially */
+
+		if (delta > 0)
+		{
+			dir = DIR_FWD;
+			System_printf("SEARCH FWD %d\n", delta);
+			System_flush();
+		}
+		else if (delta < 0)
+		{
+			dir = DIR_REW;
+			System_printf("SEARCH REW %d\n", delta);
+			System_flush();
+		}
+		else
+		{
+			dir = DIR_ZERO;
+			System_printf("AT RTZ!\n");
+			System_flush();
+			continue;
+		}
+
+		/* Set SEARCHING_OUT status i/o pin */
+		GPIO_write(Board_SEARCHING, PIN_LOW);
+
+		/* Clear the global search cancel flag */
+	    key = Hwi_disable();
+	    g_sysData.searchCancel = false;
+	    Hwi_restore(key);
+
+	    /* Start the transport in either FWD or REV direction
+	     * based on the cue point and current location.
+	     */
+
+	    if (dir == DIR_FWD)
+	    	GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
+	    else
+	    	GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
+
+	    /*
+	     * ENTER MAIN SEARCH LOCATE LOOP
+	     */
+
+		do {
+
+			/* Get distance in inches from zero reset point */
+			distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
+
+			/* Calculate the current position delta from cue point */
+			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
+
+			System_printf("%d : %f\n", delta, g_sysData.tapeTach);
+			System_flush();
+
+			if (dir == DIR_FWD)
+			{
+				if (delta < 0)
+				{
+					System_printf("FWD SEARCH COMPLETE\n");
+					System_flush();
+					break;
+				}
+			}
+			else if (dir == DIR_REW)
+			{
+				if (delta > 0)
+				{
+					System_printf("REW SEARCH COMPLETE\n");
+					System_flush();
+					break;
+				}
+			}
+
+			Task_sleep(250);
+
+		} while (!g_sysData.searchCancel);
+
+		/* Send STOP button pulse to stop transport */
+		GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
+
+		System_printf("SEARCH END\n");
+		System_flush();
+#endif
+    }
 }
 
 /* End-Of-File */

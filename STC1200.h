@@ -38,7 +38,7 @@ typedef struct _SYSDATA
     int32_t 	tapeDirection;				/* direction 1=fwd, 0=rew     */
     uint32_t	qei_error_cnt;				/* QEI phase error count      */
     float		tapeTach;					/* tape speed from roller     */
-	bool		searchActive;
+	bool		searchCancel;
     TAPETIME	tapeTime;					/* current tape time position */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;

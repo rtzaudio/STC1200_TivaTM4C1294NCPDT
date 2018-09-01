@@ -24,6 +24,10 @@ typedef struct _CUE_POINT {
 
 /*** MESSAGE STRUCTURES ****************************************************/
 
+#define DIR_FWD		1
+#define DIR_ZERO	0
+#define DIR_REW		(-1)
+
 typedef enum LocateType {
 	LOCATE_CANCEL=0,
     LOCATE_SEARCH,

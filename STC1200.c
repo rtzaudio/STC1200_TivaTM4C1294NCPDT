@@ -459,11 +459,8 @@ void gpioButtonSearchHwi(unsigned int index)
 
 void gpioButtonStopHwi(unsigned int index)
 {
-	//uint32_t btn;
-    /* Read the stop button press state */
-    //btn = GPIO_read(Board_STOP_DETECT_N);
     uint32_t key = Hwi_disable();
-    g_sysData.searchActive = false;
+    g_sysData.searchCancel = true;
     Hwi_restore(key);
 }
 
