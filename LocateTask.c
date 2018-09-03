@@ -180,8 +180,11 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	size_t index;
     LocateMessage msg;
 
+	/* Initialize the tape tachometer for reading tape path speed */
+	TapeTach_initialize();
+
     /* Initialize single transport cue point to zero */
-    CuePointStore(MAX_CUE_POINTS);
+    CuePointStore(SINGLE_CUE_POINT);
 
     while (true)
     {
@@ -264,6 +267,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	     */
 
 		do {
+			/* Read the tape tach */
+			float tach = TapeTach_read();
 
 			/* Get distance in inches from zero reset point */
 			distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
@@ -293,7 +298,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 				}
 			}
 
-			Task_sleep(250);
+			Task_sleep(100);
 
 		} while (!g_sysData.searchCancel);
 

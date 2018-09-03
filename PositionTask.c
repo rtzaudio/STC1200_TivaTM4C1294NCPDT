@@ -163,9 +163,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 	uartHandle = UART_open(Board_UART_ATMEGA88, &uartParams);
 
-	/* Initialize the tape tachometer for reading tape path speed */
-	TapeTach_initialize();
-
 	/* This is the main tape position/counter task. Here we read the tape
 	 * roller quadrature encoder to keep track of the absolute tape position.
 	 * This position is relative to the last counter reset, either at power

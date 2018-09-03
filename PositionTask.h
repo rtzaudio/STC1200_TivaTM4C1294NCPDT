@@ -32,6 +32,7 @@
  * this is treated as a negative position value.
  */
 #define MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
+#define MIN_ROLLER_POSITION			(-MAX_ROLLER_POSITION - 1)
 
 /*** TAPE TIME/POSITION DATA ***********************************************/
 

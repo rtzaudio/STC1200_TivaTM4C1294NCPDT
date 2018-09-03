@@ -21,6 +21,7 @@ typedef struct _CUE_POINT {
 } CUE_POINT;
 
 #define MAX_CUE_POINTS		64
+#define SINGLE_CUE_POINT	MAX_CUE_POINTS	/* cue point 75 internal */
 
 /*** MESSAGE STRUCTURES ****************************************************/
 

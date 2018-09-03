@@ -300,9 +300,9 @@ void TapeTach_reset(void)
  * periodic mode to time the sample period.
   ****************************************************************************/
 
-#define TACH_EDGE_COUNT	10
+#define TACH_EDGE_COUNT	20
 
-static uint32_t g_prevCount = 0xFFFFFFFF;
+static uint32_t g_prevCount = 0;	//0xFFFFFFFF;
 static uint32_t g_thisPeriod;
 static uint32_t g_frequencyRawHz = 0;
 
@@ -341,6 +341,7 @@ void TapeTach_initialize(void)
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
+	SysCtlDelay(100);
 
     /* First make sure the timer is disabled */
     TimerDisable(TIMER1_BASE, TIMER_A);
@@ -374,7 +375,7 @@ void TapeTach_initialize(void)
 	/* Configure timer2 for full width 32-bit periodic timer */
     TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
     /* Configure the timeout count for half a second */
-    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock);	//  / 2);
     /* Enable interrupt on timer A for timeout */
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
@@ -395,12 +396,15 @@ void TapeTach_initialize(void)
  ****************************************************************************/
 Void Timer1AIntHandler(UArg arg)
 {
-    uint32_t key;
     uint32_t thisCount;
 
+    uint32_t status = TimerIntStatus(TIMER1_BASE, true);
+
 	/* Clear the interrupt */
-	TimerIntClear(TIMER1_BASE, TIMER_CAPA_MATCH);
-    TimerIntClear(TIMER1_BASE, TIMER_CAPA_EVENT);
+	//TimerIntClear(TIMER1_BASE, TIMER_CAPA_MATCH);
+    //TimerIntClear(TIMER1_BASE, TIMER_CAPA_EVENT);
+
+    TimerIntClear(TIMER1_BASE, status);
 
 	/* Reset the edge count and enable the timer */
 	TimerLoadSet(TIMER1_BASE, TIMER_A, TACH_EDGE_COUNT);
@@ -408,32 +412,11 @@ Void Timer1AIntHandler(UArg arg)
 
 	/* Read the current period timer count */
     thisCount = TimerValueGet(TIMER2_BASE, TIMER_A);
-
-    if (g_prevCount > thisCount)
-    	g_thisPeriod = g_prevCount - thisCount;
-    else
-    	g_thisPeriod = thisCount - g_prevCount;
-
-    g_prevCount = TimerValueGet(TIMER2_BASE, TIMER_A);
-
-    /* Store RAW value, which refers to one measurement only
-     * while avoiding divide by zero!
-     */
-
-	/* ENTER - Critical Section */
-    //key = Hwi_disable();
-
-    if (g_thisPeriod)
-    	g_frequencyRawHz = g_systemClock / g_thisPeriod;
-
-    //if (g_frequencyRawHz == 0)
-    //	thisCount = 0;
-
-	/* EXIT - Critical Section */
-    //Hwi_restore(key);
+    g_thisPeriod = g_prevCount - thisCount;
+    g_prevCount = thisCount;	//TimerValueGet(TIMER2_BASE, TIMER_A);
 
     /* Reset half second timeout timer */
-    HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
+    HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock;	// / 2;
 }
 
 /****************************************************************************
@@ -463,11 +446,11 @@ float TapeTach_read(void)
     uint32_t key;
 
     //key = Hwi_disable();
-    period = (float)g_frequencyRawHz;
+    period = (float)g_thisPeriod;
     //Hwi_restore(key);
 
-    //if (period)
-    //	return 120000000.0f / period;
+    if (period)
+    	return 120000000.0f / period;
 
     return period;	//0.0f;
 }
