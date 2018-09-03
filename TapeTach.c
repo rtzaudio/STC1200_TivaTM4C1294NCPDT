@@ -147,6 +147,7 @@ void TapeTach_initialize(void)
     IntMasterDisable();
 
     /* Enable pin PL6 for TIMER1 T1CCP0 */
+    GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_6);
     GPIOPinConfigure(GPIO_PL6_T1CCP0);
     GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_6);
 
@@ -295,9 +296,10 @@ void TapeTach_reset(void)
 /****************************************************************************
  * The transport has tape tach derived from the search-to-cue timer card
  * using the quadrature encoder from the tape timer roller. The pulse stream
- * is approximately 240 Hz with tape moving at 30 IPS. We configure
- * TIMER1A as 16-bit input edge count mode. TIMER2A is used in 32-bit
- * periodic mode to time the sample period.
+ * is approximately 240 Hz with tape moving at 30 IPS. In full shuttle speed
+ * the tach pulses may go up to 2.5kHz. We configure TIMER1A as 16-bit input
+ * edge count mode. TIMER2A is used in 32-bit periodic mode to time the
+ * period between edges.
   ****************************************************************************/
 
 #define TACH_EDGE_COUNT	20
@@ -338,44 +340,42 @@ void TapeTach_initialize(void)
         System_abort("Couldn't construct TIMER2 hwi");
 
     /* Enable the timer peripheral */
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
-	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
-	SysCtlDelay(100);
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+	while(!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER1));
+	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+	while(!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER2));
 
-    /* First make sure the timer is disabled */
+    /* Enable pin PL6 for TIMER1 T1CCP0 */
+    GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_6);
+    GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_6);
+    GPIOPinConfigure(GPIO_PL6_T1CCP0);
+
+    /* First make sure the timers are disabled */
     TimerDisable(TIMER1_BASE, TIMER_A);
     TimerDisable(TIMER2_BASE, TIMER_A);
 
     /* Disable global interrupts */
     IntMasterDisable();
 
-    /* Enable pin PL6 for TIMER1 T1CCP0 */
-    //GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_6);
-    GPIOPinConfigure(GPIO_PL6_T1CCP0);
-    GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_6);
-
-	/* Configure Edge Count Timers */
-
     /* Configure timer for edge count capture, split mode. Timer-B is
-     * note used.
+     * not used.
      */
     //TimerPrescaleSet(TIMER1_BASE, TIMER_A, PRESCALE_VALUE);
-
     TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_COUNT);
-    /* Define event which generates interrupt on timer A */
-    TimerControlEvent(TIMER1_BASE, TIMER_A, TIMER_EVENT_POS_EDGE);
-    /* Load set timer with the edge count to interrupt at */
+    /* Load timer with number of edges to count */
 	TimerLoadSet(TIMER1_BASE, TIMER_A, TACH_EDGE_COUNT);
-	/* Load the match value */
-	TimerMatchSet(TIMER1_BASE, TIMER_A, 0x0000);
+	/* Interrupt on count down to zero */
+	TimerMatchSet(TIMER1_BASE, TIMER_A, 0);
+    /* Define event which generates interrupt on timer A */
+    TimerControlEvent(TIMER1_BASE, TIMER_A, TIMER_EVENT_NEG_EDGE);
 	/* Enable interrupt on timer A for capture event */
 	TimerIntEnable(TIMER1_BASE, TIMER_CAPA_MATCH);
 
 	/* Configure timer2 for full width 32-bit periodic timer */
     TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
     /* Configure the timeout count for half a second */
-    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock);	//  / 2);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
     /* Enable interrupt on timer A for timeout */
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
@@ -396,27 +396,34 @@ void TapeTach_initialize(void)
  ****************************************************************************/
 Void Timer1AIntHandler(UArg arg)
 {
+	uint32_t key;
     uint32_t thisCount;
 
     uint32_t status = TimerIntStatus(TIMER1_BASE, true);
 
 	/* Clear the interrupt */
-	//TimerIntClear(TIMER1_BASE, TIMER_CAPA_MATCH);
-    //TimerIntClear(TIMER1_BASE, TIMER_CAPA_EVENT);
+    TimerIntClear(TIMER1_BASE, TIMER_CAPA_MATCH);
 
-    TimerIntClear(TIMER1_BASE, status);
+	/* Read the current period timer count */
+    thisCount = TimerValueGet(TIMER2_BASE, TIMER_A);
 
 	/* Reset the edge count and enable the timer */
 	TimerLoadSet(TIMER1_BASE, TIMER_A, TACH_EDGE_COUNT);
 	TimerEnable(TIMER1_BASE, TIMER_A);
 
-	/* Read the current period timer count */
-    thisCount = TimerValueGet(TIMER2_BASE, TIMER_A);
-    g_thisPeriod = g_prevCount - thisCount;
+    key = Hwi_disable();
+
+    if (thisCount > g_prevCount)
+    	g_thisPeriod = thisCount - g_prevCount;
+    else
+    	g_thisPeriod = g_prevCount - thisCount;
+
     g_prevCount = thisCount;	//TimerValueGet(TIMER2_BASE, TIMER_A);
 
+    Hwi_restore(key);
+
     /* Reset half second timeout timer */
-    HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock;	// / 2;
+    HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
 }
 
 /****************************************************************************
@@ -445,9 +452,9 @@ float TapeTach_read(void)
 	float period;
     uint32_t key;
 
-    //key = Hwi_disable();
+    key = Hwi_disable();
     period = (float)g_thisPeriod;
-    //Hwi_restore(key);
+    Hwi_restore(key);
 
     if (period)
     	return 120000000.0f / period;
@@ -461,9 +468,7 @@ float TapeTach_read(void)
 
 void TapeTach_reset(void)
 {
-    uint32_t key;
-
-    key = Hwi_disable();
+    uint32_t key = Hwi_disable();
     g_frequencyRawHz = 0;
     g_thisPeriod = 0;
     Hwi_restore(key);

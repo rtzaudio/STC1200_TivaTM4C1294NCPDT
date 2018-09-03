@@ -100,7 +100,7 @@ static Hwi_Struct qeiHwiStruct;
 
 /* Static Function Prototypes */
 
-void InitQEI(void);
+void QEI_initialize(void);
 void btime(const uint32_t time, uint8_t flags, TAPETIME* p);
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 
@@ -135,14 +135,10 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     g_eventQEI = Event_create(NULL, &eb);
 
 	/* Initialize the quadrature encoder module */
-	InitQEI();
+	QEI_initialize();
 
-	/* Motion indicator output pins deasserted */
-	GPIO_write(Board_MOTION_FWD, PIN_HIGH);
-	GPIO_write(Board_MOTION_REW, PIN_HIGH);
-
-	/* Tape direction output pin */
-	GPIO_write(Board_TAPE_DIR, PIN_HIGH);
+	/* Initialize the tape tachometer for reading tape path speed */
+	TapeTach_initialize();
 
 	UART_Params_init(&uartParams);
 
@@ -182,7 +178,10 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     		System_flush();
     	}
 
-    	/* Read the tape direction status from the QEI controller */
+    	/* Read the tape roller tachometer */
+    	g_sysData.tapeTach = TapeTach_read();
+
+    	/* Get the tape direction status from the QEI controller */
     	g_sysData.tapeDirection = QEIDirectionGet(QEI_BASE_ROLLER);
 
     	/* Set the tape direction output indicator pin either high or low
@@ -198,9 +197,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
     	/* Convert absolute tape position to signed relative position */
     	g_sysData.tapePosition = POSITION_TO_INT(g_sysData.tapePositionAbs);
-
-    	/* Read the tape roller tachometer for tape speed data */
-    	g_sysData.tapeTach = TapeTach_read();
 
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,
@@ -296,7 +292,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 Void QEIHwi(UArg arg)
 {
-	UInt key;
     unsigned long ulIntStat;
 
     /* Get and clear the current interrupt source(s) */
@@ -307,10 +302,7 @@ Void QEIHwi(UArg arg)
 
     if (ulIntStat & QEI_INTERROR)       	/* phase error detected */
     {
-    	key = Hwi_disable();
     	g_sysData.qei_error_cnt++;
-    	Hwi_restore(key);
-
     	Event_post(g_eventQEI, Event_Id_00);
     }
     else if (ulIntStat & QEI_INTTIMER)  	/* velocity timer expired */
@@ -333,7 +325,7 @@ Void QEIHwi(UArg arg)
 //
 //*****************************************************************************
 
-void InitQEI(void)
+void QEI_initialize(void)
 {
 	Error_Block eb;
 	Hwi_Params  hwiParams;
