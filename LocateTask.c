@@ -189,7 +189,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     	GPIO_write(Board_SEARCHING, PIN_HIGH);
 
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxLocate, &msg, 500))
+        if (!Mailbox_pend(g_mailboxLocate, &msg, 250))
         {
     		System_printf("%f\n", g_sysData.tapeTach);
     		System_flush();

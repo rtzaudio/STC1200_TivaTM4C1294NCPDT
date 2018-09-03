@@ -425,10 +425,6 @@ void STC1200_initGPIO(void)
     GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_4);
     // Enable pin PL5 for GPIOInput
     GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_5);    
-    // Enable pin PL6 for GPIOInput
-    GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_6);
-    // Enable pin PL7 for GPIOInput
-    GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_7);
 
     // Enable pin PM0 for GPIOInput
     GPIOPinTypeGPIOInput(GPIO_PORTM_BASE, GPIO_PIN_0);    

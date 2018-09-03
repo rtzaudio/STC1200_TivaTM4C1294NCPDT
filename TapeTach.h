@@ -59,9 +59,9 @@ typedef struct _TACHDATA
     uint32_t averageSum;
     size_t   averageIdx;
     /* Sampled data */
-	float	frequencyRawHz;
-    float	frequencyAvgHz;
-    bool	tachAlive;
+	uint32_t frequencyRawHz;
+    uint32_t frequencyAvgHz;
+    bool	 tachAlive;
 } TACHDATA;
 
 //*****************************************************************************

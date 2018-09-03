@@ -147,7 +147,7 @@ int main(void)
     /* Enables Floating Point Hardware Unit */
     FPUEnable();
     /* Allows the FPU to be used inside interrupt service routines */
-    //FPULazyStackingEnable();
+    FPULazyStackingEnable();
 
     /* Initialize a 1 BPP off-screen OLED display buffer that will draw into */
     GrOffScreenMonoInit();
@@ -219,11 +219,13 @@ int main(void)
 //*****************************************************************************
 // This function attempts to debounce an I/O pin button state by attempting
 // to read the button state repeatedly for DEBOUNCE cycles. If the pin goes
-// low during this time, then it's considered and invalid button press.
+// low during this time, then it's considered an invalid button press.
 //*****************************************************************************
 
 #define DEBOUNCE_HI	30
 #define DEBOUNCE_LO	50
+
+/* Check that button remains HI for DEBOUNCE_HI cycles */
 
 int Debounce_buttonHI(uint32_t index)
 {
@@ -244,6 +246,8 @@ int Debounce_buttonHI(uint32_t index)
 	return f;
 }
 
+/* Check that button remains LOW for DEBOUNCE_LO cycles */
+
 int Debounce_buttonLO(uint32_t index)
 {
 	int i;
@@ -256,6 +260,7 @@ int Debounce_buttonLO(uint32_t index)
 		if (GPIO_read(index))
 		{
 			f = 0;
+			break;
 		}
 	}
 

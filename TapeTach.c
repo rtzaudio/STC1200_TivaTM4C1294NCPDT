@@ -84,7 +84,6 @@
 #include "STC1200.h"
 #include "TapeTach.h"
 
-
 /****************************************************************************
  * Static Data Items
  ****************************************************************************/
@@ -92,10 +91,13 @@
 static uint32_t g_systemClock = 120000000;
 
 /* Hardware Interrupt Handlers */
-static Void Timer1AIntHandler(void);
-static Void Timer2AIntHandler(void);
+static Void Timer1AIntHandler(UArg arg);
+static Void Timer2AIntHandler(UArg arg);
 
 #if (TACH_TYPE_EDGE_WIDTH > 0)
+
+static Hwi_Struct Timer1HwiStruct;
+static Hwi_Struct Timer2HwiStruct;
 
 static TACHDATA g_tach;
 
@@ -108,7 +110,10 @@ static TACHDATA g_tach;
 
 void TapeTach_initialize(void)
 {
-    g_systemClock = SysCtlClockGet();
+    Error_Block eb;
+    Hwi_Params  hwiParams;
+
+	//BIOS_getCpuFreq(&freq);
 
 	/* Map the timer interrupt handlers. We don't make sys/bios calls
 	 * from these interrupt handlers and there is no need to create a
@@ -116,57 +121,71 @@ void TapeTach_initialize(void)
 	 * just update some globals variables and need to execute as
 	 * quickly and efficiently as possible.
 	 */
-	Hwi_plug(INT_WTIMER1A, Timer1AIntHandler);
-    Hwi_plug(INT_WTIMER1B, Timer2AIntHandler);
+	//Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
+    //Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
+    Error_init(&eb);
+    Hwi_Params_init(&hwiParams);
+    Hwi_construct(&Timer1HwiStruct, INT_TIMER1A, Timer1AIntHandler, &hwiParams, &eb);
+    if (Error_check(&eb))
+        System_abort("Couldn't construct TIMER1 hwi");
+
+    Error_init(&eb);
+    Hwi_Params_init(&hwiParams);
+    Hwi_construct(&Timer2HwiStruct, INT_TIMER2A, Timer2AIntHandler, &hwiParams, &eb);
+    if (Error_check(&eb))
+        System_abort("Couldn't construct TIMER2 hwi");
 
     /* Enable the wide timer peripheral */
-    SysCtlPeripheralEnable(SYSCTL_PERIPH_WTIMER1);
-    while(!(SysCtlPeripheralReady(SYSCTL_PERIPH_GPIOC))){}
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
 
     /* First make sure the timer is disabled */
     TimerDisable(TIMER1_BASE, TIMER_A);
-    TimerDisable(TIMER1_BASE, TIMER_B);
+    TimerDisable(TIMER2_BASE, TIMER_A);
 
     /* Disable global interrupts */
     IntMasterDisable();
 
-    /* Enable pin PC6 for WTIMER1 WT1CCP0 */
-    GPIOPinConfigure(GPIO_PC6_WT1CCP0);
-    GPIOPinTypeTimer(GPIO_PORTC_BASE, GPIO_PIN_6);
+    /* Enable pin PL6 for TIMER1 T1CCP0 */
+    GPIOPinConfigure(GPIO_PL6_T1CCP0);
+    GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_6);
 
-	/* Configure Edge Count Timers */
-
-    /* Configure wide timer for time capture, split mode. Timer-B is
-     * used as a timeout timer that triggers when no edges are
-     * present after half second timeout period.
+    /* Configure timer1 for edge mode time capture.
      */
-    TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME | TIMER_CFG_B_PERIODIC);
+    TimerPrescaleSet(TIMER1_BASE, TIMER_A, 100);
 
+    TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME);
     /* Define event which generates interrupt on timer A */
     TimerControlEvent(TIMER1_BASE, TIMER_A, TIMER_EVENT_NEG_EDGE);
-
-    /* Configure the timeout count on timer B for half a second */
-    TimerLoadSet(TIMER1_BASE, TIMER_B, g_systemClock / 2);
-
     /* Enable interrupt on timer A for capture event and timer B for timeout */
-    TimerIntEnable(TIMER1_BASE, TIMER_CAPA_EVENT | TIMER_TIMB_TIMEOUT);
+    TimerIntEnable(TIMER1_BASE, TIMER_CAPA_EVENT);
+
+    /* Configure timer2 as 32-bit wide timer for timeout
+     * when no edges are detected after 1/2 second.
+     */
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_B_PERIODIC);
+    /* Configure the timeout count on timer2 for half a second */
+    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
+    /* Enable interrupt on timer A for capture event and timer B for timeout */
+    //TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
     /* Enable timer A & B interrupts */
-    IntEnable(INT_WTIMER1A);
-    IntEnable(INT_WTIMER1B);
+    IntEnable(INT_TIMER1A);
+    //IntEnable(INT_TIMER2A);
 
     /* Enable master interrupts */
     IntMasterEnable();
 
     /* Start timers A and B*/
-    TimerEnable(TIMER1_BASE, TIMER_BOTH);
+    TimerEnable(TIMER1_BASE, TIMER_A);
+    //TimerEnable(TIMER2_BASE, TIMER_A);
 }
 
 /****************************************************************************
  * WTIMER1A FALLING EDGE CAPTURE TIMER INTERRUPT HANDLER
  ****************************************************************************/
 
-Void Timer1AIntHandler(void)
+Void Timer1AIntHandler(UArg arg)
 {
     uint32_t thisCount;
     uint32_t thisPeriod;
@@ -175,7 +194,7 @@ Void Timer1AIntHandler(void)
     TimerIntClear(TIMER1_BASE, TIMER_CAPA_EVENT);
 
     /* ENTER - Critical Section */
-    key = Hwi_disable();
+    //key = Hwi_disable();
 
     thisCount = TimerValueGet(TIMER1_BASE, TIMER_A);
     thisPeriod = g_tach.previousCount - thisCount;
@@ -194,29 +213,29 @@ Void Timer1AIntHandler(void)
         g_tach.tachAlive = true;
 
         /* Store RAW value, which refers to one measurement only */
-        g_tach.frequencyRawHz = (float)g_systemClock / (float)thisPeriod;
+        g_tach.frequencyRawHz = g_systemClock / thisPeriod; // WAS FLOAT
 
         /* Update the average sum */
         if (g_tach.averageSum)
-            g_tach.frequencyAvgHz = (float)g_systemClock / ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
+            g_tach.frequencyAvgHz = g_systemClock / (g_tach.averageSum / TACH_AVG_QTY);
 
         /* Resets timeout timer */
-        HWREG(TIMER1_BASE + TIMER_O_TBV) = g_systemClock / 2;
+        HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
     }
 
     /* EXIT - Critical Section */
-    Hwi_restore(key);
+    //Hwi_restore(key);
 }
 
 /****************************************************************************
  * WTIMER1B 1/2 SECOND EDGE DETECT TIMEOUT TIMER INTERRUPT HANDLER
  ****************************************************************************/
 
-Void Timer2AIntHandler(void)
+Void Timer2AIntHandler(UArg arg)
 {
     uint32_t key;
 
-    TimerIntClear(TIMER1_BASE, TIMER_TIMB_TIMEOUT);
+    TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
     key = Hwi_disable();
     {
@@ -238,7 +257,8 @@ float TapeTach_read(void)
 
 	key = Hwi_disable();
 	{
-	    avg = g_tach.frequencyAvgHz;
+	    avg = (float)g_tach.frequencyAvgHz;
+	    //avg = (float)g_tach.frequencyRawHz;
 	}
 	Hwi_restore(key);
 
@@ -286,9 +306,14 @@ static uint32_t g_prevCount = 0xFFFFFFFF;
 static uint32_t g_thisPeriod;
 static uint32_t g_frequencyRawHz = 0;
 
+static Hwi_Struct Timer1HwiStruct;
+static Hwi_Struct Timer2HwiStruct;
 
 void TapeTach_initialize(void)
 {
+    Error_Block eb;
+    Hwi_Params  hwiParams;
+
     //g_systemClock = 120000000;	//SysCtlClockGet();
 
 	/* Map the timer interrupt handlers. We don't make sys/bios calls
@@ -297,8 +322,20 @@ void TapeTach_initialize(void)
 	 * just update some globals variables and need to execute as
 	 * quickly and efficiently as possible.
 	 */
-	Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
-    Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
+	//Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
+    //Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
+
+    Error_init(&eb);
+    Hwi_Params_init(&hwiParams);
+    Hwi_construct(&Timer1HwiStruct, INT_TIMER1A, Timer1AIntHandler, &hwiParams, &eb);
+    if (Error_check(&eb))
+        System_abort("Couldn't construct TIMER1 hwi");
+
+    Error_init(&eb);
+    Hwi_Params_init(&hwiParams);
+    Hwi_construct(&Timer2HwiStruct, INT_TIMER2A, Timer2AIntHandler, &hwiParams, &eb);
+    if (Error_check(&eb))
+        System_abort("Couldn't construct TIMER2 hwi");
 
     /* Enable the timer peripheral */
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
@@ -313,15 +350,17 @@ void TapeTach_initialize(void)
     IntMasterDisable();
 
     /* Enable pin PL6 for TIMER1 T1CCP0 */
+    //GPIOPinTypeGPIOInput(GPIO_PORTL_BASE, GPIO_PIN_6);
     GPIOPinConfigure(GPIO_PL6_T1CCP0);
     GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_6);
 
 	/* Configure Edge Count Timers */
 
-    /* Configure wide timer for edge count capture, split mode. Timer-B is
-     * used as a timeout timer that triggers when no edges are
-     * present after half second timeout period.
+    /* Configure timer for edge count capture, split mode. Timer-B is
+     * note used.
      */
+    //TimerPrescaleSet(TIMER1_BASE, TIMER_A, PRESCALE_VALUE);
+
     TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_COUNT);
     /* Define event which generates interrupt on timer A */
     TimerControlEvent(TIMER1_BASE, TIMER_A, TIMER_EVENT_POS_EDGE);
@@ -335,8 +374,7 @@ void TapeTach_initialize(void)
 	/* Configure timer2 for full width 32-bit periodic timer */
     TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
     /* Configure the timeout count for half a second */
-    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 4);
-	//TimerLoadSet(TIMER2_BASE, TIMER_A, 0xFFFFFFFF);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
     /* Enable interrupt on timer A for timeout */
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
@@ -355,7 +393,7 @@ void TapeTach_initialize(void)
 /****************************************************************************
  * TIMER1A FALLING EDGE CAPTURE TIMER INTERRUPT HANDLER
  ****************************************************************************/
-Void Timer1AIntHandler(void)
+Void Timer1AIntHandler(UArg arg)
 {
     uint32_t key;
     uint32_t thisCount;
@@ -368,35 +406,41 @@ Void Timer1AIntHandler(void)
 	TimerLoadSet(TIMER1_BASE, TIMER_A, TACH_EDGE_COUNT);
 	TimerEnable(TIMER1_BASE, TIMER_A);
 
-	/* ENTER - Critical Section */
-    key = Hwi_disable();
-
 	/* Read the current period timer count */
     thisCount = TimerValueGet(TIMER2_BASE, TIMER_A);
 
-    g_thisPeriod = g_prevCount - thisCount;
+    if (g_prevCount > thisCount)
+    	g_thisPeriod = g_prevCount - thisCount;
+    else
+    	g_thisPeriod = thisCount - g_prevCount;
 
-    g_prevCount = thisCount;	//TimerValueGet(TIMER2_BASE, TIMER_A);
+    g_prevCount = TimerValueGet(TIMER2_BASE, TIMER_A);
 
     /* Store RAW value, which refers to one measurement only
      * while avoiding divide by zero!
      */
 
+	/* ENTER - Critical Section */
+    //key = Hwi_disable();
+
     if (g_thisPeriod)
     	g_frequencyRawHz = g_systemClock / g_thisPeriod;
 
+    //if (g_frequencyRawHz == 0)
+    //	thisCount = 0;
+
 	/* EXIT - Critical Section */
-    Hwi_restore(key);
+    //Hwi_restore(key);
 
     /* Reset half second timeout timer */
-    HWREG(TIMER2_BASE + TIMER_O_TBV) = g_systemClock / 4;
+    HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
 }
 
 /****************************************************************************
  * TIMER2 PERIODIC TIMEOUT TIMER INTERRUPT HANDLER
  ****************************************************************************/
 
-Void Timer2AIntHandler(void)
+Void Timer2AIntHandler(UArg arg)
 {
 	uint32_t key;
 
@@ -418,14 +462,14 @@ float TapeTach_read(void)
 	float period;
     uint32_t key;
 
-    key = Hwi_disable();
-    period = (float)g_thisPeriod;
-    Hwi_restore(key);
+    //key = Hwi_disable();
+    period = (float)g_frequencyRawHz;
+    //Hwi_restore(key);
 
-    if (period)
-    	return 120000000.0f / period;
+    //if (period)
+    //	return 120000000.0f / period;
 
-    return 0.0f;
+    return period;	//0.0f;
 }
 
 /****************************************************************************
