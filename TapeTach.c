@@ -135,9 +135,12 @@ void TapeTach_initialize(void)
     if (Error_check(&eb))
         System_abort("Couldn't construct TIMER2 hwi");
 
-    /* Enable the wide timer peripheral */
+    /* Enable the timer peripherals */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
+	while(!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER1));
+
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER2);
+	while(!SysCtlPeripheralReady(SYSCTL_PERIPH_TIMER2));
 
     /* First make sure the timer is disabled */
     TimerDisable(TIMER1_BASE, TIMER_A);
@@ -153,7 +156,6 @@ void TapeTach_initialize(void)
 
     /* Configure timer1 for edge mode time capture.
      */
-    TimerPrescaleSet(TIMER1_BASE, TIMER_A, 100);
 
     TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME);
     /* Define event which generates interrupt on timer A */
@@ -164,22 +166,26 @@ void TapeTach_initialize(void)
     /* Configure timer2 as 32-bit wide timer for timeout
      * when no edges are detected after 1/2 second.
      */
-    TimerConfigure(TIMER2_BASE, TIMER_CFG_B_PERIODIC);
-    /* Configure the timeout count on timer2 for half a second */
+    //TimerPrescaleSet(TIMER2_BASE, TIMER_A, 100);
+    /* Configure timer2 for full width 32-bit periodic timer */
+    TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
+    /* Configure the timeout count for half a second */
     TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
-    /* Enable interrupt on timer A for capture event and timer B for timeout */
-    //TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
+	/* Interrupt on count down to zero */
+	TimerMatchSet(TIMER2_BASE, TIMER_A, 0);
+    /* Enable interrupt on timer A for timeout */
+    TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
     /* Enable timer A & B interrupts */
     IntEnable(INT_TIMER1A);
-    //IntEnable(INT_TIMER2A);
+    IntEnable(INT_TIMER2A);
 
     /* Enable master interrupts */
     IntMasterEnable();
 
     /* Start timers A and B*/
     TimerEnable(TIMER1_BASE, TIMER_A);
-    //TimerEnable(TIMER2_BASE, TIMER_A);
+    TimerEnable(TIMER2_BASE, TIMER_A);
 }
 
 /****************************************************************************
@@ -195,37 +201,38 @@ Void Timer1AIntHandler(UArg arg)
     TimerIntClear(TIMER1_BASE, TIMER_CAPA_EVENT);
 
     /* ENTER - Critical Section */
-    //key = Hwi_disable();
+    key = Hwi_disable();
 
     thisCount = TimerValueGet(TIMER1_BASE, TIMER_A);
-    thisPeriod = g_tach.previousCount - thisCount;
+   	thisPeriod = g_tach.previousCount - thisCount;
     g_tach.previousCount = thisCount;
 
     if (thisPeriod)       /* Shield from dividing by zero */
     {
-        /* Calculates and store averaged value */
-        g_tach.averageSum -= g_tach.averageCount[g_tach.averageIdx];
-        g_tach.averageSum += thisPeriod;
-        g_tach.averageCount[g_tach.averageIdx] = thisPeriod;
-        g_tach.averageIdx++;
-        g_tach.averageIdx %= TACH_AVG_QTY;
-
         /* Sets the status to indicate tach is alive */
         g_tach.tachAlive = true;
+
+        /* Resets timeout timer */
+        HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
 
         /* Store RAW value, which refers to one measurement only */
         g_tach.frequencyRawHz = g_systemClock / thisPeriod; // WAS FLOAT
 
-        /* Update the average sum */
-        if (g_tach.averageSum)
-            g_tach.frequencyAvgHz = g_systemClock / (g_tach.averageSum / TACH_AVG_QTY);
+    	/* Calculates and store averaged value */
+        g_tach.averageSum -= (uint64_t)g_tach.averageCount[g_tach.averageIdx];
+        g_tach.averageSum += (uint64_t)thisPeriod;
+        g_tach.averageCount[g_tach.averageIdx] = thisPeriod;
+        g_tach.averageIdx++;
+        g_tach.averageIdx %= TACH_AVG_QTY;
 
-        /* Resets timeout timer */
-        HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
+        /* Update the average sum */
+        //if (g_tach.averageSum)
+        //    g_tach.frequencyAvgHz = (uint32_t)((uint64_t)g_systemClock / (g_tach.averageSum / (uint64_t)TACH_AVG_QTY));
+
     }
 
     /* EXIT - Critical Section */
-    //Hwi_restore(key);
+    Hwi_restore(key);
 }
 
 /****************************************************************************
@@ -243,6 +250,7 @@ Void Timer2AIntHandler(UArg arg)
         g_tach.tachAlive      = false;
         g_tach.frequencyAvgHz = 0.0f;
         g_tach.frequencyRawHz = 0.0f;
+        g_tach.averageSum     = (uint64_t)0;
     }
     Hwi_restore(key);
 }
@@ -253,17 +261,18 @@ Void Timer2AIntHandler(UArg arg)
 
 float TapeTach_read(void)
 {
-    uint32_t key;
-	float avg;
+    uint32_t key = Hwi_disable();
 
-	key = Hwi_disable();
-	{
-	    avg = (float)g_tach.frequencyAvgHz;
-	    //avg = (float)g_tach.frequencyRawHz;
-	}
+	if (g_tach.averageSum)
+    	g_tach.frequencyAvgHz = ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
+	else
+		g_tach.frequencyAvgHz = 0;
+
+	//g_tach.frequencyAvgHz = (float)g_systemClock / ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
+
 	Hwi_restore(key);
 
-	return avg;
+	return g_tach.frequencyAvgHz;
 }
 
 /****************************************************************************

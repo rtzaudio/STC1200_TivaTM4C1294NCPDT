@@ -43,7 +43,7 @@
 #ifndef STC1200_TAPE_TACH_H_
 #define STC1200_TAPE_TACH_H_
 
-#define TACH_TYPE_EDGE_WIDTH	0
+#define TACH_TYPE_EDGE_WIDTH	1
 
 #define TACH_AVG_QTY			100
 
@@ -56,11 +56,11 @@ typedef struct _TACHDATA
 	/* Interrupt edge data */
     uint32_t previousCount;
     uint32_t averageCount[TACH_AVG_QTY];
-    uint32_t averageSum;
+    uint64_t averageSum;
     size_t   averageIdx;
     /* Sampled data */
 	uint32_t frequencyRawHz;
-    uint32_t frequencyAvgHz;
+    float    frequencyAvgHz;
     bool	 tachAlive;
 } TACHDATA;
 
