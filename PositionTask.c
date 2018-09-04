@@ -86,8 +86,9 @@
 #include <driverlib/pin_map.h>
 
 /* PMX42 Board Header file */
-#include "Board.h"
+
 #include "STC1200.h"
+#include "Board.h"
 #include "TapeTach.h"
 
 /* External Data Items */

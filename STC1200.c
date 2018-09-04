@@ -82,11 +82,12 @@
 #include "drivers/offscrmono.h"
 
 /* STC1200 Board Header file */
+
+#include "STC1200.h"
 #include "Board.h"
 #include "DisplayTask.h"
 #include "RemoteTask.h"
-
-#include "STC1200.h"
+#include "CLITask.h"
 
 /* Global STC-1200 System data */
 SYSDATA g_sysData;
@@ -284,6 +285,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     	System_printf("Read Serial Number Failed!\n");
     	System_flush();
     }
+
+    /* Initialize the command line serial debug console port */
+    CLI_init();
 
     /*
      * Create the various system tasks

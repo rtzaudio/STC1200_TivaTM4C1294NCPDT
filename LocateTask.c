@@ -85,10 +85,10 @@
 #include <driverlib/qei.h>
 #include <driverlib/pin_map.h>
 
-/* PMX42 Board Header file */
+#include "STC1200.h"
 #include "Board.h"
 #include "TapeTach.h"
-#include "STC1200.h"
+#include "CLITask.h"
 
 #define BUTTON_PULSE_TIME	50
 
@@ -191,8 +191,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxLocate, &msg, 250))
         {
-    		System_printf("%f\n", g_sysData.tapeTach);
-    		System_flush();
+    		//System_printf("%f\n", g_sysData.tapeTach);
+    		//System_flush();
+    		CLI_printf("%.3f\r\n", g_sysData.tapeTach);
         	continue;
         }
 

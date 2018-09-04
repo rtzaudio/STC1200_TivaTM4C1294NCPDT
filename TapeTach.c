@@ -88,16 +88,16 @@
  * Static Data Items
  ****************************************************************************/
 
-static uint32_t g_systemClock = 120000000;
+#define FREQ_CLOCK		120000000
 
 /* Hardware Interrupt Handlers */
-static Void Timer1AIntHandler(UArg arg);
-static Void Timer2AIntHandler(UArg arg);
+static Void Timer1AIntHandler(void);
+static Void Timer2AIntHandler(void);
 
 #if (TACH_TYPE_EDGE_WIDTH > 0)
 
-static Hwi_Struct Timer1HwiStruct;
-static Hwi_Struct Timer2HwiStruct;
+//static Hwi_Struct Timer1HwiStruct;
+//static Hwi_Struct Timer2HwiStruct;
 
 static TACHDATA g_tach;
 
@@ -110,30 +110,14 @@ static TACHDATA g_tach;
 
 void TapeTach_initialize(void)
 {
-    Error_Block eb;
-    Hwi_Params  hwiParams;
-
-	//BIOS_getCpuFreq(&freq);
-
 	/* Map the timer interrupt handlers. We don't make sys/bios calls
 	 * from these interrupt handlers and there is no need to create a
 	 * context handler with stack swapping for these. These handlers
 	 * just update some globals variables and need to execute as
 	 * quickly and efficiently as possible.
 	 */
-	//Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
-    //Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
-    Error_init(&eb);
-    Hwi_Params_init(&hwiParams);
-    Hwi_construct(&Timer1HwiStruct, INT_TIMER1A, Timer1AIntHandler, &hwiParams, &eb);
-    if (Error_check(&eb))
-        System_abort("Couldn't construct TIMER1 hwi");
-
-    Error_init(&eb);
-    Hwi_Params_init(&hwiParams);
-    Hwi_construct(&Timer2HwiStruct, INT_TIMER2A, Timer2AIntHandler, &hwiParams, &eb);
-    if (Error_check(&eb))
-        System_abort("Couldn't construct TIMER2 hwi");
+	Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
+    Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
 
     /* Enable the timer peripherals */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_TIMER1);
@@ -154,9 +138,8 @@ void TapeTach_initialize(void)
     GPIOPinConfigure(GPIO_PL6_T1CCP0);
     GPIOPinTypeTimer(GPIO_PORTL_BASE, GPIO_PIN_6);
 
-    /* Configure timer1 for edge mode time capture.
+    /* Configure timer1 for 16-bit edge mode time capture.
      */
-
     TimerConfigure(TIMER1_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_CAP_TIME);
     /* Define event which generates interrupt on timer A */
     TimerControlEvent(TIMER1_BASE, TIMER_A, TIMER_EVENT_NEG_EDGE);
@@ -166,11 +149,9 @@ void TapeTach_initialize(void)
     /* Configure timer2 as 32-bit wide timer for timeout
      * when no edges are detected after 1/2 second.
      */
-    //TimerPrescaleSet(TIMER2_BASE, TIMER_A, 100);
-    /* Configure timer2 for full width 32-bit periodic timer */
     TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
     /* Configure the timeout count for half a second */
-    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, FREQ_CLOCK);
 	/* Interrupt on count down to zero */
 	TimerMatchSet(TIMER2_BASE, TIMER_A, 0);
     /* Enable interrupt on timer A for timeout */
@@ -192,19 +173,24 @@ void TapeTach_initialize(void)
  * WTIMER1A FALLING EDGE CAPTURE TIMER INTERRUPT HANDLER
  ****************************************************************************/
 
-Void Timer1AIntHandler(UArg arg)
+Void Timer1AIntHandler(void)
 {
     uint32_t thisCount;
     uint32_t thisPeriod;
-    uint32_t key;
+    //uint32_t key;
 
     TimerIntClear(TIMER1_BASE, TIMER_CAPA_EVENT);
 
     /* ENTER - Critical Section */
-    key = Hwi_disable();
+    //key = Hwi_disable();
 
     thisCount = TimerValueGet(TIMER1_BASE, TIMER_A);
-   	thisPeriod = g_tach.previousCount - thisCount;
+
+    if (g_tach.previousCount > thisCount)
+    	thisPeriod = g_tach.previousCount - thisCount;
+    else
+    	thisPeriod = thisCount - g_tach.previousCount;
+
     g_tach.previousCount = thisCount;
 
     if (thisPeriod)       /* Shield from dividing by zero */
@@ -212,11 +198,8 @@ Void Timer1AIntHandler(UArg arg)
         /* Sets the status to indicate tach is alive */
         g_tach.tachAlive = true;
 
-        /* Resets timeout timer */
-        HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
-
         /* Store RAW value, which refers to one measurement only */
-        g_tach.frequencyRawHz = g_systemClock / thisPeriod; // WAS FLOAT
+        g_tach.periodCount = thisPeriod;
 
     	/* Calculates and store averaged value */
         g_tach.averageSum -= (uint64_t)g_tach.averageCount[g_tach.averageIdx];
@@ -232,26 +215,27 @@ Void Timer1AIntHandler(UArg arg)
     }
 
     /* EXIT - Critical Section */
-    Hwi_restore(key);
+    //Hwi_restore(key);
+
+    /* Resets timeout timer */
+    HWREG(TIMER2_BASE + TIMER_O_TAV) = FREQ_CLOCK;
 }
 
 /****************************************************************************
  * WTIMER1B 1/2 SECOND EDGE DETECT TIMEOUT TIMER INTERRUPT HANDLER
  ****************************************************************************/
 
-Void Timer2AIntHandler(UArg arg)
+Void Timer2AIntHandler(void)
 {
-    uint32_t key;
-
     TimerIntClear(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
-    key = Hwi_disable();
-    {
-        g_tach.tachAlive      = false;
-        g_tach.frequencyAvgHz = 0.0f;
-        g_tach.frequencyRawHz = 0.0f;
-        g_tach.averageSum     = (uint64_t)0;
-    }
+    uint32_t key = Hwi_disable();
+
+    g_tach.tachAlive      = false;
+    g_tach.frequencyAvgHz = 0.0f;
+    //g_tach.frequencyRawHz = 0.0f;
+    g_tach.averageSum     = (uint64_t)0;
+
     Hwi_restore(key);
 }
 
@@ -261,6 +245,7 @@ Void Timer2AIntHandler(UArg arg)
 
 float TapeTach_read(void)
 {
+#if 0
     uint32_t key = Hwi_disable();
 
 	if (g_tach.averageSum)
@@ -268,11 +253,17 @@ float TapeTach_read(void)
 	else
 		g_tach.frequencyAvgHz = 0;
 
-	//g_tach.frequencyAvgHz = (float)g_systemClock / ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
+	//g_tach.frequencyAvgHz = (float)FREQ_CLOCK / ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
 
 	Hwi_restore(key);
 
 	return g_tach.frequencyAvgHz;
+#endif
+
+	if (g_tach.periodCount > 0.0f)
+	    return (float)FREQ_CLOCK / (float)g_tach.periodCount;
+	else
+		return 0.0f;
 }
 
 /****************************************************************************
@@ -295,7 +286,7 @@ void TapeTach_reset(void)
 
         g_tach.tachAlive      = false;
         g_tach.frequencyAvgHz = 0.0f;
-        g_tach.frequencyRawHz = 0.0f;
+        //g_tach.frequencyRawHz = 0.0f;
     }
     Hwi_restore(key);
 }
@@ -311,42 +302,21 @@ void TapeTach_reset(void)
  * period between edges.
   ****************************************************************************/
 
-#define TACH_EDGE_COUNT	20
+#define TACH_EDGE_COUNT	5
 
-static uint32_t g_prevCount = 0;	//0xFFFFFFFF;
-static uint32_t g_thisPeriod;
-static uint32_t g_frequencyRawHz = 0;
-
-static Hwi_Struct Timer1HwiStruct;
-static Hwi_Struct Timer2HwiStruct;
+static uint32_t g_prevCount = 0;
+static uint32_t g_periodCount;
 
 void TapeTach_initialize(void)
 {
-    Error_Block eb;
-    Hwi_Params  hwiParams;
-
-    //g_systemClock = 120000000;	//SysCtlClockGet();
-
 	/* Map the timer interrupt handlers. We don't make sys/bios calls
 	 * from these interrupt handlers and there is no need to create a
 	 * context handler with stack swapping for these. These handlers
 	 * just update some globals variables and need to execute as
 	 * quickly and efficiently as possible.
 	 */
-	//Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
-    //Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
-
-    Error_init(&eb);
-    Hwi_Params_init(&hwiParams);
-    Hwi_construct(&Timer1HwiStruct, INT_TIMER1A, Timer1AIntHandler, &hwiParams, &eb);
-    if (Error_check(&eb))
-        System_abort("Couldn't construct TIMER1 hwi");
-
-    Error_init(&eb);
-    Hwi_Params_init(&hwiParams);
-    Hwi_construct(&Timer2HwiStruct, INT_TIMER2A, Timer2AIntHandler, &hwiParams, &eb);
-    if (Error_check(&eb))
-        System_abort("Couldn't construct TIMER2 hwi");
+	Hwi_plug(INT_TIMER1A, Timer1AIntHandler);
+    Hwi_plug(INT_TIMER2A, Timer2AIntHandler);
 
     /* Enable the timer peripheral */
 	SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOL);
@@ -384,7 +354,7 @@ void TapeTach_initialize(void)
 	/* Configure timer2 for full width 32-bit periodic timer */
     TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
     /* Configure the timeout count for half a second */
-    TimerLoadSet(TIMER2_BASE, TIMER_A, g_systemClock / 2);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, FREQ_CLOCK / 2);
     /* Enable interrupt on timer A for timeout */
     TimerIntEnable(TIMER2_BASE, TIMER_TIMA_TIMEOUT);
 
@@ -403,7 +373,7 @@ void TapeTach_initialize(void)
 /****************************************************************************
  * TIMER1A FALLING EDGE CAPTURE TIMER INTERRUPT HANDLER
  ****************************************************************************/
-Void Timer1AIntHandler(UArg arg)
+Void Timer1AIntHandler(void)
 {
 	uint32_t key;
     uint32_t thisCount;
@@ -423,23 +393,23 @@ Void Timer1AIntHandler(UArg arg)
     key = Hwi_disable();
 
     if (thisCount > g_prevCount)
-    	g_thisPeriod = thisCount - g_prevCount;
+    	g_periodCount = thisCount - g_prevCount;
     else
-    	g_thisPeriod = g_prevCount - thisCount;
+    	g_periodCount = g_prevCount - thisCount;
 
     g_prevCount = thisCount;	//TimerValueGet(TIMER2_BASE, TIMER_A);
 
     Hwi_restore(key);
 
     /* Reset half second timeout timer */
-    HWREG(TIMER2_BASE + TIMER_O_TAV) = g_systemClock / 2;
+    HWREG(TIMER2_BASE + TIMER_O_TAV) = FREQ_CLOCK / 2;
 }
 
 /****************************************************************************
  * TIMER2 PERIODIC TIMEOUT TIMER INTERRUPT HANDLER
  ****************************************************************************/
 
-Void Timer2AIntHandler(UArg arg)
+Void Timer2AIntHandler(void)
 {
 	uint32_t key;
 
@@ -447,8 +417,7 @@ Void Timer2AIntHandler(UArg arg)
 
     key = Hwi_disable();
     g_prevCount = 0;
-    g_thisPeriod = 0;
-    g_frequencyRawHz = 0;
+    g_periodCount = 0;
     Hwi_restore(key);
 }
 
@@ -462,13 +431,13 @@ float TapeTach_read(void)
     uint32_t key;
 
     key = Hwi_disable();
-    period = (float)g_thisPeriod;
+    period = (float)g_periodCount;
     Hwi_restore(key);
 
     if (period)
-    	return 120000000.0f / period;
+    	return (float)FREQ_CLOCK / period;
 
-    return period;	//0.0f;
+    return 0.0f;
 }
 
 /****************************************************************************
@@ -478,8 +447,8 @@ float TapeTach_read(void)
 void TapeTach_reset(void)
 {
     uint32_t key = Hwi_disable();
-    g_frequencyRawHz = 0;
-    g_thisPeriod = 0;
+    g_prevCount = 0;
+    g_periodCount = 0;
     Hwi_restore(key);
 }
 
