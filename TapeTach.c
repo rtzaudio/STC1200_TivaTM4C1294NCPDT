@@ -94,7 +94,7 @@
 static Void Timer1AIntHandler(void);
 static Void Timer2AIntHandler(void);
 
-#if (TACH_TYPE_EDGE_WIDTH > 0)
+#if (TACH_TYPE_EDGE_INT > 0)
 
 //static Hwi_Struct Timer1HwiStruct;
 //static Hwi_Struct Timer2HwiStruct;
@@ -110,6 +110,14 @@ static TACHDATA g_tach;
 
 void TapeTach_initialize(void)
 {
+    /* Initialize the global tach data */
+    g_tach.tachAlive     = false;
+    g_tach.thisCount     = 0;
+    g_tach.previousCount = 0;
+    g_tach.periodCount   = 0;
+    g_tach.averageCount  = 0;
+    g_tach.averageSum    = (uint64_t)0;
+
 	/* Map the timer interrupt handlers. We don't make sys/bios calls
 	 * from these interrupt handlers and there is no need to create a
 	 * context handler with stack swapping for these. These handlers
@@ -151,7 +159,7 @@ void TapeTach_initialize(void)
      */
     TimerConfigure(TIMER2_BASE, TIMER_CFG_A_PERIODIC);
     /* Configure the timeout count for half a second */
-    TimerLoadSet(TIMER2_BASE, TIMER_A, FREQ_CLOCK);
+    TimerLoadSet(TIMER2_BASE, TIMER_A, FREQ_CLOCK/2);
 	/* Interrupt on count down to zero */
 	TimerMatchSet(TIMER2_BASE, TIMER_A, 0);
     /* Enable interrupt on timer A for timeout */
@@ -175,7 +183,6 @@ void TapeTach_initialize(void)
 
 Void Timer1AIntHandler(void)
 {
-    uint32_t thisCount;
     uint32_t thisPeriod;
     //uint32_t key;
 
@@ -184,16 +191,16 @@ Void Timer1AIntHandler(void)
     /* ENTER - Critical Section */
     //key = Hwi_disable();
 
-    thisCount = TimerValueGet(TIMER1_BASE, TIMER_A);
+    g_tach.thisCount = TimerValueGet(TIMER1_BASE, TIMER_A);
 
-    if (g_tach.previousCount > thisCount)
-    	thisPeriod = g_tach.previousCount - thisCount;
+    if (g_tach.previousCount > g_tach.thisCount)
+    	thisPeriod = g_tach.previousCount - g_tach.thisCount;
     else
-    	thisPeriod = thisCount - g_tach.previousCount;
+    	thisPeriod = g_tach.thisCount - g_tach.previousCount;
 
-    g_tach.previousCount = thisCount;
+    g_tach.previousCount = g_tach.thisCount;
 
-    if (thisPeriod)       /* Shield from dividing by zero */
+    if (thisPeriod)
     {
         /* Sets the status to indicate tach is alive */
         g_tach.tachAlive = true;
@@ -202,16 +209,16 @@ Void Timer1AIntHandler(void)
         g_tach.periodCount = thisPeriod;
 
     	/* Calculates and store averaged value */
-        g_tach.averageSum -= (uint64_t)g_tach.averageCount[g_tach.averageIdx];
         g_tach.averageSum += (uint64_t)thisPeriod;
-        g_tach.averageCount[g_tach.averageIdx] = thisPeriod;
-        g_tach.averageIdx++;
-        g_tach.averageIdx %= TACH_AVG_QTY;
 
-        /* Update the average sum */
-        //if (g_tach.averageSum)
-        //    g_tach.frequencyAvgHz = (uint32_t)((uint64_t)g_systemClock / (g_tach.averageSum / (uint64_t)TACH_AVG_QTY));
+        g_tach.averageCount += 1;
 
+        if (g_tach.averageCount >= TACH_AVG_QTY)
+        {
+            g_tach.averagePeriod = (uint32_t)(g_tach.averageSum / g_tach.averageCount);
+            g_tach.averageSum    = (uint64_t)0;
+            g_tach.averageCount  = 0;
+        }
     }
 
     /* EXIT - Critical Section */
@@ -231,10 +238,12 @@ Void Timer2AIntHandler(void)
 
     uint32_t key = Hwi_disable();
 
-    g_tach.tachAlive      = false;
-    g_tach.frequencyAvgHz = 0.0f;
-    //g_tach.frequencyRawHz = 0.0f;
-    g_tach.averageSum     = (uint64_t)0;
+    g_tach.tachAlive     = false;
+    g_tach.thisCount     = 0;
+    g_tach.previousCount = 0;
+    g_tach.periodCount   = 0;
+    g_tach.averageCount  = 0;
+    g_tach.averageSum    = (uint64_t)0;
 
     Hwi_restore(key);
 }
@@ -242,28 +251,16 @@ Void Timer2AIntHandler(void)
 /****************************************************************************
  * Read the current tape tachometer count.
  ****************************************************************************/
+//TACH_AVG_QTY
 
 float TapeTach_read(void)
 {
-#if 0
-    uint32_t key = Hwi_disable();
+	if (g_tach.averagePeriod > 0)
+	    //return (float)g_tach.averagePeriod;
 
-	if (g_tach.averageSum)
-    	g_tach.frequencyAvgHz = ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
-	else
-		g_tach.frequencyAvgHz = 0;
+	return (float)FREQ_CLOCK / (float)g_tach.averagePeriod;
 
-	//g_tach.frequencyAvgHz = (float)FREQ_CLOCK / ((float)g_tach.averageSum / (float)TACH_AVG_QTY);
-
-	Hwi_restore(key);
-
-	return g_tach.frequencyAvgHz;
-#endif
-
-	if (g_tach.periodCount > 0.0f)
-	    return (float)FREQ_CLOCK / (float)g_tach.periodCount;
-	else
-		return 0.0f;
+	return 0.0f;
 }
 
 /****************************************************************************
@@ -272,22 +269,15 @@ float TapeTach_read(void)
 
 void TapeTach_reset(void)
 {
-    size_t i;
-    uint32_t key;
+    uint32_t key = Hwi_disable();
 
-    key = Hwi_disable();
-    {
-        for(i=0; i < TACH_AVG_QTY; i++)
-            g_tach.averageCount[i] = 0;
+    g_tach.tachAlive     = false;
+    g_tach.thisCount     = 0;
+    g_tach.previousCount = 0;
+    g_tach.periodCount   = 0;
+    g_tach.averageCount  = 0;
+    g_tach.averageSum    = (uint64_t)0;
 
-        g_tach.previousCount  = 0;
-        g_tach.averageSum     = 0;
-        g_tach.averageIdx     = 0;
-
-        g_tach.tachAlive      = false;
-        g_tach.frequencyAvgHz = 0.0f;
-        //g_tach.frequencyRawHz = 0.0f;
-    }
     Hwi_restore(key);
 }
 
@@ -302,7 +292,7 @@ void TapeTach_reset(void)
  * period between edges.
   ****************************************************************************/
 
-#define TACH_EDGE_COUNT	5
+#define TACH_EDGE_COUNT	32
 
 static uint32_t g_prevCount = 0;
 static uint32_t g_periodCount;
@@ -390,7 +380,7 @@ Void Timer1AIntHandler(void)
 	TimerLoadSet(TIMER1_BASE, TIMER_A, TACH_EDGE_COUNT);
 	TimerEnable(TIMER1_BASE, TIMER_A);
 
-    key = Hwi_disable();
+    //key = Hwi_disable();
 
     if (thisCount > g_prevCount)
     	g_periodCount = thisCount - g_prevCount;
@@ -399,7 +389,7 @@ Void Timer1AIntHandler(void)
 
     g_prevCount = thisCount;	//TimerValueGet(TIMER2_BASE, TIMER_A);
 
-    Hwi_restore(key);
+    //Hwi_restore(key);
 
     /* Reset half second timeout timer */
     HWREG(TIMER2_BASE + TIMER_O_TAV) = FREQ_CLOCK / 2;
@@ -430,12 +420,12 @@ float TapeTach_read(void)
 	float period;
     uint32_t key;
 
-    key = Hwi_disable();
+    //key = Hwi_disable();
     period = (float)g_periodCount;
-    Hwi_restore(key);
+    //Hwi_restore(key);
 
     if (period)
-    	return (float)FREQ_CLOCK / period;
+    	return period;
 
     return 0.0f;
 }

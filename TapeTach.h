@@ -43,7 +43,7 @@
 #ifndef STC1200_TAPE_TACH_H_
 #define STC1200_TAPE_TACH_H_
 
-#define TACH_TYPE_EDGE_WIDTH	0
+#define TACH_TYPE_EDGE_INT	    1
 
 #define TACH_AVG_QTY			100
 
@@ -51,17 +51,14 @@
 //  Wide Timer Tach Data
 //*****************************************************************************
 
-typedef struct _TACHDATA
-{
+typedef struct _TACHDATA {
     bool	 tachAlive;
-	/* Interrupt edge data */
+    uint32_t thisCount;
     uint32_t previousCount;
-    uint32_t averageCount[TACH_AVG_QTY];
-    uint64_t averageSum;
-    size_t   averageIdx;
-    /* Sampled data */
-	uint32_t periodCount;
-    float    frequencyAvgHz;
+ 	uint32_t periodCount;
+ 	uint32_t averageCount;
+	uint64_t averageSum;
+    uint32_t averagePeriod;
 } TACHDATA;
 
 //*****************************************************************************

@@ -173,7 +173,14 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for any ISR events to be posted */
     	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
 
+    	/* Tachometer edge count sum complete */
     	if (events & Event_Id_00)
+        {
+
+        }
+
+    	/* Quadrature encoder error interrupt */
+    	if (events & Event_Id_01)
     	{
     		System_printf("QEI Phase Error: %d\n", g_sysData.qei_error_cnt);
     		System_flush();
@@ -293,7 +300,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 Void QEIHwi(UArg arg)
 {
-    unsigned long ulIntStat;
+    uint32_t ulIntStat;
 
     /* Get and clear the current interrupt source(s) */
     ulIntStat = QEIIntStatus(QEI_BASE_ROLLER, true);
@@ -304,19 +311,19 @@ Void QEIHwi(UArg arg)
     if (ulIntStat & QEI_INTERROR)       	/* phase error detected */
     {
     	g_sysData.qei_error_cnt++;
-    	Event_post(g_eventQEI, Event_Id_00);
+    	Event_post(g_eventQEI, Event_Id_01);
     }
     else if (ulIntStat & QEI_INTTIMER)  	/* velocity timer expired */
     {
-    	Event_post(g_eventQEI, Event_Id_01);
+    	Event_post(g_eventQEI, Event_Id_02);
     }
     else if (ulIntStat & QEI_INTDIR)    	/* direction change */
     {
-    	Event_post(g_eventQEI, Event_Id_02);
+    	Event_post(g_eventQEI, Event_Id_03);
     }
     else if (ulIntStat & QEI_INTINDEX)  	/* Index pulse detected */
     {
-    	Event_post(g_eventQEI, Event_Id_03);
+    	Event_post(g_eventQEI, Event_Id_04);
     }
 
     QEIIntEnable(QEI_BASE_ROLLER, ulIntStat);
