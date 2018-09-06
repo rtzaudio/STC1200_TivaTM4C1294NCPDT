@@ -260,8 +260,8 @@ int Debounce_buttonLO(uint32_t index)
 
 		if (GPIO_read(index))
 		{
-			f = 0;
-			break;
+			f = 1;
+			//break;
 		}
 	}
 

@@ -113,6 +113,8 @@ void CuePointStore(size_t index)
 {
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
+    CLI_printf("SET Cue Point %d\r\n", index);
+
 	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = g_sysData.tapePosition;
@@ -129,6 +131,8 @@ void CuePointStore(size_t index)
 void CuePointClear(size_t index)
 {
 	Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+	CLI_printf("CLEAR Cue Point %d\r\n", index);
 
 	if (index <= MAX_CUE_POINTS)
 	{
@@ -190,7 +194,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxLocate, &msg, 250))
         {
-    		//CLI_printf("%.3f\r\n", g_sysData.tapeTach);
+    		//CLI_printf("%.1f\r\n", g_sysData.tapeTach);
         	continue;
         }
 
@@ -211,7 +215,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
 		 */
 
-        System_printf("LOCATE[%d] %d to %d\n", index,
+        CLI_printf("LOCATE[%d] %d to %d\r\n", index,
         		g_sysData.tapePosition,
 				g_sysData.cuePoint[index].ipos);
 
@@ -223,20 +227,17 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		if (delta > 0)
 		{
 			dir = DIR_FWD;
-			System_printf("SEARCH FWD %d\n", delta);
-			System_flush();
+			CLI_printf("SEARCH FWD %d\r\n", delta);
 		}
 		else if (delta < 0)
 		{
 			dir = DIR_REW;
-			System_printf("SEARCH REW %d\n", delta);
-			System_flush();
+			CLI_printf("SEARCH REW %d\r\n", delta);
 		}
 		else
 		{
 			dir = DIR_ZERO;
-			System_printf("AT ZERO ALREADY!\n");
-			System_flush();
+			CLI_printf("AT ZERO ALREADY!\r\n");
 			continue;
 		}
 
@@ -269,14 +270,13 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			/* Calculate the current position delta from cue point */
 			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
 
-			CLI_printf("%d : %f\r\n", delta, g_sysData.tapeTach);
+			CLI_printf("%d : %.1f\r\n", delta, g_sysData.tapeTach);
 
 			if (dir == DIR_FWD)
 			{
 				if (delta < 0)
 				{
-					System_printf("FWD SEARCH COMPLETE\n");
-					System_flush();
+					CLI_printf("FWD SEARCH COMPLETE\r\n");
 					break;
 				}
 			}
@@ -284,8 +284,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			{
 				if (delta > 0)
 				{
-					System_printf("REW SEARCH COMPLETE\n");
-					System_flush();
+					CLI_printf("REW SEARCH COMPLETE\r\n");
 					break;
 				}
 			}
@@ -297,8 +296,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		/* Send STOP button pulse to stop transport */
 		GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
 
-		System_printf("SEARCH END\n");
-		System_flush();
+		CLI_printf("SEARCH END\r\n");
     }
 }
 

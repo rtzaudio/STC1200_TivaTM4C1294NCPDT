@@ -112,6 +112,7 @@ static Void QEIHwi(UArg arg);
 
 void PositionZeroReset(void)
 {
+	CLI_printf("Zero Reset\r\n");
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
 }
 
@@ -169,7 +170,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for any ISR events to be posted */
     	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
 
-    	/* Tachometer edge count sum complete */
+    	/* not used */
     	if (events & Event_Id_00)
         {
 
@@ -363,7 +364,7 @@ void QEI_initialize(void)
 	/* Configure the Velocity capture period - 1200000 is 10ms at 120MHz.
 	 * This is how many 4 pulse trains we receive in half a second.
 	 */
-    QEIVelocityConfigure(QEI_BASE_ROLLER, QEI_VELDIV_4, 6000000);
+    QEIVelocityConfigure(QEI_BASE_ROLLER, QEI_VELDIV_1, 6000000);
 
 	/* Enable both quadrature encoder interfaces */
 	QEIEnable(QEI_BASE_ROLLER);
