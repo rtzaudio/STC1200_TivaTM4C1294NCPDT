@@ -87,7 +87,6 @@
 
 #include "STC1200.h"
 #include "Board.h"
-#include "TapeTach.h"
 #include "CLITask.h"
 
 #define BUTTON_PULSE_TIME	50
@@ -191,9 +190,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxLocate, &msg, 250))
         {
-    		//System_printf("%f\n", g_sysData.tapeTach);
-    		//System_flush();
-    		CLI_printf("%.3f\r\n", g_sysData.tapeTach);
+    		//CLI_printf("%.3f\r\n", g_sysData.tapeTach);
         	continue;
         }
 
@@ -209,7 +206,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Make sure the cue point is active */
         if (g_sysData.cuePoint[index].flags == 0)
         	continue;
-#if 0
+
 		/*
 		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
 		 */
@@ -238,7 +235,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		else
 		{
 			dir = DIR_ZERO;
-			System_printf("AT RTZ!\n");
+			System_printf("AT ZERO ALREADY!\n");
 			System_flush();
 			continue;
 		}
@@ -272,8 +269,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			/* Calculate the current position delta from cue point */
 			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
 
-			System_printf("%d : %f\n", delta, g_sysData.tapeTach);
-			System_flush();
+			CLI_printf("%d : %f\r\n", delta, g_sysData.tapeTach);
 
 			if (dir == DIR_FWD)
 			{
@@ -303,7 +299,6 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 		System_printf("SEARCH END\n");
 		System_flush();
-#endif
     }
 }
 

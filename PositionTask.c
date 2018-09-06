@@ -89,7 +89,6 @@
 
 #include "STC1200.h"
 #include "Board.h"
-#include "TapeTach.h"
 
 /* External Data Items */
 
@@ -138,11 +137,8 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	/* Initialize the quadrature encoder module */
 	QEI_initialize();
 
-	/* Initialize the tape tachometer for reading tape path speed */
-	TapeTach_initialize();
-
+	/* Initialize the UART to the ATmegaa88 */
 	UART_Params_init(&uartParams);
-
 	uartParams.readMode       = UART_MODE_BLOCKING;
 	uartParams.writeMode      = UART_MODE_BLOCKING;
 	uartParams.readTimeout    = 1000;					// 1 second read timeout
@@ -186,8 +182,8 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     		System_flush();
     	}
 
-    	/* Read the tape roller tachometer */
-    	g_sysData.tapeTach = TapeTach_read();
+    	/* Read the tape roller tachometer value */
+    	g_sysData.tapeTach = QEIVelocityGet(QEI_BASE_ROLLER);
 
     	/* Get the tape direction status from the QEI controller */
     	g_sysData.tapeDirection = QEIDirectionGet(QEI_BASE_ROLLER);
@@ -210,7 +206,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	 * position and comparing to the current position. If the position has changed,
     	 * then we assume tape is moving and set the motion indicator outputs accordingly.
     	 */
-
     	if (g_sysData.tapePosition == g_sysData.tapePositionPrev)
     	{
 			GPIO_write(Board_MOTION_FWD, PIN_HIGH);
@@ -352,30 +347,36 @@ void QEI_initialize(void)
 	GPIOPinConfigure(GPIO_PL2_PHB0);
 	GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_2);
 
-	/* Configure the quadrature encoder to capture edges on both signals and
-	 * maintain an absolute position by resetting on index pulses. Using a
-	 * 360 CPR encoder at four edges per line, there are 1440 pulses per
-	 * revolution; therefore set the maximum position to 1439 since the
-	 * count is zero based.
+	/* Configure the quadrature encoder for absolute position mode to
+	 * capture edges on both signals and maintain an absolute position.
+	 * The stock 1200 encoder give 40 CPR at four edges per line,
+	 * there are 160 pulses per revolution.
 	 */
-
 	QEIConfigure(QEI_BASE_ROLLER,
 			(QEI_CONFIG_CAPTURE_A | QEI_CONFIG_NO_RESET |
 			 QEI_CONFIG_QUADRATURE | QEI_CONFIG_SWAP),
 			 MAX_ROLLER_POSITION);
 
+	/* Set initial position to zero */
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
+
+	/* Configure the Velocity capture period - 1200000 is 10ms at 120MHz.
+	 * This is how many 4 pulse trains we receive in half a second.
+	 */
+    QEIVelocityConfigure(QEI_BASE_ROLLER, QEI_VELDIV_4, 6000000);
 
 	/* Enable both quadrature encoder interfaces */
 	QEIEnable(QEI_BASE_ROLLER);
+
+	/* Enable velocity mode */
+	QEIVelocityEnable(QEI_BASE_ROLLER);
 
 	/* Construct hwi object for quadrature encoder interface */
 	Error_init(&eb);
     Hwi_Params_init(&hwiParams);
     Hwi_construct(&(qeiHwiStruct), INT_QEI0, QEIHwi, &hwiParams, &eb);
-    if (Error_check(&eb)) {
+    if (Error_check(&eb))
         System_abort("Couldn't construct QEI hwi");
-    }
 
     /* Enable the QEI interrupts */
 	QEIIntEnable(QEI_BASE_ROLLER, QEI_INTERROR|QEI_INTDIR|QEI_INTTIMER|QEI_INTINDEX);
