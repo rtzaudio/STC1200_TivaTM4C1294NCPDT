@@ -107,25 +107,10 @@ static void gpioButtonCueHwi(unsigned int index);
 
 static void gpioButtonStopHwi(unsigned int index);
 
+static void EnableClockDivOutput(uint32_t div);
+static void Hardware_init();
 static int Debounce_buttonHI(uint32_t index);
 static int Debounce_buttonLO(uint32_t index);
-
-//*****************************************************************************
-// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
-// from the main cpu clock divided by 'div' parameter. A value of 100 gives
-// a clock of 1.2 Mhz.
-//*****************************************************************************
-
-void EnableClockDivOutput(uint32_t div)
-{
-    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
-    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
-    /* Configure the output pin for the clock output */
-    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
-    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
-    /* Enable the clock output */
-    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
-}
 
 //*****************************************************************************
 // Main Entry Point
@@ -145,37 +130,8 @@ int main(void)
     Board_initUART();
     Board_initEMAC();
 
-    /* Enables Floating Point Hardware Unit */
-    FPUEnable();
-    /* Allows the FPU to be used inside interrupt service routines */
-    FPULazyStackingEnable();
-
-    /* Initialize a 1 BPP off-screen OLED display buffer that will draw into */
-    GrOffScreenMonoInit();
-
-    /* Deassert the Atmega88 reset line */
-    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
-    /* Deassert motion status lines */
-    GPIO_write(Board_TAPE_DIR, PIN_HIGH);
-    GPIO_write(Board_MOTION_FWD, PIN_HIGH);
-	GPIO_write(Board_MOTION_REW, PIN_HIGH);
-	/* Clear SEARCHING_OUT status i/o pin */
-	GPIO_write(Board_SEARCHING, PIN_HIGH);
-    /* Turn on the status LED */
-    GPIO_write(Board_STAT_LED, Board_LED_ON);
-    /* Turn off the play and shuttle lamps */
-    GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
-    GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
-    /* Deassert the RS-422 DE & RE pins */
-    GPIO_write(Board_RS422_DE, PIN_LOW);
-    GPIO_write(Board_RS422_RE_N, PIN_HIGH);
-
-    /* This enables the DIVSCLK output pin on PQ4
-     * and generates a 1.2 Mhz clock signal on the.
-     * expansion header and pin 16 of the edge
-     * connector if a clock signal is required.
-     */
-    //EnableClockDivOutput(100);
+    /* Default hardware initialization */
+    Hardware_init();
 
     /* Create command task mailbox */
     Error_init(&eb);
@@ -215,6 +171,62 @@ int main(void)
     BIOS_start();
 
     return (0);
+}
+
+//*****************************************************************************
+// Default hardware initialization
+//*****************************************************************************
+
+void Hardware_init()
+{
+    /* Enables Floating Point Hardware Unit */
+    FPUEnable();
+    /* Allows the FPU to be used inside interrupt service routines */
+    //FPULazyStackingEnable();
+
+    /* Initialize a 1 BPP off-screen OLED display buffer that we draw into */
+    GrOffScreenMonoInit();
+
+    /* Deassert the Atmega88 reset line */
+    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
+    /* Deassert motion status lines */
+    GPIO_write(Board_TAPE_DIR, PIN_HIGH);
+    GPIO_write(Board_MOTION_FWD, PIN_HIGH);
+	GPIO_write(Board_MOTION_REW, PIN_HIGH);
+	/* Clear SEARCHING_OUT status i/o pin */
+	GPIO_write(Board_SEARCHING, PIN_HIGH);
+    /* Turn on the status LED */
+    GPIO_write(Board_STAT_LED, Board_LED_ON);
+    /* Turn off the play and shuttle lamps */
+    GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
+    GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
+    /* Deassert the RS-422 DE & RE pins */
+    GPIO_write(Board_RS422_DE, PIN_LOW);
+    GPIO_write(Board_RS422_RE_N, PIN_HIGH);
+
+    /* This enables the DIVSCLK output pin on PQ4
+     * and generates a 1.2 Mhz clock signal on the.
+     * expansion header and pin 16 of the edge
+     * connector if a clock signal is required.
+     */
+    //EnableClockDivOutput(100);
+}
+
+//*****************************************************************************
+// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
+// from the main cpu clock divided by 'div' parameter. A value of 100 gives
+// a clock of 1.2 Mhz.
+//*****************************************************************************
+
+void EnableClockDivOutput(uint32_t div)
+{
+    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
+    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
+    /* Configure the output pin for the clock output */
+    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
+    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    /* Enable the clock output */
+    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
 }
 
 //*****************************************************************************

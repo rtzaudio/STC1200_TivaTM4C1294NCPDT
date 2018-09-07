@@ -262,7 +262,15 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	     * ENTER MAIN SEARCH LOCATE LOOP
 	     */
 
-		do {
+	    // Avoid divisions when possible. For example, revolutions = position / ROLLER_TICKS_PER_REV_F takes a lot of clock cycles.
+	    // Since the ROLLER_TICKS is a fixed thing, the hint is to calculate, JUST ONCE, the inverse of that:
+	    // gInvRollerTicks = 1.0f / ROLLER_TICKS;
+	    // And on execution time, use a multiplication instead:
+	    // revolutions = position * gInvRollerTicks;
+	    // This takes 1 clock cycle, the ARM numeric processor has hw for that but not for division.
+
+	    while (!g_sysData.searchCancel)
+		{
 
 			/* Get distance in inches from zero reset point */
 			distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
@@ -274,24 +282,19 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			if (dir == DIR_FWD)
 			{
+				/* search forward mode completed? */
 				if (delta < 0)
-				{
-					CLI_printf("FWD SEARCH COMPLETE\r\n");
 					break;
-				}
 			}
 			else if (dir == DIR_REW)
 			{
+				/* search rewind mode completed? */
 				if (delta > 0)
-				{
-					CLI_printf("REW SEARCH COMPLETE\r\n");
 					break;
-				}
 			}
 
 			Task_sleep(100);
-
-		} while (!g_sysData.searchCancel);
+		}
 
 		/* Send STOP button pulse to stop transport */
 		GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
