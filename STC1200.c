@@ -235,8 +235,8 @@ void EnableClockDivOutput(uint32_t div)
 // low during this time, then it's considered an invalid button press.
 //*****************************************************************************
 
-#define DEBOUNCE_HI	30
-#define DEBOUNCE_LO	50
+#define DEBOUNCE_HI	10
+#define DEBOUNCE_LO	20
 
 /* Check that button remains HI for DEBOUNCE_HI cycles */
 
@@ -248,12 +248,9 @@ int Debounce_buttonHI(uint32_t index)
 	for (i=0; i < DEBOUNCE_LO; i++)
 	{
 		if (!GPIO_read(index))
-		{
 			f = 0;
-			break;
-		}
 
-		Task_sleep(1);
+		Task_sleep(5);
 	}
 
 	return f;
@@ -268,13 +265,10 @@ int Debounce_buttonLO(uint32_t index)
 
 	for (i=0; i < DEBOUNCE_LO; i++)
 	{
-		Task_sleep(1);
-
 		if (GPIO_read(index))
-		{
 			f = 1;
-			//break;
-		}
+
+		Task_sleep(5);
 	}
 
 	return f;
@@ -353,7 +347,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     while (true)
     {
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 1000))
+        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 500))
         {
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED);
@@ -428,6 +422,7 @@ void gpioButtonResetHwi(unsigned int index)
     if (btn)
     {
     	GPIO_disableInt(Board_BTN_RESET);
+
 	    msg.command  = SWITCHPRESS;
 	    msg.ui32Data = Board_BTN_RESET;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
@@ -448,6 +443,8 @@ void gpioButtonCueHwi(unsigned int index)
 
     if (btn)
     {
+    	GPIO_disableInt(Board_BTN_CUE);
+
 	    msg.command  = SWITCHPRESS;
 	    msg.ui32Data = Board_BTN_CUE;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
@@ -468,6 +465,8 @@ void gpioButtonSearchHwi(unsigned int index)
 
     if (btn)
     {
+        GPIO_disableInt(Board_BTN_SEARCH);
+
 	    msg.command  = SWITCHPRESS;
 	    msg.ui32Data = Board_BTN_SEARCH;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
