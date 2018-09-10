@@ -89,6 +89,7 @@
 
 #include "STC1200.h"
 #include "Board.h"
+#include "CLITask.h"
 
 /* External Data Items */
 

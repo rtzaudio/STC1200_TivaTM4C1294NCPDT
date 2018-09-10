@@ -67,21 +67,17 @@
 
 #include "STC1200.h"
 #include "Board.h"
-#include "RAMP.h"
 #include "IPCTask.h"
 
 /* External Data Items */
 
 /* Global Data Items */
 
-UART_Handle uartHandle;
-FCB g_RxFcb;
-FCB g_TxFcb;
+static IPCMSG_SERVER g_server;
 
 /* The following objects are created statically. */
-extern Semaphore_Handle sem;
-extern Queue_Handle msgQueue;
-extern Queue_Handle freeQueue;
+static Semaphore_Handle sem;
+static Queue_Handle freeQueue;
 
 /* Static Function Prototypes */
 
@@ -95,17 +91,6 @@ int IPC_init(void)
     IPCMSG *msg;
     Error_Block eb;
     UART_Params uartParams;
-
-    Error_init(&eb);
-
-    msg = (IPCMSG *)Memory_alloc(NULL, NUMMSGS * sizeof(IPCMSG), 0, &eb);
-
-    if (msg == NULL)
-        System_abort("Memory allocation failed");
-
-    /* Put all messages on freeQueue */
-    for (i=0; i < NUMMSGS; msg++, i++)
-        Queue_put(freeQueue, (Queue_Elem *)msg);
 
     /* Open the UART for binary mode */
 
@@ -125,10 +110,31 @@ int IPC_init(void)
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
-    uartHandle = UART_open(Board_UART_IPC, &uartParams);
+    g_server.uartHandle = UART_open(Board_UART_IPC, &uartParams);
 
-    if (uartHandle == NULL)
+    if (g_server.uartHandle == NULL)
         System_abort("Error initializing UART\n");
+
+    /* Create the tx queues */
+
+    freeQueue = Queue_create(NULL, NULL);
+
+    Error_init(&eb);
+
+    msg = (IPCMSG*)Memory_alloc(NULL, MAX_WINDOW * sizeof(IPCMSG), 0, &eb);
+
+    if (msg == NULL)
+        System_abort("Memory allocation failed");
+
+    /* Put all messages on freeQueue */
+    for (i=0; i < MAX_WINDOW; msg++, i++)
+        Queue_put(freeQueue, (Queue_Elem *)msg);
+
+
+
+    g_server.currseq   = 1;     /* current tx sequence# */
+    g_server.expectseq = 0;     /* expected rx seq#     */
+    g_server.lastseq   = 0;     /* last seq# rx'ed      */
 
     return 1;
 }
@@ -140,16 +146,58 @@ int IPC_init(void)
 Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 {
     int rc;
-    uint8_t rxBuf[16];
-    IPCMSG msg;
 
     /* Now begin the main program command task processing loop */
 
-    RAMP_InitFcb(&g_RxFcb);
-
     while (true)
     {
-        rc = RAMP_RxFrame(uartHandle, &g_RxFcb, rxBuf, sizeof(rxBuf));
+    	FCB *fcb = &g_server.rx.fcb;
+
+    	fcb->textbuf = &g_server.rx.msg;
+    	fcb->textlen = sizeof(IPCMSG);
+
+        rc = RAMP_RxFrame(g_server.uartHandle, fcb);
+
+        if (rc == ERR_TIMEOUT)
+        	continue;
+
+        if (rc != 0)
+        {
+        	System_printf("RAMP_RxFrame Error %d\n", rc);
+        	System_flush();
+        	continue;
+        }
+
+        /* Save the last sequence number received */
+
+        g_server.lastseq = fcb->seqnum;
+
+        /* We've received a valid frame, attempt to decode it */
+
+        switch(fcb->type & FRAME_TYPE_MASK)
+        {
+        	case TYPE_ACK_ONLY:			/* ACK message frame only      */
+        		break;
+
+        	case TYPE_NAK_ONLY:			/* NAK message frame only      */
+        		break;
+
+        	case TYPE_MSG_ONLY:			/* message only frame          */
+        		if (fcb->type & F_DATAGRAM)
+        		{
+
+        		}
+        		break;
+
+        	case TYPE_MSG_ACK:			/* piggyback message plus ACK  */
+        		break;
+
+        	case TYPE_MSG_NAK:			/* piggyback message plus NAK  */
+        		break;
+
+        	default:
+        		break;
+        }
 
         //msg = (IPCMSG *)Queue_get(freeQueue);
 
@@ -164,23 +212,29 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 
 Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 {
-    int rc;
-    uint8_t txBuf[16];
+#if 0
+    IPCMSG msg;
 
     /* Now begin the main program command task processing loop */
 
-    RAMP_InitFcb(&g_TxFcb);
+    //RAMP_InitFcb(&g_txFcb);
 
     while (true)
     {
         /* Wait for semaphore to be posted by writer(). */
         Semaphore_pend(sem, BIOS_WAIT_FOREVER);
 
-        rc = RAMP_TxFrame(uartHandle, &g_TxFcb, txBuf, sizeof(txBuf));
+        FCB *fcb = &g_server.tx.fcb;
+
+        fcb->textbuf = &msg;
+        fcb->textlen = sizeof(msg);
+
+        RAMP_TxFrame(g_server.uartHandle, fcb);
 
         /* Increment the frame sequence number */
-        //g_TxFcb.seqnum = INC_SEQ_NUM(g_RxFcb.seqnum);
+        fcb->seqnum = INC_SEQ_NUM(fcb->seqnum);
     }
+#endif
 }
 
 // End-Of-File

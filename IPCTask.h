@@ -43,27 +43,28 @@
 #ifndef _IPCTASK_H_
 #define _IPCTASK_H_
 
-#define NUMMSGS     8
-#define MSG_BUFSIZ  8
+#include "RAMP.h"
 
-/* Transport Message Command Structure */
-typedef struct _CMDMSG {
-    uint32_t command;           /* command code   */
-    uint32_t opcode;            /* operation code */
-} CMDMSG;
-
-typedef struct ipcmsg_t {
-    Queue_Elem  elem;           /* first field for Queue */
-    FCB         fcb;
-    CMDMSG      msg;
+/* IPC Message Structure */
+typedef struct _IPCMSG {
+    uint32_t    command;                    /* command code   */
+    uint32_t    opcode;                     /* operation code */
 } IPCMSG;
 
-/* ACK/NAK Message Structure */
-typedef struct ackmsg_t {
-    Queue_Elem  elem;           /* first field for Queue */
-    uint8_t     seqnum;         /* frame tx/rx seq#      */
-    uint8_t     acknak;         /* frame ACK/NAK seq#    */
-} ACKMSG;
+/* IPC Message List Entry Structure */
+typedef struct _FCBMSG {
+	FCB			fcb;
+    IPCMSG      msg;
+} FCBMSG;
+
+typedef struct _IPCMSG_SERVER {
+	UART_Handle uartHandle;
+    uint8_t currseq;                    /* current tx sequence# */
+    uint8_t expectseq;                  /* expected recv seq#   */
+    uint8_t lastseq;                    /* last seq# accepted   */
+    FCBMSG  tx[MAX_WINDOW+1];           /* resend tx queue buf  */
+    FCBMSG  rx;
+} IPCMSG_SERVER;
 
 /* Function Prototypes */
 

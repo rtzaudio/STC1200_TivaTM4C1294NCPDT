@@ -173,6 +173,139 @@ int main(void)
     return (0);
 }
 
+
+//*****************************************************************************
+// This function attempts to ready the unique serial number
+// from the I2C
+//*****************************************************************************
+
+Void CommandTaskFxn(UArg arg0, UArg arg1)
+{
+    Error_Block eb;
+	Task_Params taskParams;
+    CommandMessage msgCmd;
+    LocateMessage msgLocate;
+
+    /* Read the globally unique serial number from EPROM */
+    if (!ReadSerialNumber(g_sysData.ui8SerialNumber)) {
+    	System_printf("Read Serial Number Failed!\n");
+    	System_flush();
+    }
+
+    /* Initialize the command line serial debug console port */
+    CLI_init();
+
+    /*
+     * Create the various system tasks
+     */
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 12;
+    Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
+
+#if 0
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 2048;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 12;
+    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
+#endif
+
+    /* Setup the callback Hwi handler for each button */
+
+    GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
+    GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
+    GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
+
+    GPIO_setCallback(Board_STOP_DETECT_N, gpioButtonStopHwi);
+
+    /* Enable keypad button interrupts */
+
+    GPIO_enableInt(Board_BTN_RESET);
+    GPIO_enableInt(Board_BTN_CUE);
+    GPIO_enableInt(Board_BTN_SEARCH);
+
+    GPIO_enableInt(Board_STOP_DETECT_N);
+
+    /* Now begin the main program command task processing loop */
+
+    while (true)
+    {
+    	/* Wait for a message up to 1 second */
+        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 500))
+        {
+        	/* No message, blink the LED */
+    		GPIO_toggle(Board_STAT_LED);
+    		continue;
+        }
+
+        switch(msgCmd.command)
+        {
+			case SWITCHPRESS:
+
+				/* Handle switch debounce */
+
+				if (msgCmd.ui32Data == Board_BTN_RESET)
+				{
+					if (Debounce_buttonHI(Board_BTN_RESET))
+					{
+						/* Zero tape timer at current tape location */
+						PositionZeroReset();
+					}
+
+					Debounce_buttonLO(Board_BTN_RESET);
+
+					GPIO_enableInt(Board_BTN_RESET);
+				}
+				else if (msgCmd.ui32Data == Board_BTN_CUE)
+				{
+					if (Debounce_buttonHI(Board_BTN_CUE))
+					{
+						/* Store the current position at cue point 65 */
+						CuePointStore(MAX_CUE_POINTS);
+					}
+
+					Debounce_buttonLO(Board_BTN_CUE);
+
+					GPIO_enableInt(Board_BTN_CUE);
+				}
+				else if (msgCmd.ui32Data == Board_BTN_SEARCH)
+				{
+					if (Debounce_buttonHI(Board_BTN_SEARCH))
+					{
+						/* Cue up locate point 65 request */
+						msgLocate.command = LOCATE_SEARCH;
+						msgLocate.param1  = MAX_CUE_POINTS;
+						msgLocate.param2  = 0;
+						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
+					}
+
+					Debounce_buttonLO(Board_BTN_SEARCH);
+
+					GPIO_enableInt(Board_BTN_SEARCH);
+				}
+				break;
+
+			default:
+				break;
+        }
+    }
+}
+
 //*****************************************************************************
 // Default hardware initialization
 //*****************************************************************************
@@ -272,139 +405,6 @@ int Debounce_buttonLO(uint32_t index)
 	}
 
 	return f;
-}
-
-//*****************************************************************************
-// This function attempts to ready the unique serial number
-// from the I2C
-//*****************************************************************************
-
-Void CommandTaskFxn(UArg arg0, UArg arg1)
-{
-    Error_Block eb;
-	Task_Params taskParams;
-    CommandMessage msgCmd;
-    LocateMessage msgLocate;
-
-    /* Read the globally unique serial number from EPROM */
-    if (!ReadSerialNumber(g_sysData.ui8SerialNumber)) {
-    	System_printf("Read Serial Number Failed!\n");
-    	System_flush();
-    }
-
-    /* Initialize the command line serial debug console port */
-    CLI_init();
-
-    /*
-     * Create the various system tasks
-     */
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 2048;
-    taskParams.priority  = 12;
-    Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
-
-
-#if 0
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 2048;
-    taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 12;
-    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
-#endif
-
-    /* Setup the callback Hwi handler for each button */
-
-    GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
-    GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
-    GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
-
-    GPIO_setCallback(Board_STOP_DETECT_N, gpioButtonStopHwi);
-
-    /* Enable keypad button interrupts */
-
-    GPIO_enableInt(Board_BTN_RESET);
-    GPIO_enableInt(Board_BTN_CUE);
-    GPIO_enableInt(Board_BTN_SEARCH);
-
-    GPIO_enableInt(Board_STOP_DETECT_N);
-
-    /* Now begin the main program command task processing loop */
-
-    while (true)
-    {
-    	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 500))
-        {
-        	/* No message, blink the LED */
-    		GPIO_toggle(Board_STAT_LED);
-    		continue;
-        }
-
-        switch(msgCmd.command)
-        {
-			case SWITCHPRESS:
-
-				/* Handle switch debounce */
-
-				if (msgCmd.ui32Data == Board_BTN_RESET)
-				{
-					if (Debounce_buttonHI(Board_BTN_RESET))
-					{
-						/* Zero tape timer at current tape location */
-						PositionZeroReset();
-					}
-
-					Debounce_buttonLO(Board_BTN_RESET);
-
-					GPIO_enableInt(Board_BTN_RESET);
-				}
-				else if (msgCmd.ui32Data == Board_BTN_CUE)
-				{
-					if (Debounce_buttonHI(Board_BTN_CUE))
-					{
-						/* Store the current position at cue point 65 */
-						CuePointStore(MAX_CUE_POINTS);
-					}
-
-					Debounce_buttonLO(Board_BTN_CUE);
-
-					GPIO_enableInt(Board_BTN_CUE);
-				}
-				else if (msgCmd.ui32Data == Board_BTN_SEARCH)
-				{
-					if (Debounce_buttonHI(Board_BTN_SEARCH))
-					{
-						/* Cue up locate point 65 request */
-						msgLocate.command = LOCATE_SEARCH;
-						msgLocate.param1  = MAX_CUE_POINTS;
-						msgLocate.param2  = 0;
-						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
-					}
-
-					Debounce_buttonLO(Board_BTN_SEARCH);
-
-					GPIO_enableInt(Board_BTN_SEARCH);
-				}
-				break;
-
-			default:
-				break;
-        }
-    }
 }
 
 //*****************************************************************************

@@ -81,7 +81,7 @@
 
 UART_Handle g_handleUart422;
 
-FCB g_TxFcb;
+FCB g_txFcb;
 
 /* Static Function Prototypes */
 
@@ -125,7 +125,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     /* Now begin the main program command task processing loop */
 
-	RAMP_InitFcb(&g_TxFcb);
+	RAMP_InitFcb(&g_txFcb);
 
     while (true)
     {
@@ -137,15 +137,15 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
          * message that requires no ACK/NAK response - a datagram.
          */
 
-        g_TxFcb.address = 0x01;
-        g_TxFcb.type    = MAKETYPE(F_PRIORITY, TYPE_MSG_ONLY);
+        g_txFcb.address = 0x01;
+        g_txFcb.type    = MAKETYPE(F_PRIORITY, TYPE_MSG_ONLY);
 
         //RAMP_TxFrame(g_handleUart422, &g_TxFcb, GrGetScreenBuffer(), GrGetScreenBufferSize());
 
     	//GPIO_write(Board_STAT_LED2, Board_LED_OFF);
 
     	/* Increment the frame sequence number */
-    	g_TxFcb.seqnum = INC_SEQ_NUM(g_TxFcb.seqnum);
+    	g_txFcb.seqnum = INC_SEQ_NUM(g_txFcb.seqnum);
     }
 }
 

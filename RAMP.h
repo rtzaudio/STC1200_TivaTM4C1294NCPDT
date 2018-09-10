@@ -127,7 +127,7 @@
 /* Frame Type Flag Bits (upper nibble) */
 #define F_ACKNAK        		0x10		/* frame is ACK/NAK only frame */
 #define F_PRIORITY      		0x20    	/* high priority message frame */
-#define F_RESYNC        		0x40		/* re-synchronize flag bit     */
+#define F_DATAGRAM        		0x40		/* no ACK/NAK required         */
 #define F_ERROR         		0x80		/* frame error flag bit        */
 
 #define FRAME_FLAG_MASK    		0xF0		/* flag mask is upper 4 bits   */
@@ -165,16 +165,14 @@ typedef struct fcb_t {
     uint8_t     seqnum;             /* frame tx/rx seq#      */
     uint8_t     acknak;             /* frame ACK/NAK seq#    */
     uint8_t     address;            /* tx/rx node address    */
-    uint8_t*	textbuf;            /* pointer to text buf   */
     uint16_t    textlen;            /* text len rx/tx data   */
-    uint16_t    framelen;         	/* frame len specifier   */
-    uint16_t	crc;				/* tx/rx CRC value       */
+    void*		textbuf;            /* pointer to text buf   */
 } FCB;
 
 /* RAMP Function Prototypes */
 
 void RAMP_InitFcb(FCB* fcb);
-int RAMP_TxFrame(UART_Handle handle, FCB *fcb, uint8_t *textbuf, int textlen);
-int RAMP_RxFrame(UART_Handle handle, FCB *fcb, uint8_t *textbuf, int maxlen);
+int RAMP_TxFrame(UART_Handle handle, FCB *fcb);
+int RAMP_RxFrame(UART_Handle handle, FCB *fcb);
 
 /* end-of-file */
