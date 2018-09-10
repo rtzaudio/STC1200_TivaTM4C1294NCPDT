@@ -53,22 +53,33 @@ typedef struct _IPCMSG {
 
 /* IPC Message List Entry Structure */
 typedef struct _FCBMSG {
+	Queue_Elem	elem;
 	FCB			fcb;
     IPCMSG      msg;
 } FCBMSG;
 
-typedef struct _IPCMSG_SERVER {
-	UART_Handle uartHandle;
-    uint8_t currseq;                    /* current tx sequence# */
-    uint8_t expectseq;                  /* expected recv seq#   */
-    uint8_t lastseq;                    /* last seq# accepted   */
-    FCBMSG  tx[MAX_WINDOW+1];           /* resend tx queue buf  */
-    FCBMSG  rx;
-} IPCMSG_SERVER;
+/* IPC Message Server Object */
+typedef struct _IPCSVR_OBJECT {
+	UART_Handle         uartHandle;
+	Queue_Handle        txFreeQue;
+    Queue_Handle        txDataQue;
+    Semaphore_Handle    txDataSem;
+    Semaphore_Handle    txFreeSem;
+    int					numFreeMsgs;
+    int					txCount;
+    uint8_t             currSeq;            /* current tx sequence# */
+    uint8_t             expectSeq;          /* expected recv seq#   */
+    uint8_t             lastSeq;            /* last seq# accepted   */
+    FCBMSG              tx[MAX_WINDOW+1];   /* resend tx queue buf  */
+    FCBMSG              rx;
+} IPCSVR_OBJECT;
 
 /* Function Prototypes */
 
-int IPC_init(void);
+Bool IPC_Server_init(IPCSVR_OBJECT* pSvr);
+Bool IPC_Send_message(IPCSVR_OBJECT* pSvr, IPCMSG* pMsg, UInt32 timeout);
+UInt32 IPC_Send_datagram(IPCSVR_OBJECT* pSvr, IPCMSG* pMsg, UInt32 timeout);
+
 Void IPCReaderTaskFxn(UArg a0, UArg a1);
 Void IPCWriterTaskFxn(UArg arg0, UArg arg1);
 
