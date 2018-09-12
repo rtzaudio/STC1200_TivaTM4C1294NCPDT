@@ -49,6 +49,7 @@
 #include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Queue.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -88,10 +89,13 @@
 #include "DisplayTask.h"
 #include "RemoteTask.h"
 #include "CLITask.h"
+#include "IPCTask.h"
 
 /* Global STC-1200 System data */
 SYSDATA g_sysData;
 SYSPARMS g_sysParms;
+
+extern IPCSVR_OBJECT g_ipc;
 
 /* Handles created dynamically */
 Mailbox_Handle g_mailboxLocate  = NULL;
@@ -195,6 +199,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize the command line serial debug console port */
     CLI_init();
 
+    IPC_Server_init();
+
     /*
      * Create the various system tasks
      */
@@ -263,8 +269,17 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_RESET))
 					{
+						IPCMSG msg;
+
 						/* Zero tape timer at current tape location */
 						PositionZeroReset();
+
+						msg.command  = 100;
+						msg.opcode   = 2018;
+						msg.param1.U = 12;
+						msg.param2.U = 32;
+
+						IPC_Send_datagram(&msg, 100);
 					}
 
 					Debounce_buttonLO(Board_BTN_RESET);

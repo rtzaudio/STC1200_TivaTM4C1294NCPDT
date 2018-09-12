@@ -1,7 +1,7 @@
 /*
  * RAMP - Remote Asynchronous Message Protocol
  *
- * Copyright (C) 2017, RTZ Professional Audio, LLC. ALL RIGHTS RESERVED.
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC. ALL RIGHTS RESERVED.
  *
  *              *** RAMP Protocol Message Frame Structure ***
  *
@@ -14,7 +14,7 @@
  *                |   +------------------------------+
  *                +-- |      FRAME LENGTH (LSB)      |    3
  *                    +---+---+---+---+--------------+
- *                +-- | E | R | P | A |    TYPE      |    4
+ *                +-- | E | D | P | A |    TYPE      |    4
  *                |   +---+---+---+---+--------------+
  *                |   |           ADDRESS            |    5
  *       Header --+   +------------------------------+
@@ -46,7 +46,7 @@
  *      * Flags: E=ERROR, R=RESYNC, P=PRIORITY, A=ACK/NAK response required
  *
  *      * Type: 1 = ACK-only           2 = NAK-only           3 = msg-only
- *              4 = msg+piggyback-ACK  5 = msg+piggyback-NAK  6 = datagram msg
+ *              4 = msg+piggyback-ACK  5 = msg+piggyback-NAK
  * 
  *      * Address: Specifies the remote slave node address (0-16)
  *
@@ -66,7 +66,7 @@
  *                    +------------------------------+   byte
  *                +-- |    SOF PREAMBLE (MSB=0x89)   |    0
  *                |   +------------------------------+
- *                |   |    SOF PREAMBLE (LSB=0xFC)   |    1
+ *                |   |    SOF PREAMBLE (LSB=0xBA)   |    1
  *     Preamble --+   +------------------------------+
  *                |   |     FRAME LENGTH (MSB=0)     |    2
  *                |   +------------------------------+
@@ -101,7 +101,7 @@
 /*** RAMP Constants and Defines ********************************************/
 
 #define PREAMBLE_MSB			0x89		/* first byte of preamble SOF  */
-#define PREAMBLE_LSB			0xFC		/* second byte of preamble SOF */
+#define PREAMBLE_LSB			0xBA		/* second byte of preamble SOF */
 
 #define MAX_WINDOW              8       	/* maximum window size         */
 
@@ -138,7 +138,6 @@
 #define TYPE_MSG_ONLY   		3			/* message only frame          */
 #define TYPE_MSG_ACK    		4			/* piggyback message plus ACK  */
 #define TYPE_MSG_NAK    		5			/* piggyback message plus NAK  */
-#define TYPE_MSG_DATAGRAM       6           /* no ACK/NAK response req'ed  */
 
 #define FRAME_TYPE_MASK    		0x0F		/* type mask is lower 4 bits   */
 

@@ -46,12 +46,22 @@
 #include "RAMP.h"
 
 /* IPC Message Structure */
+
 typedef struct _IPCMSG {
     uint32_t    command;                    /* command code   */
     uint32_t    opcode;                     /* operation code */
+    union {
+        uint32_t    U;
+        float       F;
+    } param1;
+    union {
+        uint32_t    U;
+        float       F;
+    }  param2;
 } IPCMSG;
 
 /* IPC Message List Entry Structure */
+
 typedef struct _FCBMSG {
 	Queue_Elem	elem;
 	FCB			fcb;
@@ -59,6 +69,7 @@ typedef struct _FCBMSG {
 } FCBMSG;
 
 /* IPC Message Server Object */
+
 typedef struct _IPCSVR_OBJECT {
 	UART_Handle         uartHandle;
 	Queue_Handle        txFreeQue;
@@ -66,21 +77,22 @@ typedef struct _IPCSVR_OBJECT {
     Semaphore_Handle    txDataSem;
     Semaphore_Handle    txFreeSem;
     int					numFreeMsgs;
-    int					txCount;
+    uint32_t			txCount;
+    uint32_t			rxCount;
     uint8_t             currSeq;            /* current tx sequence# */
     uint8_t             expectSeq;          /* expected recv seq#   */
     uint8_t             lastSeq;            /* last seq# accepted   */
-    FCBMSG              tx[MAX_WINDOW+1];   /* resend tx queue buf  */
-    FCBMSG              rx;
+    FCBMSG*             txMsgBuf;
+    FCBMSG*             rxMsgBuf;
 } IPCSVR_OBJECT;
 
 /* Function Prototypes */
 
-Bool IPC_Server_init(IPCSVR_OBJECT* pSvr);
-Bool IPC_Send_message(IPCSVR_OBJECT* pSvr, IPCMSG* pMsg, UInt32 timeout);
-UInt32 IPC_Send_datagram(IPCSVR_OBJECT* pSvr, IPCMSG* pMsg, UInt32 timeout);
+Bool IPC_Server_init(void);
 
-Void IPCReaderTaskFxn(UArg a0, UArg a1);
-Void IPCWriterTaskFxn(UArg arg0, UArg arg1);
+Bool IPC_Send_transaction(IPCMSG* msg, UInt32 timeout);
+Bool IPC_Send_datagram(IPCMSG* msg, UInt32 timeout);
+
+Bool IPC_Send_message(IPCMSG* msg, UChar type, UChar acknak, UInt32 timeout);
 
 #endif /* _IPCTASK_H_ */
