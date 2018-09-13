@@ -141,7 +141,7 @@
 
 #define FRAME_TYPE_MASK    		0x0F		/* type mask is lower 4 bits   */
 
-#define MAKETYPE(b, t)			( (uint8_t)((b << 4) | (t & 0x0F)) )
+#define MAKETYPE(f, t)			( (uint8_t)((f & 0x0F) | (t & 0x0F)) )
 
 /* Error Code Constants */
 #define ERR_TIMEOUT             1           /* comm port timeout           */

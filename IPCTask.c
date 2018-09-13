@@ -132,7 +132,7 @@ Bool IPC_Server_init(void)
     Error_init(&eb);
 
     if ((g_ipc.txMsgBuf = (FCBMSG*)Memory_alloc(NULL, MAX_WINDOW * sizeof(FCBMSG), 0, &eb)) == NULL)
-        System_abort("Tx Memory allocation failed");
+        System_abort("TxBuf allocation failed");
 
     msg = g_ipc.txMsgBuf;
 
@@ -146,7 +146,7 @@ Bool IPC_Server_init(void)
     Error_init(&eb);
 
     if ((g_ipc.rxMsgBuf = (FCBMSG*)Memory_alloc(NULL, sizeof(FCBMSG), 0, &eb)) == NULL)
-        System_abort("Rx Memory allocation failed");
+        System_abort("RxBuf allocation failed");
 
     /* Initialize all Server Data Items */
 
@@ -345,9 +345,13 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 
         	case TYPE_MSG_ONLY:			/* message only frame          */
 
-        		if (fcb->type & F_DATAGRAM)
+        		//if (fcb->type & F_DATAGRAM)
         		{
+                	System_printf("IPC Rx: %04x : %04x\n",
+                			g_ipc.rxMsgBuf->msg.command,
+							g_ipc.rxMsgBuf->msg.opcode);
 
+                	System_flush();
         		}
         		break;
 
