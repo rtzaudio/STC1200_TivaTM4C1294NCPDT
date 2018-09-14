@@ -91,13 +91,15 @@
 #include "CLITask.h"
 #include "IPCTask.h"
 
+/* Enable div-clock output if non-zero */
+#define DIV_CLOCK_ENABLED	0
+
 /* Global STC-1200 System data */
 SYSDATA g_sysData;
 SYSPARMS g_sysParms;
 
-extern IPCSVR_OBJECT g_ipc;
-
 /* Handles created dynamically */
+
 Mailbox_Handle g_mailboxLocate  = NULL;
 Mailbox_Handle g_mailboxDisplay = NULL;
 Mailbox_Handle g_mailboxCommand = NULL;
@@ -110,11 +112,13 @@ static void gpioButtonSearchHwi(unsigned int index);
 static void gpioButtonCueHwi(unsigned int index);
 
 static void gpioButtonStopHwi(unsigned int index);
-
-static void EnableClockDivOutput(uint32_t div);
 static void Hardware_init();
 static int Debounce_buttonHI(uint32_t index);
 static int Debounce_buttonLO(uint32_t index);
+
+#if (DIV_CLOCK_ENABLED > 0)
+static void EnableClockDivOutput(uint32_t div);
+#endif
 
 //*****************************************************************************
 // Main Entry Point
@@ -269,17 +273,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					if (Debounce_buttonHI(Board_BTN_RESET))
 					{
-						IPCMSG msg;
-
 						/* Zero tape timer at current tape location */
 						PositionZeroReset();
-
-						msg.command  = 100;
-						msg.opcode   = 2018;
-						msg.param1.U = 12;
-						msg.param2.U = 32;
-
-						IPC_Send_datagram(&msg, 100);
 					}
 
 					Debounce_buttonLO(Board_BTN_RESET);
@@ -357,7 +352,9 @@ void Hardware_init()
      * expansion header and pin 16 of the edge
      * connector if a clock signal is required.
      */
-    //EnableClockDivOutput(100);
+#if (DIV_CLOCK_ENABLED > 0)
+    EnableClockDivOutput(100);
+#endif
 }
 
 //*****************************************************************************
@@ -366,6 +363,7 @@ void Hardware_init()
 // a clock of 1.2 Mhz.
 //*****************************************************************************
 
+#if (DIV_CLOCK_ENABLED > 0)
 void EnableClockDivOutput(uint32_t div)
 {
     /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
@@ -376,6 +374,7 @@ void EnableClockDivOutput(uint32_t div)
     /* Enable the clock output */
     SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
 }
+#endif
 
 //*****************************************************************************
 // This function attempts to debounce an I/O pin button state by attempting

@@ -348,7 +348,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         		//if (fcb->type & F_DATAGRAM)
         		{
                 	System_printf("IPC Rx: %04x : %04x\n",
-                			g_ipc.rxMsgBuf->msg.command,
+                			g_ipc.rxMsgBuf->msg.type,
 							g_ipc.rxMsgBuf->msg.opcode);
 
                 	System_flush();

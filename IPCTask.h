@@ -45,11 +45,21 @@
 
 #include "RAMP.h"
 
-/* IPC Message Structure */
+/* Message types for IPCMSG.type */
+#define IPC_TYPE_NOTIFY				100
+#define IPC_TYPE_TRANSACTION		101
+
+/* Operation Codes for IPCMSG.opcode */
+#define OP_NOTIFY_BUTTON			10
+#define OP_NOTIFY_TRANSPORT			11
+
+/* ============================================================================
+ * IPC Message Structure
+ * ============================================================================ */
 
 typedef struct _IPCMSG {
-    uint32_t    command;                    /* command code   */
-    uint32_t    opcode;                     /* operation code */
+    uint32_t    type;                    /* command code   */
+    uint32_t    opcode;                  /* operation code */
     union {
         uint32_t    U;
         float       F;
@@ -60,7 +70,9 @@ typedef struct _IPCMSG {
     }  param2;
 } IPCMSG;
 
-/* IPC Message List Entry Structure */
+/* ============================================================================
+ * IPC Message List Entry Structure
+ * ============================================================================ */
 
 typedef struct _FCBMSG {
 	Queue_Elem	elem;
@@ -68,7 +80,9 @@ typedef struct _FCBMSG {
     IPCMSG      msg;
 } FCBMSG;
 
-/* IPC Message Server Object */
+/* ============================================================================
+ * IPC Message Server Object
+ * ============================================================================ */
 
 typedef struct _IPCSVR_OBJECT {
 	UART_Handle         uartHandle;
