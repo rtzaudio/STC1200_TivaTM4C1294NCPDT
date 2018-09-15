@@ -58,27 +58,27 @@
  * ============================================================================ */
 
 typedef struct _IPCMSG {
-    uint32_t    type;                    /* command code   */
-    uint32_t    opcode;                  /* operation code */
+    uint32_t        type;           /* the IPC message type code   */
+    uint32_t        opcode;         /* application defined op code */
     union {
         uint32_t    U;
         float       F;
-    } param1;
+    } param1;                       /* unsigned or float param1 */
     union {
         uint32_t    U;
         float       F;
-    }  param2;
+    }  param2;                      /* unsigned or float param2 */
 } IPCMSG;
 
 /* ============================================================================
- * IPC Message List Entry Structure
+ * IPC Tx/Rx Message List Element Structure
  * ============================================================================ */
 
-typedef struct _FCBMSG {
+typedef struct _IPC_ELEM {
 	Queue_Elem	elem;
 	FCB			fcb;
     IPCMSG      msg;
-} FCBMSG;
+} IPC_ELEM;
 
 /* ============================================================================
  * IPC Message Server Object
@@ -86,27 +86,41 @@ typedef struct _FCBMSG {
 
 typedef struct _IPCSVR_OBJECT {
 	UART_Handle         uartHandle;
+    /* tx queues and semaphores */
 	Queue_Handle        txFreeQue;
     Queue_Handle        txDataQue;
     Semaphore_Handle    txDataSem;
     Semaphore_Handle    txFreeSem;
-    int					numFreeMsgs;
+    /* rx queues and semaphores */
+    Queue_Handle        rxFreeQue;
+    Queue_Handle        rxDataQue;
+    Semaphore_Handle    rxDataSem;
+    Semaphore_Handle    rxFreeSem;
+    /* server data items */
+    int					txNumFreeMsgs;
+    int                 txErrors;
     uint32_t			txCount;
-    uint32_t			rxCount;
-    uint8_t             currSeq;            /* current tx sequence# */
-    uint8_t             expectSeq;          /* expected recv seq#   */
-    uint8_t             lastSeq;            /* last seq# accepted   */
-    FCBMSG*             txMsgBuf;
-    FCBMSG*             rxMsgBuf;
+    uint8_t             txCurrSeq;          /* current tx sequence# */
+    int                 rxNumFreeMsgs;
+    int                 rxErrors;
+    uint32_t            rxCount;
+    uint8_t             rxExpectedSeq;		/* expected recv seq#   */
+    uint8_t             rxLastSeq;       	/* last seq# accepted   */
+    /* frame memory buffers */
+    IPC_ELEM*           txMsgBuf;
+    IPC_ELEM*           rxMsgBuf;
 } IPCSVR_OBJECT;
 
-/* Function Prototypes */
+/* ============================================================================
+ * IPC Function Prototypes
+ * ============================================================================ */
 
 Bool IPC_Server_init(void);
 
+Bool IPC_post_message(IPCMSG* msg, FCB* fcb, UInt32 timeout);
+Bool IPC_pend_message(IPCMSG* msg, FCB* fcb, UInt32 timeout);
+
 Bool IPC_Send_transaction(IPCMSG* msg, UInt32 timeout);
 Bool IPC_Send_datagram(IPCMSG* msg, UInt32 timeout);
-
-Bool IPC_Send_message(IPCMSG* msg, UChar type, UChar acknak, UInt32 timeout);
 
 #endif /* _IPCTASK_H_ */

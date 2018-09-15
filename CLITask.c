@@ -92,7 +92,7 @@ int CLI_init(void)
     uartParams.readCallback   = NULL;
     uartParams.writeCallback  = NULL;
     uartParams.readReturnMode = UART_RETURN_FULL;
-    uartParams.writeDataMode  = UART_DATA_BINARY;
+    uartParams.writeDataMode  = UART_DATA_TEXT;
     uartParams.readDataMode   = UART_DATA_BINARY;
     uartParams.readEcho       = UART_ECHO_OFF;
     uartParams.baudRate       = 115200;
