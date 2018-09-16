@@ -203,6 +203,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize the command line serial debug console port */
     CLI_init();
 
+    /* Startup the IPC server tasks */
     IPC_Server_init();
 
     /*
@@ -301,7 +302,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 						msgLocate.command = LOCATE_SEARCH;
 						msgLocate.param1  = MAX_CUE_POINTS;
 						msgLocate.param2  = 0;
-						Mailbox_post(g_mailboxLocate, &msgLocate, 10);
+
+						Mailbox_post(g_mailboxLocate, &msgLocate, 0);
 					}
 
 					Debounce_buttonLO(Board_BTN_SEARCH);

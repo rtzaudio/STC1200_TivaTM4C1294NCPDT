@@ -45,6 +45,7 @@
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/knl/Event.h>
 #include <ti/sysbios/knl/Mailbox.h>
+#include <ti/sysbios/knl/Queue.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
@@ -55,21 +56,15 @@
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>
 
+#include <driverlib/sysctl.h>
+
 #include <file.h>
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
 
-#include <driverlib/sysctl.h>
-
-#include <ti/sysbios/knl/Semaphore.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/sysbios/knl/Queue.h>
-
-/* PMX42 Board Header file */
-
-#include "STC1200.h"
+/* Board Header file */
 #include "Board.h"
 #include "IPCTask.h"
 #include "CLITask.h"
@@ -135,18 +130,21 @@ Bool IPC_Server_init(void)
     g_ipc.rxFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
     g_ipc.rxDataSem = Semaphore_create(0, NULL, NULL);
 
+    g_ipc.datagramHandlerFxn    = NULL;
+    g_ipc.transactionHandlerFxn = NULL;
+
     /*
      * Allocate and Initialize TRANSMIT Buffer Memory
      */
 
     Error_init(&eb);
 
-    g_ipc.txMsgBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
+    g_ipc.txBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
 
-    if (g_ipc.txMsgBuf == NULL)
+    if (g_ipc.txBuf == NULL)
         System_abort("TxBuf allocation failed");
 
-    msg = g_ipc.txMsgBuf;
+    msg = g_ipc.txBuf;
 
     /* Put all tx message buffers on the freeQueue */
     for (i=0; i < MAX_WINDOW; i++, msg++) {
@@ -159,12 +157,12 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.rxMsgBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
+    g_ipc.rxBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
 
-    if (g_ipc.rxMsgBuf == NULL)
+    if (g_ipc.rxBuf == NULL)
         System_abort("RxBuf allocation failed");
 
-    msg = g_ipc.rxMsgBuf;
+    msg = g_ipc.rxBuf;
 
     /* Put all tx message buffers on the freeQueue */
     for (i=0; i < MAX_WINDOW; i++, msg++) {
@@ -176,7 +174,7 @@ Bool IPC_Server_init(void)
     g_ipc.txErrors      = 0;
     g_ipc.txCount       = 0;
     g_ipc.txNumFreeMsgs = MAX_WINDOW;
-    g_ipc.txCurrSeq     = MIN_SEQ_NUM;      /* current tx sequence# */
+    g_ipc.txNextSeq     = MIN_SEQ_NUM;      /* current tx sequence# */
 
     g_ipc.rxErrors      = 0;
     g_ipc.rxCount       = 0;
@@ -202,16 +200,67 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 5;
+    taskParams.stackSize = 1500;
+    taskParams.priority  = 10;
     Task_create((Task_FuncPtr)IPCWorkerTaskFxn, &taskParams, &eb);
 
     return TRUE;
 }
 
 //*****************************************************************************
+//
+//*****************************************************************************
+
+Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
+{
+    FCB fcb;
+    IPCMSG msg;
+
+    while (1)
+    {
+        /* Wait for a RAMP message from peer */
+
+        if (!IPC_Message_pend(&msg, &fcb, 1000))
+        {
+            /* Timeout, no message received, check to see if we have
+             * any messages with ACK pending that haven't been
+             * acknowledge yet. If so, then retransmit until
+             * for max number of retries.
+             */
+            continue;
+        }
+
+        /* We've received a valid RAMP message frame. Check the
+         * message type received as follows:
+         *
+         *  TYPE_MSG_ONLY - This is a request for data that requires
+         *                  a response message with ACK to the peer.
+         *                  If the F_DATAGRAM type flag is set, the
+         *                  message does not require an ACK response
+         *                  and the message data can be processed.
+         *
+         *  TYPE_MSG_ACK  - This is a response to a request for data
+         *                  from peer. The ACK indicates the request
+         *                  was processed and returned in the msg.
+         */
+
+        if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ONLY)
+        {
+            if (fcb.type & F_DATAGRAM)
+                IPC_Handle_datagram(&msg, &fcb);
+            else
+                IPC_Handle_transaction(&msg, &fcb, 1000);
+        }
+        else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ACK)
+        {
+            IPC_Handle_acknowledge(&msg, &fcb, 1000);
+        }
+    }
+}
+
+//*****************************************************************************
 // This packet writer task waits for any message to appear in the
-// outgoing transmit message queue.
+// outgoing transmit message queue and transmits all items from the queue.
 //*****************************************************************************
 
 Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
@@ -224,13 +273,13 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a packet in the tx queue */
-    	if (!Semaphore_pend(g_ipc.txDataSem, 1000))
-    	{
-    	    /* Timeout, nothing to send */
-    	    continue;
-    	}
+        if (!Semaphore_pend(g_ipc.txDataSem, 1000))
+        {
+            /* Timeout, nothing to send */
+            continue;
+        }
 
-    	/* Get the message from txDataQue */
+        /* Get the message from txDataQue */
         elem = Queue_get(g_ipc.txDataQue);
 
         /* Transmit the packet! */
@@ -257,69 +306,10 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 }
 
 //*****************************************************************************
-// This function posts a message to the transmit queue. A return FALSE value
-// indicates the timeout expired or a buffer never became available for
-// transmission within the timeout period specified.
-//*****************************************************************************
-
-Bool IPC_post_message(IPCMSG* msg, FCB* fcb, UInt32 timeout)
-{
-    UInt key;
-    uint8_t seqnum;
-    IPC_ELEM* elem;
-
-    /* Wait for a free transmit buffer and timeout if necessary */
-    if (Semaphore_pend(g_ipc.txFreeSem, timeout))
-    {
-        /* perform the dequeue and decrement numFreeMsgs atomically */
-        key = Hwi_disable();
-
-        /* get a message from the free queue */
-        elem = Queue_dequeue(g_ipc.txFreeQue);
-
-        /* Make sure that a valid pointer was returned. */
-        if (elem == (IPC_ELEM*)(g_ipc.txFreeQue))
-        {
-            Hwi_restore(key);
-            return FALSE;
-        }
-
-        /* Get the next frame sequence number */
-        seqnum = g_ipc.txCurrSeq;
-
-        /* Increment the servers sequence number */
-        g_ipc.txCurrSeq = INC_SEQ_NUM(seqnum);
-
-        /* decrement the numFreeMsgs */
-        g_ipc.txNumFreeMsgs--;
-
-        /* re-enable ints */
-        Hwi_restore(key);
-
-        /* Set and return the sequence number! */
-        fcb->seqnum = seqnum;
-
-        /* copy msg to element */
-        memcpy(&(elem->msg), msg, sizeof(IPCMSG));
-        memcpy(&(elem->fcb), fcb, sizeof(FCB));
-
-        /* put message on txDataQueue */
-        if (fcb->type & F_PRIORITY)
-            Queue_putHead(g_ipc.txDataQue, (Queue_Elem *)elem);
-        else
-            Queue_put(g_ipc.txDataQue, (Queue_Elem *)elem);
-
-        /* post the semaphore */
-        Semaphore_post(g_ipc.txDataSem);
-
-        return TRUE;          /* success */
-    }
-
-    return FALSE;         /* error */
-}
-
-//*****************************************************************************
-//
+// The reader task reads RAMP packets and stores these in the receive
+// buffer queue for processing messages from the peer. The rxDataSem
+// semaphore is signaled to indicate data is available to the IPCServer
+// task that dispatches all the messages between the two peer nodes.
 //*****************************************************************************
 
 Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
@@ -399,10 +389,13 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 }
 
 //*****************************************************************************
-//
+// This function blocks until an IPC message is available in the rx queue or
+// the timeout expires. A return FALSE value indicates the timeout expired
+// or a buffer never became available for the receiver within the timeout
+// period specified.
 //*****************************************************************************
 
-Bool IPC_pend_message(IPCMSG* msg, FCB* fcb, UInt32 timeout)
+Bool IPC_Message_pend(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 {
     UInt key;
     IPC_ELEM* elem;
@@ -438,93 +431,127 @@ Bool IPC_pend_message(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 }
 
 //*****************************************************************************
-//
+// This function posts a message to the transmit queue. A return FALSE value
+// indicates the timeout expired or a buffer never became available for
+// transmission within the timeout period specified.
 //*****************************************************************************
 
-Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
+Bool IPC_Message_post(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 {
-    FCB fcb;
-    IPCMSG msg;
+    UInt key;
+    IPC_ELEM* elem;
 
-    while (1)
+    /* Wait for a free transmit buffer and timeout if necessary */
+    if (Semaphore_pend(g_ipc.txFreeSem, timeout))
     {
-        /* Wait for a RAMP message from peer */
+        /* perform the dequeue and decrement numFreeMsgs atomically */
+        key = Hwi_disable();
 
-        if (!IPC_pend_message(&msg, &fcb, 1000))
+        /* get a message from the free queue */
+        elem = Queue_dequeue(g_ipc.txFreeQue);
+
+        /* Make sure that a valid pointer was returned. */
+        if (elem == (IPC_ELEM*)(g_ipc.txFreeQue))
         {
-            /* Timeout, no message received, check to see if we have
-             * any messages with ACK pending that haven't been
-             * acknowledge yet. If so, then retransmit until
-             * for max number of retries.
-             */
-            continue;
+            Hwi_restore(key);
+            return FALSE;
         }
 
-        /* We've received a valid RAMP message frame. Check the
-         * message type received as follows:
-         *
-         *  TYPE_MSG_ONLY - This is a request for data that requires
-         *                  a response message with ACK to the peer.
-         *                  If the F_DATAGRAM type flag is set, the
-         *                  message does not require an ACK response
-         *                  and the message data can be processed.
-         *
-         *  TYPE_MSG_ACK  - This is a response to a request for data
-         *                  from peer. The ACK indicates the request
-         *                  was processed and returned in the msg.
-         */
+        /* decrement the numFreeMsgs */
+        g_ipc.txNumFreeMsgs--;
 
-        if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ONLY)
-        {
-            CLI_printf("Rx(%u)=%04x\n", fcb.seqnum, msg.opcode);
+        /* re-enable ints */
+        Hwi_restore(key);
 
-            if (fcb.type & F_DATAGRAM)
-            {
-                /* deliver the datagram and we're done */
-            }
-            else
-            {
-                /* begin transaction phase for request */
-            }
-        }
-        else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ACK)
-        {
-            /* response to transaction received */
-        }
+        /* copy msg to element */
+        memcpy(&(elem->msg), msg, sizeof(IPCMSG));
+        memcpy(&(elem->fcb), fcb, sizeof(FCB));
+
+        /* put message on txDataQueue */
+        if (fcb->type & F_PRIORITY)
+            Queue_putHead(g_ipc.txDataQue, (Queue_Elem *)elem);
+        else
+            Queue_put(g_ipc.txDataQue, (Queue_Elem *)elem);
+
+        /* post the semaphore */
+        Semaphore_post(g_ipc.txDataSem);
+
+        return TRUE;          /* success */
     }
+
+    return FALSE;         /* error */
+}
+
+//*****************************************************************************
+// This function returns the next available transmit and increments the 
+// counter to the next frame sequence number. 
+//*****************************************************************************
+
+uint8_t IPC_GetTxSeqNum(void)
+{
+    /* increment sequence number atomically */
+    UInt key = Hwi_disable();
+
+    /* Get the next frame sequence number */
+    uint8_t seqnum = g_ipc.txNextSeq;
+
+    /* Increment the servers sequence number */
+    g_ipc.txNextSeq = INC_SEQ_NUM(seqnum);
+
+    /* re-enable ints */
+    Hwi_restore(key);
+
+    return seqnum;
 }
 
 //*****************************************************************************
 //
 //*****************************************************************************
 
-Bool IPC_Send_datagram(IPCMSG* msg, UInt32 timeout)
+Bool IPC_Notify(IPCMSG* msg, UInt32 timeout)
 {
     FCB fcb;
 
     fcb.type    = MAKETYPE(F_DATAGRAM, TYPE_MSG_ONLY);
     fcb.acknak  = 0;
-    fcb.address = 0;
     fcb.seqnum  = 0;
+    fcb.address = 0;
 
-    return IPC_post_message(msg, &fcb, timeout);
+    return IPC_Message_post(msg, &fcb, timeout);
 }
 
 //*****************************************************************************
 //
 //*****************************************************************************
 
-Bool IPC_Send_transaction(IPCMSG* msg, UInt32 timeout)
+Bool IPC_Transaction(IPCMSG* msg, IPCMSG* reply, UInt32 timeout)
 {
     FCB fcb;
 
     fcb.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ONLY);
     fcb.acknak  = 0;
+    fcb.seqnum  = IPC_GetTxSeqNum();
     fcb.address = 0;
-    fcb.seqnum  = 0;
 
-    return IPC_post_message(msg, &fcb, timeout);
+    /* post the message to the transmit queue. We use the
+     * transmit sequence number as our unique identifier
+     * in the received message to locate the corresponding
+     * response packet when it's received later by the
+     */
+
+    if (!IPC_Message_post(msg, &fcb, timeout))
+        return FALSE;
+
+    return TRUE;
 }
 
+
+Bool IPC_Handle_acknowledge(IPCMSG* msg, FCB* fcb, UInt32 timeout)
+{
+    uint8_t trans_id = fcb->acknak;
+
+    /* response to transaction received */
+    CLI_printf("Message+ACK: %d %02x\n", msg->opcode, msg->param1.U);
+}
 
 // End-Of-File

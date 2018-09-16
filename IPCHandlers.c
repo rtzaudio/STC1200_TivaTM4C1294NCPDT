@@ -38,12 +38,15 @@
 #include <xdc/runtime/Gate.h>
 #include <xdc/runtime/Memory.h>
 
-#include <ti/sysbios/BIOS.h>
-
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/knl/Event.h>
 #include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
@@ -59,89 +62,89 @@
 
 #include <driverlib/sysctl.h>
 
-#include <ti/sysbios/knl/Semaphore.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/sysbios/knl/Queue.h>
-
-#include "STC1200.h"
+/* Board Header file */
 #include "Board.h"
+#include "IPCTask.h"
 #include "CLITask.h"
 
 /* External Data Items */
 
 /* Global Data Items */
 
-static UART_Handle s_handleUart;
-
-/* Static Function Prototypes */
-
 //*****************************************************************************
-//
+// This handler processes application specific datagram messages received
+// from the peer. No response is required for datagrams.
 //*****************************************************************************
 
-int CLI_init(void)
+Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb)
 {
-    UART_Params uartParams;
+    uint32_t param1 = msg->param1.U;
 
-    UART_Params_init(&uartParams);
-
-    uartParams.readMode       = UART_MODE_BLOCKING;
-    uartParams.writeMode      = UART_MODE_BLOCKING;
-    uartParams.readTimeout    = 1000;                   // 1 second read timeout
-    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
-    uartParams.readCallback   = NULL;
-    uartParams.writeCallback  = NULL;
-    uartParams.readReturnMode = UART_RETURN_FULL;
-    uartParams.writeDataMode  = UART_DATA_TEXT;
-    uartParams.readDataMode   = UART_DATA_BINARY;
-    uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 115200;
-    uartParams.stopBits       = UART_STOP_ONE;
-    uartParams.parityType     = UART_PAR_NONE;
-
-    s_handleUart = UART_open(Board_UART_RS232_DEBUG, &uartParams);
-
-    if (s_handleUart == NULL)
-        System_abort("Error initializing UART\n");
-
-    return 1;
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-void CLI_printf(const char *fmt, ...)
-{
-    va_list arg;
-    static char buf[128];
-
-    va_start(arg, fmt);
-    System_vsnprintf(buf, sizeof(buf)-1, fmt, arg);
-    va_end(arg);
-
-    UART_write(s_handleUart, buf, strlen(buf));
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-Void CLITaskFxn(UArg arg0, UArg arg1)
-{
-    uint8_t rxBuf[16];
-
-    /* Now begin the main program command task processing loop */
-
-    while (true)
+    if (msg->type == IPC_TYPE_NOTIFY)
     {
-        /* Read the preamble MSB for the frame start */
-        if (UART_read(s_handleUart, &rxBuf[0], 1) == 1)
+        switch(msg->opcode)
         {
-        	UART_write(s_handleUart, &rxBuf[0], 1);
-            continue;
+        case OP_NOTIFY_BUTTON:
+            CLI_printf("BUTTON: %02x ", msg->param1.U);
+            if (param1 & S_STOP)
+                CLI_printf("STOP");
+            else if (param1 & S_PLAY)
+                CLI_printf("PLAY");
+            else if (param1 & S_REC)
+                CLI_printf("REC");
+            else if (param1 & S_REW)
+                CLI_printf("REW");
+            else if (param1 & S_FWD)
+                CLI_printf("FWD");
+            else if (param1 & S_LDEF)
+                CLI_printf("LDEF");
+            else if (param1 & S_TAPEOUT)
+                CLI_printf("TAPE OUT");
+            else if (param1 & S_TAPEIN)
+                CLI_printf("TAPE IN");
+            CLI_printf("\n");
+            break;
+
+        case OP_NOTIFY_TRANSPORT:
+            CLI_printf("TRANSPORT: %02x\n", msg->param1.U);
+            break;
         }
     }
+
+    return TRUE;
 }
+
+//*****************************************************************************
+// This handler processes incoming application specific transaction
+// based messages. It processes the message command received and sends
+// a reply message with ACK indication.
+//*****************************************************************************
+
+Bool IPC_Handle_transaction(IPCMSG* msg, FCB* fcb, UInt32 timeout)
+{
+    FCB fcbReply;
+    IPCMSG msgReply;
+
+    /* Copy incoming message to outgoing reply for default values */
+    memcpy(&msgReply, msg, sizeof(IPCMSG));
+
+    /* Execute the transaction for request */
+    CLI_printf("Xact(%d) Begin: %d %02x\n", fcb->seqnum, msg->opcode, msg->param1.U);
+
+    if (msg->type == IPC_TYPE_TRANSACTION)
+    {
+
+    }
+
+    /* Send the response msg+ack with command results returned */
+
+    fcbReply.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ACK);
+    fcbReply.acknak  = fcb->seqnum;
+    fcbReply.address = 0;
+    fcbReply.seqnum  = 0;
+
+    return IPC_Message_post(&msgReply, &fcbReply, timeout);
+}
+
 
 // End-Of-File
