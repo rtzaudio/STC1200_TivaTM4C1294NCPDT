@@ -1,8 +1,9 @@
 /* ============================================================================
  *
- * DTC-1200 Digital Transport Controller for Ampex MM-1200 Tape Machines
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
  *
- * Copyright (C) 2016, RTZ Professional Audio, LLC
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
  * All Rights Reserved
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
@@ -73,6 +74,14 @@ typedef struct _IPC_ELEM {
     IPCMSG      msg;
 } IPC_ELEM;
 
+typedef struct _IPC_ACK {
+    uint8_t     status;
+    uint8_t     acknak;
+    uint8_t     retry;
+    uint8_t     type;
+    IPCMSG      msg;
+} IPC_ACK;
+
 /* ============================================================================
  * IPC Message Server Object
  * ============================================================================ */
@@ -84,6 +93,7 @@ typedef struct _IPCSVR_OBJECT {
     Queue_Handle        txDataQue;
     Semaphore_Handle    txDataSem;
     Semaphore_Handle    txFreeSem;
+    Event_Handle        ackEvent;
     /* rx queues and semaphores */
     Queue_Handle        rxFreeQue;
     Queue_Handle        rxDataQue;
@@ -105,6 +115,7 @@ typedef struct _IPCSVR_OBJECT {
     /* frame memory buffers */
     IPC_ELEM*           txBuf;
     IPC_ELEM*           rxBuf;
+    IPC_ACK*            ackBuf;
 } IPCSVR_OBJECT;
 
 /* ============================================================================
@@ -113,15 +124,17 @@ typedef struct _IPCSVR_OBJECT {
 
 Bool IPC_Server_init(void);
 
+/* Application specific callback handlers */
 Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb);
 Bool IPC_Handle_transaction(IPCMSG* msg, FCB* fcb, UInt32 timeout);
-Bool IPC_Handle_acknowledge(IPCMSG* msg, FCB* fcb, UInt32 timeout);
-uint8_t IPC_GetTxSeqNum(void);
 
+/* IPC server internal use */
 Bool IPC_Message_post(IPCMSG* msg, FCB* fcb, UInt32 timeout);
 Bool IPC_Message_pend(IPCMSG* msg, FCB* fcb, UInt32 timeout);
+uint8_t IPC_GetTxSeqNum(void);
 
+/* High level functions to send messages */
 Bool IPC_Notify(IPCMSG* msg, UInt32 timeout);
-Bool IPC_Transaction(IPCMSG* msg, IPCMSG* reply, UInt32 timeout);
+Bool IPC_Transaction(IPCMSG* msg, UInt32 timeout);
 
 #endif /* _IPCTASK_H_ */

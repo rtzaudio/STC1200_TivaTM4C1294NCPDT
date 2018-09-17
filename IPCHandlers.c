@@ -1,4 +1,15 @@
-/*
+/* ============================================================================
+ *
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
+ *
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ * ============================================================================
+ *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -115,9 +126,9 @@ Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb)
 }
 
 //*****************************************************************************
-// This handler processes incoming application specific transaction
-// based messages. It processes the message command received and sends
-// a reply message with ACK indication.
+// This handler processes an incoming transaction request from a peer
+// message received. It executes the command requested and returns the
+// results in a MSG+ACK reply to indicate completion.
 //*****************************************************************************
 
 Bool IPC_Handle_transaction(IPCMSG* msg, FCB* fcb, UInt32 timeout)

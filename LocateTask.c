@@ -1,6 +1,7 @@
 /* ============================================================================
  *
- * STC-1200 Search/Timer/Comm Controller for Ampex MM-1200 Tape Machines
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
  *
  * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
  * All Rights Reserved
@@ -49,10 +50,11 @@
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/knl/Event.h>
+#include <ti/sysbios/knl/Queue.h>
 #include <ti/sysbios/knl/Mailbox.h>
-#include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -87,19 +89,25 @@
 
 #include "STC1200.h"
 #include "Board.h"
+#include "IPCTask.h"
 #include "CLITask.h"
 
+/* Local Constants */
+
 #define BUTTON_PULSE_TIME	50
+#define IPC_TIMEOUT         1000
 
 /* External Data Items */
 
 extern SYSDATA g_sysData;
-
 extern Mailbox_Handle g_mailboxLocate;
 
 /* Static Function Prototypes */
 
 static void GPIOPulseLow(uint32_t index, uint32_t duration);
+
+Bool SetShuttleVelocity(uint32_t velocity);
+Bool GetShuttleVelocity(uint32_t* velocity);
 
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
@@ -113,8 +121,6 @@ void CuePointStore(size_t index)
 {
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-    CLI_printf("SET Cue Point %d\r\n", index);
-
 	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = g_sysData.tapePosition;
@@ -122,6 +128,8 @@ void CuePointStore(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
+
+	CLI_printf("SET Cue Point %d\r\n", index);
 }
 
 /*****************************************************************************
@@ -132,8 +140,6 @@ void CuePointClear(size_t index)
 {
 	Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-	CLI_printf("CLEAR Cue Point %d\r\n", index);
-
 	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = 0;
@@ -141,6 +147,27 @@ void CuePointClear(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
+
+	CLI_printf("CLEAR Cue Point %d\r\n", index);
+}
+
+/*****************************************************************************
+ * Clear all cue point memories except single cue point on the deck.
+ *****************************************************************************/
+
+void CuePointClearAll(void)
+{
+    size_t i;
+
+    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+    for (i=0; i < MAX_CUE_POINTS; i++)
+    {
+        g_sysData.cuePoint[i].ipos  = 0;
+        g_sysData.cuePoint[i].flags = 0x00;
+    }
+
+    Semaphore_post(g_semaCue);
 }
 
 //*****************************************************************************
@@ -181,7 +208,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     float distance;
 	uint32_t key;
 	size_t index;
+    uint32_t shuttle_vel;
     LocateMessage msg;
+
+    CLI_printf("\n\nSTC-1200 Starting...\n\n");
 
     /* Initialize single transport cue point to zero */
     CuePointStore(SINGLE_CUE_POINT);
@@ -215,7 +245,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
 		 */
 
-        CLI_printf("LOCATE[%d] %d to %d\r\n", index,
+        /* Get the shuttle velocity setting from the DTC-1200 */
+        GetShuttleVelocity(&shuttle_vel);
+
+        CLI_printf("LOCATE[%d] %d to %d\n", index,
         		g_sysData.tapePosition,
 				g_sysData.cuePoint[index].ipos);
 
@@ -227,17 +260,17 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		if (delta > 0)
 		{
 			dir = DIR_FWD;
-			CLI_printf("SEARCH FWD %d\r\n", delta);
+			CLI_printf("SEARCH FWD %d\n", delta);
 		}
 		else if (delta < 0)
 		{
 			dir = DIR_REW;
-			CLI_printf("SEARCH REW %d\r\n", delta);
+			CLI_printf("SEARCH REW %d\n", delta);
 		}
 		else
 		{
 			dir = DIR_ZERO;
-			CLI_printf("AT ZERO ALREADY!\r\n");
+			CLI_printf("AT ZERO ALREADY!\n");
 			continue;
 		}
 
@@ -246,7 +279,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 		/* Clear the global search cancel flag */
 	    key = Hwi_disable();
-	    g_sysData.searchCancel = false;
+	    g_sysData.searchCancel = FALSE;
 	    Hwi_restore(key);
 
 	    /* Start the transport in either FWD or REV direction
@@ -262,23 +295,38 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	     * ENTER MAIN SEARCH LOCATE LOOP
 	     */
 
-	    // Avoid divisions when possible. For example, revolutions = position / ROLLER_TICKS_PER_REV_F takes a lot of clock cycles.
-	    // Since the ROLLER_TICKS is a fixed thing, the hint is to calculate, JUST ONCE, the inverse of that:
-	    // gInvRollerTicks = 1.0f / ROLLER_TICKS;
+	    // Avoid divisions when possible. For example,
+	    // revolutions = position / ROLLER_TICKS_PER_REV_F
+	    // takes a lot of clock cycles. Since the ROLLER_TICKS
+	    // is a fixed thing, the idea is to calculate, JUST ONCE,
+	    // the inverse of that:
+	    //
+	    //  gInvRollerTicks = 1.0f / ROLLER_TICKS;
+	    //
 	    // And on execution time, use a multiplication instead:
-	    // revolutions = position * gInvRollerTicks;
-	    // This takes 1 clock cycle, the ARM numeric processor has hw for that but not for division.
+	    //
+	    //  revolutions = position * gInvRollerTicks;
+	    //
+	    // This takes 1 clock cycle, the ARM numeric processor
+	    // has hardware for that, but not for division.
+
+	    //float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
+	    //float revolutions;
 
 	    while (!g_sysData.searchCancel)
 		{
+	        /* Calculate revolutions while avoiding division */
+            //revolutions = (float)g_sysData.tapePosition * invRollerTicks;
+            /* Calculate distance from revolutions */
+            //distance = revolutions * ROLLER_CIRCUMFERENCE_F;
 
-			/* Get distance in inches from zero reset point */
+	        /* Get distance in inches from zero reset point */
 			distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
 
 			/* Calculate the current position delta from cue point */
 			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
 
-			CLI_printf("%d : %.1f\r\n", delta, g_sysData.tapeTach);
+			CLI_printf("%d : %.1f\n", delta, g_sysData.tapeTach);
 
 			if (dir == DIR_FWD)
 			{
@@ -299,8 +347,45 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		/* Send STOP button pulse to stop transport */
 		GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
 
-		CLI_printf("SEARCH END\r\n");
+		/* Set SEARCHING_OUT status i/o pin */
+        GPIO_write(Board_SEARCHING, PIN_HIGH);
+
+		CLI_printf("SEARCH END\n");
     }
+}
+
+/*****************************************************************************
+ * IPC get/set operations to the DTC-1200
+ *****************************************************************************/
+
+Bool SetShuttleVelocity(uint32_t velocity)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSACTION;
+    msg.opcode   = OP_SET_VELOCITY;
+    msg.param1.U = velocity;
+    msg.param2.U = 0;
+
+    return IPC_Transaction(&msg, IPC_TIMEOUT);
+}
+
+Bool GetShuttleVelocity(uint32_t* velocity)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSACTION;
+    msg.opcode   = OP_GET_VELOCITY;
+    msg.param1.U = 0;
+    msg.param2.U = 0;
+
+    if (!IPC_Transaction(&msg, IPC_TIMEOUT))
+        return FALSE;
+
+    /* Return query results */
+    *velocity = msg.param1.U;
+
+    return TRUE;
 }
 
 /* End-Of-File */

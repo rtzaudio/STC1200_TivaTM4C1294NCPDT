@@ -1,4 +1,15 @@
-/*
+/* ============================================================================
+ *
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
+ *
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ * ============================================================================
+ *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -42,12 +53,11 @@
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/knl/Event.h>
-#include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Queue.h>
-#include <ti/sysbios/knl/Task.h>
-#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -69,14 +79,10 @@
 #include "IPCTask.h"
 #include "CLITask.h"
 
-/* External Data Items */
-
 /* Global Data Items */
-
 static IPCSVR_OBJECT g_ipc;
 
 /* Static Function Prototypes */
-
 static Void IPCReaderTaskFxn(UArg a0, UArg a1);
 static Void IPCWriterTaskFxn(UArg arg0, UArg arg1);
 static Void IPCWorkerTaskFxn(UArg arg0, UArg arg1);
@@ -130,6 +136,9 @@ Bool IPC_Server_init(void)
     g_ipc.rxFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
     g_ipc.rxDataSem = Semaphore_create(0, NULL, NULL);
 
+    Error_init(&eb);
+    g_ipc.ackEvent  = Event_create(NULL, NULL);
+
     g_ipc.datagramHandlerFxn    = NULL;
     g_ipc.transactionHandlerFxn = NULL;
 
@@ -168,6 +177,17 @@ Bool IPC_Server_init(void)
     for (i=0; i < MAX_WINDOW; i++, msg++) {
         Queue_enqueue(g_ipc.rxFreeQue, (Queue_Elem*)msg);
     }
+
+    /*
+     * Allocate and ACK RECEIVE Buffer Memory
+     */
+
+    Error_init(&eb);
+
+    g_ipc.ackBuf = (IPC_ACK*)Memory_alloc(NULL, sizeof(IPC_ACK) * MAX_WINDOW, 0, &eb);
+
+    if (g_ipc.ackBuf == NULL)
+        System_abort("AckBuf allocation failed");
 
     /* Initialize Server Data Items */
 
@@ -208,184 +228,25 @@ Bool IPC_Server_init(void)
 }
 
 //*****************************************************************************
-//
+// This function returns the next available transmit and increments the
+// counter to the next frame sequence number.
 //*****************************************************************************
 
-Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
+uint8_t IPC_GetTxSeqNum(void)
 {
-    FCB fcb;
-    IPCMSG msg;
+    /* increment sequence number atomically */
+    UInt key = Hwi_disable();
 
-    while (1)
-    {
-        /* Wait for a RAMP message from peer */
+    /* Get the next frame sequence number */
+    uint8_t seqnum = g_ipc.txNextSeq;
 
-        if (!IPC_Message_pend(&msg, &fcb, 1000))
-        {
-            /* Timeout, no message received, check to see if we have
-             * any messages with ACK pending that haven't been
-             * acknowledge yet. If so, then retransmit until
-             * for max number of retries.
-             */
-            continue;
-        }
+    /* Increment the servers sequence number */
+    g_ipc.txNextSeq = INC_SEQ_NUM(seqnum);
 
-        /* We've received a valid RAMP message frame. Check the
-         * message type received as follows:
-         *
-         *  TYPE_MSG_ONLY - This is a request for data that requires
-         *                  a response message with ACK to the peer.
-         *                  If the F_DATAGRAM type flag is set, the
-         *                  message does not require an ACK response
-         *                  and the message data can be processed.
-         *
-         *  TYPE_MSG_ACK  - This is a response to a request for data
-         *                  from peer. The ACK indicates the request
-         *                  was processed and returned in the msg.
-         */
+    /* re-enable ints */
+    Hwi_restore(key);
 
-        if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ONLY)
-        {
-            if (fcb.type & F_DATAGRAM)
-                IPC_Handle_datagram(&msg, &fcb);
-            else
-                IPC_Handle_transaction(&msg, &fcb, 1000);
-        }
-        else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ACK)
-        {
-            IPC_Handle_acknowledge(&msg, &fcb, 1000);
-        }
-    }
-}
-
-//*****************************************************************************
-// This packet writer task waits for any message to appear in the
-// outgoing transmit message queue and transmits all items from the queue.
-//*****************************************************************************
-
-Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
-{
-    UInt key;
-    IPC_ELEM* elem;
-
-    /* Begin the packet transmit task loop */
-
-    while (TRUE)
-    {
-        /* Wait for a packet in the tx queue */
-        if (!Semaphore_pend(g_ipc.txDataSem, 1000))
-        {
-            /* Timeout, nothing to send */
-            continue;
-        }
-
-        /* Get the message from txDataQue */
-        elem = Queue_get(g_ipc.txDataQue);
-
-        /* Transmit the packet! */
-        RAMP_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
-
-        /* Perform the enqueue and increment numFreeMsgs atomically */
-        key = Hwi_disable();
-
-        /* Put message buffer back on the free queue */
-        Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem *)elem);
-
-        /* Increment numFreeMsgs */
-        g_ipc.txNumFreeMsgs++;
-
-        /* Increment total number of packets transmitted */
-        g_ipc.txCount++;
-
-        /* re-enable ints */
-        Hwi_restore(key);
-
-        /* post the semaphore */
-        Semaphore_post(g_ipc.txFreeSem);
-    }
-}
-
-//*****************************************************************************
-// The reader task reads RAMP packets and stores these in the receive
-// buffer queue for processing messages from the peer. The rxDataSem
-// semaphore is signaled to indicate data is available to the IPCServer
-// task that dispatches all the messages between the two peer nodes.
-//*****************************************************************************
-
-Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
-{
-    int rc;
-    UInt key;
-    IPC_ELEM* elem;
-
-    /* Begin the packet receive task loop */
-
-    while (true)
-    {
-        /* Wait for a free receive buffer if necessary */
-        if (!Semaphore_pend(g_ipc.rxFreeSem, 1000))
-        {
-            /* See if any packets have not been ACK'ed
-             * and re-send if necessary.
-             */
-            continue;
-        }
-
-        /* perform the dequeue and decrement numFreeMsgs atomically */
-        key = Hwi_disable();
-
-        /* get a rx buffer from the free queue */
-        elem = Queue_dequeue(g_ipc.rxFreeQue);
-
-        /* Make sure that a valid pointer was returned. */
-        if (elem == (IPC_ELEM*)(g_ipc.rxFreeQue))
-        {
-            Hwi_restore(key);
-            continue;
-        }
-
-        /* decrement the numFreeMsgs */
-        g_ipc.rxNumFreeMsgs--;
-
-        /* re-enable ints */
-        Hwi_restore(key);
-
-        /* Buffer allocated, wait for a packet from peer */
-
-        while (1)
-        {
-            /* Attempt to read a frame from the peer */
-
-            rc = RAMP_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
-
-            /* Zero means packet received successfully */
-            if (rc == 0)
-                break;
-
-            if (rc > ERR_TIMEOUT)
-            {
-                g_ipc.rxErrors++;
-
-                System_printf("RAMP_RxFrame Error %d\n", rc);
-                System_flush();
-            }
-        }
-
-        /* Packet received, save the sequence number received */
-        g_ipc.rxLastSeq = elem->fcb.seqnum;
-
-        /* Increment the total packets received count */
-        g_ipc.rxCount++;
-
-        /*Put message on rxDataQueue */
-        if (elem->fcb.type & F_PRIORITY)
-            Queue_putHead(g_ipc.rxDataQue, (Queue_Elem*)elem);
-        else
-            Queue_put(g_ipc.rxDataQue, (Queue_Elem*)elem);
-
-        /* post the semaphore */
-        Semaphore_post(g_ipc.rxDataSem);
-    }
+    return seqnum;
 }
 
 //*****************************************************************************
@@ -483,25 +344,204 @@ Bool IPC_Message_post(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 }
 
 //*****************************************************************************
-// This function returns the next available transmit and increments the 
-// counter to the next frame sequence number. 
+// This packet writer task waits for any message to appear in the
+// outgoing transmit message queue and transmits all items from the queue.
 //*****************************************************************************
 
-uint8_t IPC_GetTxSeqNum(void)
+Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 {
-    /* increment sequence number atomically */
-    UInt key = Hwi_disable();
+    UInt key;
+    IPC_ELEM* elem;
 
-    /* Get the next frame sequence number */
-    uint8_t seqnum = g_ipc.txNextSeq;
+    /* Begin the packet transmit task loop */
 
-    /* Increment the servers sequence number */
-    g_ipc.txNextSeq = INC_SEQ_NUM(seqnum);
+    while (TRUE)
+    {
+        /* Wait for a packet in the tx queue */
+        if (!Semaphore_pend(g_ipc.txDataSem, 1000))
+        {
+            /* Timeout, nothing to send */
+            continue;
+        }
 
-    /* re-enable ints */
-    Hwi_restore(key);
+        /* Get the message from txDataQue */
+        elem = Queue_get(g_ipc.txDataQue);
 
-    return seqnum;
+        /* Transmit the packet! */
+        RAMP_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+
+        /* Perform the enqueue and increment numFreeMsgs atomically */
+        key = Hwi_disable();
+
+        /* Put message buffer back on the free queue */
+        Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem *)elem);
+
+        /* Increment numFreeMsgs */
+        g_ipc.txNumFreeMsgs++;
+
+        /* Increment total number of packets transmitted */
+        g_ipc.txCount++;
+
+        /* re-enable ints */
+        Hwi_restore(key);
+
+        /* post the semaphore */
+        Semaphore_post(g_ipc.txFreeSem);
+    }
+}
+
+//*****************************************************************************
+// The reader task reads RAMP packets and stores these in the receive
+// buffer queue for processing messages from the peer. The rxDataSem
+// semaphore is signaled to indicate data is available to the IPCServer
+// task that dispatches all the messages between the two peer nodes.
+//*****************************************************************************
+
+Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
+{
+    int rc;
+    UInt key;
+    IPC_ELEM* elem;
+
+    /* Begin the packet receive task loop */
+
+    while (TRUE)
+    {
+        /* Wait for a free receive buffer if necessary */
+        if (!Semaphore_pend(g_ipc.rxFreeSem, 1000))
+        {
+            /* See if any packets have not been ACK'ed
+             * and re-send if necessary.
+             */
+            continue;
+        }
+
+        /* perform the dequeue and decrement numFreeMsgs atomically */
+        key = Hwi_disable();
+
+        /* get a rx buffer from the free queue */
+        elem = Queue_dequeue(g_ipc.rxFreeQue);
+
+        /* Make sure that a valid pointer was returned. */
+        if (elem == (IPC_ELEM*)(g_ipc.rxFreeQue))
+        {
+            Hwi_restore(key);
+            continue;
+        }
+
+        /* decrement the numFreeMsgs */
+        g_ipc.rxNumFreeMsgs--;
+
+        /* re-enable ints */
+        Hwi_restore(key);
+
+        /* Buffer allocated, wait for a packet from peer */
+
+        while (1)
+        {
+            /* Attempt to read a frame from the peer */
+
+            rc = RAMP_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+
+            /* Zero means packet received successfully */
+            if (rc == 0)
+                break;
+
+            if (rc > ERR_TIMEOUT)
+            {
+                g_ipc.rxErrors++;
+
+                System_printf("RAMP_RxFrame Error %d\n", rc);
+                System_flush();
+            }
+        }
+
+        /* Packet received, save the sequence number received */
+        g_ipc.rxLastSeq = elem->fcb.seqnum;
+
+        /* Increment the total packets received count */
+        g_ipc.rxCount++;
+
+        /*Put message on rxDataQueue */
+        if (elem->fcb.type & F_PRIORITY)
+            Queue_putHead(g_ipc.rxDataQue, (Queue_Elem*)elem);
+        else
+            Queue_put(g_ipc.rxDataQue, (Queue_Elem*)elem);
+
+        /* post the semaphore */
+        Semaphore_post(g_ipc.rxDataSem);
+    }
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
+{
+    FCB fcb;
+    IPCMSG msg;
+
+    while (1)
+    {
+        /* Wait for a RAMP message from peer */
+
+        if (!IPC_Message_pend(&msg, &fcb, 1000))
+        {
+            /* Timeout, no message received, check to see if we have
+             * any messages with ACK pending that haven't been
+             * acknowledge yet. If so, then retransmit until
+             * for max number of retries.
+             */
+            continue;
+        }
+
+        /* We've received a valid RAMP message frame. Check the
+         * message type received as follows:
+         *
+         *  TYPE_MSG_ONLY - This is a request for data that requires
+         *                  a response message with ACK to the peer.
+         *                  If the F_DATAGRAM type flag is set, the
+         *                  message does not require an ACK response
+         *                  and the message data can be processed.
+         *
+         *  TYPE_MSG_ACK  - This is a response to a request for data
+         *                  from peer. The ACK indicates the request
+         *                  was processed and data returned in msg.
+         */
+
+        if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ONLY)
+        {
+            if (fcb.type & F_DATAGRAM)
+                IPC_Handle_datagram(&msg, &fcb);
+            else
+                IPC_Handle_transaction(&msg, &fcb, 1000);
+        }
+        else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ACK)
+        {
+            /* Handle MSG+ACK response from peer */
+
+            uint8_t acknak = fcb.acknak;
+
+            if ((acknak < MIN_SEQ_NUM) || (acknak > MAX_SEQ_NUM))
+            {
+                System_printf("IPC invalid ACK seqnum\n");
+                System_flush();
+                continue;
+            }
+
+            size_t index = (size_t)((acknak - 1) % MAX_WINDOW);
+
+            /* Save the reply MSG+ACK in the ACK buffer */
+            memcpy(&g_ipc.ackBuf[index].msg, &msg, sizeof(IPCMSG));
+
+            /* Notify any pending transactions blocked that a MSG+ACK was received */
+
+            UInt mask = Event_Id_00 << index;
+
+            Event_post(g_ipc.ackEvent, mask);
+        }
+    }
 }
 
 //*****************************************************************************
@@ -524,7 +564,7 @@ Bool IPC_Notify(IPCMSG* msg, UInt32 timeout)
 //
 //*****************************************************************************
 
-Bool IPC_Transaction(IPCMSG* msg, IPCMSG* reply, UInt32 timeout)
+Bool IPC_Transaction(IPCMSG* msg, UInt32 timeout)
 {
     FCB fcb;
 
@@ -533,25 +573,38 @@ Bool IPC_Transaction(IPCMSG* msg, IPCMSG* reply, UInt32 timeout)
     fcb.seqnum  = IPC_GetTxSeqNum();
     fcb.address = 0;
 
+    size_t index = (fcb.seqnum - 1) % MAX_WINDOW;
+
+    g_ipc.ackBuf[index].status = 1;
+    g_ipc.ackBuf[index].retry  = 5;
+    g_ipc.ackBuf[index].acknak = fcb.seqnum;
+    g_ipc.ackBuf[index].type   = fcb.type;
+
     /* post the message to the transmit queue. We use the
      * transmit sequence number as our unique identifier
      * in the received message to locate the corresponding
      * response packet when it's received later by the
+     * reader task.
      */
 
     if (!IPC_Message_post(msg, &fcb, timeout))
         return FALSE;
 
-    return TRUE;
-}
+    /* Now block until we timeout or the selected bit fires */
+    UInt events = Event_pend(g_ipc.ackEvent, Event_Id_NONE, 0xFFFF, timeout);
 
+    if (events)
+    {
+        /* Return reply in the callers buffer */
+        msg->type   = g_ipc.ackBuf[index].msg.type;
+        msg->opcode = g_ipc.ackBuf[index].msg.opcode;
+        msg->param1 = g_ipc.ackBuf[index].msg.param1;
+        msg->param2 = g_ipc.ackBuf[index].msg.param2;
 
-Bool IPC_Handle_acknowledge(IPCMSG* msg, FCB* fcb, UInt32 timeout)
-{
-    uint8_t trans_id = fcb->acknak;
+        return TRUE;
+    }
 
-    /* response to transaction received */
-    CLI_printf("Message+ACK: %d %02x\n", msg->opcode, msg->param1.U);
+    return FALSE;
 }
 
 // End-Of-File

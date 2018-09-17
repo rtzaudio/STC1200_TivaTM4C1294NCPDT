@@ -12,19 +12,28 @@
 #ifndef _IPCMESSAGE_H_
 #define _IPCMESSAGE_H_
 
-/* Message types for IPCMSG.type */
+/* ============================================================================
+ * Message types for IPCMSG.type
+ * ============================================================================ */
+
 #define IPC_TYPE_NOTIFY				100
 #define IPC_TYPE_TRANSACTION		101
 
-/* Notify IPCMSG.opcode for IPC_TYPE_NOTIFY type */
+/* ============================================================================
+ * Notify IPCMSG.opcode for IPC_TYPE_NOTIFY type
+ * ============================================================================ */
+
 #define OP_NOTIFY_BUTTON			10
 #define OP_NOTIFY_TRANSPORT			11
 
-/* Transaction IPCMSG.opcode for IPC_TYPE_TRANSACTION type */
+/* ============================================================================
+ * Transaction IPCMSG.opcode for IPC_TYPE_TRANSACTION type
+ * ============================================================================ */
+
 #define OP_GET_VELOCITY             200
 #define OP_SET_VELOCITY             201
 
-/* DTC-1200 Button notification bits for param1.U */
+/* OP_NOTIFY_BUTTON bits for param1.U */
 #define S_STOP          0x01        // stop button
 #define S_PLAY          0x02        // play button
 #define S_REC           0x04        // record button

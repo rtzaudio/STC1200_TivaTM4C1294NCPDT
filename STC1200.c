@@ -1,4 +1,15 @@
-/*
+/* ============================================================================
+ *
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
+ *
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ * ============================================================================
+ *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -496,7 +507,7 @@ void gpioButtonSearchHwi(unsigned int index)
 void gpioButtonStopHwi(unsigned int index)
 {
     uint32_t key = Hwi_disable();
-    g_sysData.searchCancel = true;
+    g_sysData.searchCancel = TRUE;
     Hwi_restore(key);
 }
 

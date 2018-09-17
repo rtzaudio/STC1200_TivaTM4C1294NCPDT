@@ -44,6 +44,7 @@ typedef struct _LocateMessage {
 
 void CuePointStore(size_t index);
 void CuePointClear(size_t index);
+void CuePointClearAll(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 
