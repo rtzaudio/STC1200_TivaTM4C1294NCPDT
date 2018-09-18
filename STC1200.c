@@ -200,10 +200,10 @@ int main(void)
 
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
+    UInt32 timeout;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
-    LocateMessage msgLocate;
 
     /* Read the globally unique serial number from EPROM */
     if (!ReadSerialNumber(g_sysData.ui8SerialNumber)) {
@@ -221,7 +221,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
      * Create the various system tasks
      */
 
-    Error_init(&eb);
+   Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 1024;
     taskParams.priority  = 10;
@@ -265,10 +265,12 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* Now begin the main program command task processing loop */
 
-    while (true)
+    while (TRUE)
     {
+        timeout =  (g_sysData.searching) ? 250 : 500;
+
     	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, 500))
+        if (!Mailbox_pend(g_mailboxCommand, &msgCmd, timeout))
         {
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED);
@@ -277,54 +279,52 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
         switch(msgCmd.command)
         {
-			case SWITCHPRESS:
+		case SWITCHPRESS:
 
-				/* Handle switch debounce */
+			/* Handle switch debounce */
 
-				if (msgCmd.ui32Data == Board_BTN_RESET)
+			if (msgCmd.param == Board_BTN_RESET)
+			{
+				if (Debounce_buttonHI(Board_BTN_RESET))
 				{
-					if (Debounce_buttonHI(Board_BTN_RESET))
-					{
-						/* Zero tape timer at current tape location */
-						PositionZeroReset();
-					}
-
-					Debounce_buttonLO(Board_BTN_RESET);
-
-					GPIO_enableInt(Board_BTN_RESET);
+					/* Zero tape timer at current tape location */
+					PositionZeroReset();
 				}
-				else if (msgCmd.ui32Data == Board_BTN_CUE)
+
+				Debounce_buttonLO(Board_BTN_RESET);
+
+				GPIO_enableInt(Board_BTN_RESET);
+			}
+			else if (msgCmd.param == Board_BTN_CUE)
+			{
+				if (Debounce_buttonHI(Board_BTN_CUE))
 				{
-					if (Debounce_buttonHI(Board_BTN_CUE))
-					{
-						/* Store the current position at cue point 65 */
-						CuePointStore(MAX_CUE_POINTS);
-					}
-
-					Debounce_buttonLO(Board_BTN_CUE);
-
-					GPIO_enableInt(Board_BTN_CUE);
+					/* Store the current position at cue point 65 */
+					CuePointStore(LAST_CUE_POINT);
 				}
-				else if (msgCmd.ui32Data == Board_BTN_SEARCH)
+
+				Debounce_buttonLO(Board_BTN_CUE);
+
+				GPIO_enableInt(Board_BTN_CUE);
+			}
+			else if (msgCmd.param == Board_BTN_SEARCH)
+			{
+				if (Debounce_buttonHI(Board_BTN_SEARCH))
 				{
-					if (Debounce_buttonHI(Board_BTN_SEARCH))
-					{
-						/* Cue up locate point 65 request */
-						msgLocate.command = LOCATE_SEARCH;
-						msgLocate.param1  = MAX_CUE_POINTS;
-						msgLocate.param2  = 0;
-
-						Mailbox_post(g_mailboxLocate, &msgLocate, 0);
-					}
-
-					Debounce_buttonLO(Board_BTN_SEARCH);
-
-					GPIO_enableInt(Board_BTN_SEARCH);
+					/* Begin locate to last cue point memory. This is the
+					 * memory used by the cue/search buttons on the transport.
+					 */
+				    LocateSearch(LAST_CUE_POINT);
 				}
-				break;
 
-			default:
-				break;
+				Debounce_buttonLO(Board_BTN_SEARCH);
+
+				GPIO_enableInt(Board_BTN_SEARCH);
+			}
+			break;
+
+		default:
+			break;
         }
     }
 }
@@ -450,8 +450,8 @@ void gpioButtonResetHwi(unsigned int index)
     {
     	GPIO_disableInt(Board_BTN_RESET);
 
-	    msg.command  = SWITCHPRESS;
-	    msg.ui32Data = Board_BTN_RESET;
+	    msg.command = SWITCHPRESS;
+	    msg.param   = Board_BTN_RESET;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
 }
@@ -472,8 +472,8 @@ void gpioButtonCueHwi(unsigned int index)
     {
     	GPIO_disableInt(Board_BTN_CUE);
 
-	    msg.command  = SWITCHPRESS;
-	    msg.ui32Data = Board_BTN_CUE;
+	    msg.command = SWITCHPRESS;
+	    msg.param   = Board_BTN_CUE;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
 }
@@ -494,8 +494,8 @@ void gpioButtonSearchHwi(unsigned int index)
     {
         GPIO_disableInt(Board_BTN_SEARCH);
 
-	    msg.command  = SWITCHPRESS;
-	    msg.ui32Data = Board_BTN_SEARCH;
+	    msg.command = SWITCHPRESS;
+	    msg.param   = Board_BTN_SEARCH;
 		Mailbox_post(g_mailboxCommand, &msg, BIOS_NO_WAIT);
     }
 }

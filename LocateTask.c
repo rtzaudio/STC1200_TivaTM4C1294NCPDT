@@ -177,6 +177,36 @@ void CuePointClearAll(void)
 }
 
 //*****************************************************************************
+// Cue up a locate request to the locator. The cue point index is specified
+// in param1. Cue point 65 is single point for cue/search buttons on machine.
+//*****************************************************************************
+
+Bool LocateSearch(size_t cuePointIndex)
+{
+    LocateMessage msgLocate;
+
+    if (cuePointIndex > LAST_CUE_POINT)
+        return FALSE;
+
+    msgLocate.command = LOCATE_SEARCH;
+    msgLocate.param1  = (uint32_t)cuePointIndex;
+    msgLocate.param2  = 0;
+
+    return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
+}
+
+Bool LocateCancel(void)
+{
+    LocateMessage msgLocate;
+
+    msgLocate.command = LOCATE_CANCEL;
+    msgLocate.param1  = 0;
+    msgLocate.param2  = 0;
+
+    return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
+}
+
+//*****************************************************************************
 // Pulse and I/O line LOW for the specified ms duration. The following
 // gpio lines are used to control the transport directly. Index should
 // be one of the following for the transport control buttons:
@@ -192,10 +222,8 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
 {
 	/* Set the i/o pin to low state */
 	GPIO_write(index, PIN_LOW);
-
 	/* Sleep for pulse duration */
 	Task_sleep(duration);
-
 	/* Return i/o pin to high state */
 	GPIO_write(index, PIN_HIGH);
 }
@@ -208,7 +236,6 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
 //*****************************************************************************
 
 typedef enum SearchState {
-    SEARCH_IDLE,
     SEARCH_BEGIN,
     SEARCH_SPEED_RANGE,
     SEARCH_COMPLETE,
@@ -221,13 +248,15 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     float distance;
 	uint32_t key;
 	size_t index;
+	size_t itemp;
     uint32_t shuttle_vel;
     LocateMessage msg;
+    SearchState state;
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
 
     /* Initialize single transport cue point to zero */
-    CuePointStore(SINGLE_CUE_POINT);
+    CuePointStore(LAST_CUE_POINT);
 
     while(TRUE)
     {
@@ -248,21 +277,19 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
          * with 64 memory positions from 0-63. Memory location 64 is reserved
          * for the single point cue/search buttons on the machine timer/roller.
          */
+
         index = (size_t)msg.param1;
 
         if (index > MAX_CUE_POINTS)
         	continue;
 
-        /* Make sure the cue point is active */
+        /* Is the cue point is active? */
         if (g_sysData.cuePoint[index].flags == 0)
         	continue;
 
 		/*
 		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
 		 */
-
-        /* Get the shuttle velocity setting from the DTC-1200 */
-        Config_GetShuttleVelocity(&shuttle_vel);
 
         CLI_printf("LOCATE[%d] %d to %d\n", index,
         		g_sysData.tapePosition,
@@ -295,6 +322,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 		/* Clear the global search cancel flag */
 	    key = Hwi_disable();
+        g_sysData.searching = TRUE;
 	    g_sysData.searchCancel = FALSE;
 	    Hwi_restore(key);
 
@@ -314,61 +342,87 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    }
 
 	    /*
-	     * ENTER MAIN SEARCH LOCATE LOOP
+	     * BEGIN MAIN AUTO-LOCATE SEARCH LOOP
 	     */
 
-	    // Avoid divisions when possible. For example,
-	    // revolutions = position / ROLLER_TICKS_PER_REV_F
-	    // takes a lot of clock cycles. Since the ROLLER_TICKS
-	    // is a fixed thing, the idea is to calculate, JUST ONCE,
-	    // the inverse of that:
-	    //
-	    //  gInvRollerTicks = 1.0f / ROLLER_TICKS;
-	    //
-	    // And on execution time, use a multiplication instead:
-	    //
-	    //  revolutions = position * gInvRollerTicks;
-	    //
-	    // This takes 1 clock cycle, the ARM numeric processor
-	    // has hardware for that, but not for division.
+	    float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
+	    float revolutions;
 
-	    //float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
-	    //float revolutions;
+	    state = SEARCH_BEGIN;
 
 	    while (!g_sysData.searchCancel)
 		{
 	        /* Make sure we have velocity */
 
 	        /* Calculate revolutions while avoiding division */
-            //revolutions = (float)g_sysData.tapePosition * invRollerTicks;
+            revolutions = (float)g_sysData.tapePosition * invRollerTicks;
+
             /* Calculate distance from revolutions */
-            //distance = revolutions * ROLLER_CIRCUMFERENCE_F;
+            distance = revolutions * ROLLER_CIRCUMFERENCE_F;
 
 	        /* Get distance in inches from zero reset point */
-			distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
+			//distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
 
 			/* Calculate the current position delta from cue point */
 			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
 
-			CLI_printf("%.1f, %.1f, %d\n", g_sysData.tapeTach, distance, delta);
+			//CLI_printf("%.1f, %.1f, %d\n", g_sysData.tapeTach, distance, delta);
 
-			if (dir == DIR_FWD)
+			switch(state)
 			{
-				/* search forward mode completed? */
+			case SEARCH_BEGIN:
+			    ++state;
+			    break;
+
+			case SEARCH_SPEED_RANGE:
+			    break;
+
+			default:
+			    break;
+			}
+
+			/* Exit search if we've passed the zero mark */
+
+			if (dir == DIR_FWD)         /* search forward mode completed? */
+			{
 				if (delta < 0)
 					break;
 			}
-			else if (dir == DIR_REW)
+			else if (dir == DIR_REW)    /* search rewind mode completed? */
 			{
-				/* search rewind mode completed? */
 				if (delta > 0)
 					break;
 			}
 
-			Task_sleep(25);
+			/* Check for a new locate command. It's possible the user may have requested
+			 * a new locate cue point while a locate command was already in progress.
+			 */
 
-            //if (g_sysData.tapeTach == 0.0f)
-            //    break;
+	        if (Mailbox_pend(g_mailboxLocate, &msg, 10))
+	        {
+	            /* Abort search loop if cancel requested */
+                if (msg.command == LOCATE_CANCEL)
+                    break;
+
+                /* New search requested? */
+	            if (msg.command == LOCATE_SEARCH)
+	            {
+	                itemp = (size_t)msg.param1;
+
+	                if (itemp > MAX_CUE_POINTS)
+	                    continue;
+
+	                /* Is the cue point is active? */
+	                if (g_sysData.cuePoint[itemp].flags == 0)
+	                    continue;
+
+	                /* Switch to new cue point index */
+	                index = itemp;
+
+	                /* Reset initial search state machine */
+	                state = SEARCH_BEGIN;
+	            }
+	        }
 		}
 
 		/* Send STOP button pulse to stop transport */
@@ -378,10 +432,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		/* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
 
-		CLI_printf("SEARCH END\n");
+        /* Clear the search in progress flag */
+        key = Hwi_disable();
+        g_sysData.searching = FALSE;
+        Hwi_restore(key);
 
-		/* Flush out any locate requests queued */
-		while(Mailbox_pend(g_mailboxLocate, &msg, 0));
+        CLI_printf("SEARCH END\n");
     }
 }
 

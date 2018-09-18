@@ -39,6 +39,7 @@ typedef struct _SYSDATA
     uint32_t	qei_error_cnt;				/* QEI phase error count      */
     float		tapeTach;					/* tape speed from roller     */
 	bool		searchCancel;
+	bool        searching;                  /* true if search in progress */
     TAPETIME	tapeTime;					/* current tape time position */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
@@ -65,7 +66,7 @@ typedef enum CommandType {
 
 typedef struct CommandMessage {
     CommandType		command;
-    uint32_t 		ui32Data;
+    uint32_t 		param;
 } CommandMessage;
 
 //*****************************************************************************
@@ -73,9 +74,10 @@ typedef struct CommandMessage {
 //*****************************************************************************
 
 int main(void);
+int ReadSerialNumber(uint8_t ui8SerialNumber[16]);
 void EnableClockDivOutput(uint32_t div);
 Void CommandTaskFxn(UArg arg0, UArg arg1);
-int ReadSerialNumber(uint8_t ui8SerialNumber[16]);
+Bool QueueLocateCommand(LocateType command, uint32_t param1, uint32_t param2);
 
 void InitSysDefaults(SYSPARMS* p);
 int SysParamsRead(SYSPARMS* sp);

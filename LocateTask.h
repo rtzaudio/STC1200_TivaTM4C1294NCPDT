@@ -15,13 +15,26 @@
 
 /*** CUE POINT DATA STRUCTURE **********************************************/
 
+/* Cue Point Memory Table Structure */
 typedef struct _CUE_POINT {
-    int32_t		ipos;		/* relative tape position */
-    uint32_t	flags;
+    int32_t		ipos;		/* relative tape position cue */
+    uint32_t	flags;      /* non-zero cue point active  */
 } CUE_POINT;
 
+/* This defines the array size that holds all cue point memories. Note
+ * one extra cue point is reserved in the buffer space for the
+ * transport deck search/cue buttons.
+ */
 #define MAX_CUE_POINTS		64
-#define SINGLE_CUE_POINT	MAX_CUE_POINTS	/* cue point 75 internal */
+
+/* We support 64 cue points for the remote, but one extra cue point
+ * memory is allocated for the search/cue buttons on the transport
+ * deck. This cue point is independent from the remote cue points
+ * and allows tape-op's running machine to use this for their own
+ * purposes if desired. By default, this cue point is set to zero
+ * to serve as RTZ until new cue point is stored vie the cue button.
+ */
+#define LAST_CUE_POINT      MAX_CUE_POINTS
 
 /*** MESSAGE STRUCTURES ****************************************************/
 
@@ -40,13 +53,14 @@ typedef struct _LocateMessage {
     uint32_t	param2;
 } LocateMessage;
 
-
-
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 void CuePointStore(size_t index);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);
+
+Bool LocateCancel(void);
+Bool LocateSearch(size_t cuePointIndex);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 
