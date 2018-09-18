@@ -139,10 +139,14 @@ Bool IPC_Handle_transaction(IPCMSG* msg, FCB* fcb, UInt32 timeout)
     /* Copy incoming message to outgoing reply for default values */
     memcpy(&msgReply, msg, sizeof(IPCMSG));
 
-    /* Execute the transaction for request */
+    /* Execute the transaction type request */
+
     switch(msg->type)
     {
-
+        /* The STC doesn't support any incoming transactions
+         * from the DTC. In general, the DTC acts as a slave
+         * to the DTC.
+         */
     }
 
     /* Send the response MSG+ACK with command results returned */
@@ -154,6 +158,5 @@ Bool IPC_Handle_transaction(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 
     return IPC_Message_post(&msgReply, &fcbReply, timeout);
 }
-
 
 // End-Of-File

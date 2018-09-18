@@ -40,6 +40,8 @@ typedef struct _LocateMessage {
     uint32_t	param2;
 } LocateMessage;
 
+
+
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 void CuePointStore(size_t index);

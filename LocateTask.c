@@ -107,13 +107,13 @@ extern Mailbox_Handle g_mailboxLocate;
 
 static void GPIOPulseLow(uint32_t index, uint32_t duration);
 
-Bool SetTransport_Stop(void);
-Bool SetTransport_Play(void);
-Bool SetTransport_Fwd(uint32_t velocity);
-Bool SetTransport_Rew(uint32_t velocity);
+Bool Transport_Stop(void);
+Bool Transport_Play(void);
+Bool Transport_Fwd(uint32_t velocity);
+Bool Transport_Rew(uint32_t velocity);
 
-Bool SetShuttleVelocity(uint32_t velocity);
-Bool GetShuttleVelocity(uint32_t* velocity);
+Bool Config_SetShuttleVelocity(uint32_t velocity);
+Bool Config_GetShuttleVelocity(uint32_t* velocity);
 
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
@@ -207,6 +207,13 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
 // position is always being shown on the machine's display on the transport.
 //*****************************************************************************
 
+typedef enum SearchState {
+    SEARCH_IDLE,
+    SEARCH_BEGIN,
+    SEARCH_SPEED_RANGE,
+    SEARCH_COMPLETE,
+} SearchState;
+
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
 	int dir;
@@ -222,7 +229,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     /* Initialize single transport cue point to zero */
     CuePointStore(SINGLE_CUE_POINT);
 
-    while (true)
+    while(TRUE)
     {
     	/* Clear SEARCHING_OUT status i/o pin */
     	GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -237,7 +244,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (msg.command != LOCATE_SEARCH)
         	continue;
 
-        /* Get the cue point memory index */
+        /* Get the cue point memory index. The cue point table is arranged
+         * with 64 memory positions from 0-63. Memory location 64 is reserved
+         * for the single point cue/search buttons on the machine timer/roller.
+         */
         index = (size_t)msg.param1;
 
         if (index > MAX_CUE_POINTS)
@@ -252,7 +262,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		 */
 
         /* Get the shuttle velocity setting from the DTC-1200 */
-        GetShuttleVelocity(&shuttle_vel);
+        Config_GetShuttleVelocity(&shuttle_vel);
 
         CLI_printf("LOCATE[%d] %d to %d\n", index,
         		g_sysData.tapePosition,
@@ -295,12 +305,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    if (dir == DIR_FWD)
 	    {
 	    	//GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
-	    	SetTransport_Fwd(100);
+	    	Transport_Fwd(0);
 	    }
 	    else
 	    {
 	    	//GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
-	        SetTransport_Rew(100);
+	        Transport_Rew(0);
 	    }
 
 	    /*
@@ -340,7 +350,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			/* Calculate the current position delta from cue point */
 			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
 
-			//CLI_printf("%d : %.1f\n", delta, g_sysData.tapeTach);
+			CLI_printf("%.1f, %.1f, %d\n", g_sysData.tapeTach, distance, delta);
 
 			if (dir == DIR_FWD)
 			{
@@ -355,7 +365,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 					break;
 			}
 
-			Task_sleep(10);
+			Task_sleep(25);
 
             //if (g_sysData.tapeTach == 0.0f)
             //    break;
@@ -363,7 +373,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 		/* Send STOP button pulse to stop transport */
 		//GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
-	    SetTransport_Stop();
+	    Transport_Stop();
 
 		/* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -382,7 +392,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 //#define OP_MODE_FWD_LIB             303
 //#define OP_MODE_REW_LIB             305
 
-Bool SetTransport_Stop(void)
+Bool Transport_Stop(void)
 {
     IPCMSG msg;
 
@@ -394,7 +404,7 @@ Bool SetTransport_Stop(void)
     return IPC_Transaction(&msg, IPC_TIMEOUT);
 }
 
-Bool SetTransport_Play(void)
+Bool Transport_Play(void)
 {
     IPCMSG msg;
 
@@ -406,7 +416,7 @@ Bool SetTransport_Play(void)
     return IPC_Transaction(&msg, IPC_TIMEOUT);
 }
 
-Bool SetTransport_Fwd(uint32_t velocity)
+Bool Transport_Fwd(uint32_t velocity)
 {
     IPCMSG msg;
 
@@ -418,7 +428,7 @@ Bool SetTransport_Fwd(uint32_t velocity)
     return IPC_Transaction(&msg, IPC_TIMEOUT);
 }
 
-Bool SetTransport_Rew(uint32_t velocity)
+Bool Transport_Rew(uint32_t velocity)
 {
     IPCMSG msg;
 
@@ -434,7 +444,7 @@ Bool SetTransport_Rew(uint32_t velocity)
  * DTC-1200 CONFIGURATION PARAMETERS
  *****************************************************************************/
 
-Bool SetShuttleVelocity(uint32_t velocity)
+Bool Config_SetShuttleVelocity(uint32_t velocity)
 {
     IPCMSG msg;
 
@@ -446,7 +456,7 @@ Bool SetShuttleVelocity(uint32_t velocity)
     return IPC_Transaction(&msg, IPC_TIMEOUT);
 }
 
-Bool GetShuttleVelocity(uint32_t* velocity)
+Bool Config_GetShuttleVelocity(uint32_t* velocity)
 {
     IPCMSG msg;
 
