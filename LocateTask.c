@@ -95,6 +95,7 @@
 /* Local Constants */
 
 #define BUTTON_PULSE_TIME	50
+
 #define IPC_TIMEOUT         1000
 
 /* External Data Items */
@@ -105,6 +106,11 @@ extern Mailbox_Handle g_mailboxLocate;
 /* Static Function Prototypes */
 
 static void GPIOPulseLow(uint32_t index, uint32_t duration);
+
+Bool SetTransport_Stop(void);
+Bool SetTransport_Play(void);
+Bool SetTransport_Fwd(uint32_t velocity);
+Bool SetTransport_Rew(uint32_t velocity);
 
 Bool SetShuttleVelocity(uint32_t velocity);
 Bool GetShuttleVelocity(uint32_t* velocity);
@@ -287,9 +293,15 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	     */
 
 	    if (dir == DIR_FWD)
-	    	GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
+	    {
+	    	//GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
+	    	SetTransport_Fwd(100);
+	    }
 	    else
-	    	GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
+	    {
+	    	//GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
+	        SetTransport_Rew(100);
+	    }
 
 	    /*
 	     * ENTER MAIN SEARCH LOCATE LOOP
@@ -315,6 +327,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 	    while (!g_sysData.searchCancel)
 		{
+	        /* Make sure we have velocity */
+
 	        /* Calculate revolutions while avoiding division */
             //revolutions = (float)g_sysData.tapePosition * invRollerTicks;
             /* Calculate distance from revolutions */
@@ -326,7 +340,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			/* Calculate the current position delta from cue point */
 			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
 
-			CLI_printf("%d : %.1f\n", delta, g_sysData.tapeTach);
+			//CLI_printf("%d : %.1f\n", delta, g_sysData.tapeTach);
 
 			if (dir == DIR_FWD)
 			{
@@ -341,29 +355,91 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 					break;
 			}
 
-			Task_sleep(100);
+			Task_sleep(10);
+
+            //if (g_sysData.tapeTach == 0.0f)
+            //    break;
 		}
 
 		/* Send STOP button pulse to stop transport */
-		GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
+		//GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
+	    SetTransport_Stop();
 
 		/* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
 
 		CLI_printf("SEARCH END\n");
+
+		/* Flush out any locate requests queued */
+		while(Mailbox_pend(g_mailboxLocate, &msg, 0));
     }
 }
 
 /*****************************************************************************
- * IPC get/set operations to the DTC-1200
+ * DTC-1200 TRANSPORT COMMANDS
+ *****************************************************************************/
+
+//#define OP_MODE_FWD_LIB             303
+//#define OP_MODE_REW_LIB             305
+
+Bool SetTransport_Stop(void)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.opcode   = OP_MODE_STOP;
+    msg.param1.U = 0;
+    msg.param2.U = 0;
+
+    return IPC_Transaction(&msg, IPC_TIMEOUT);
+}
+
+Bool SetTransport_Play(void)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.opcode   = OP_MODE_PLAY;
+    msg.param1.U = 0;
+    msg.param2.U = 0;
+
+    return IPC_Transaction(&msg, IPC_TIMEOUT);
+}
+
+Bool SetTransport_Fwd(uint32_t velocity)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.opcode   = OP_MODE_FWD;
+    msg.param1.U = velocity;
+    msg.param2.U = 0;
+
+    return IPC_Transaction(&msg, IPC_TIMEOUT);
+}
+
+Bool SetTransport_Rew(uint32_t velocity)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.opcode   = OP_MODE_REW;
+    msg.param1.U = velocity;
+    msg.param2.U = 0;
+
+    return IPC_Transaction(&msg, IPC_TIMEOUT);
+}
+
+/*****************************************************************************
+ * DTC-1200 CONFIGURATION PARAMETERS
  *****************************************************************************/
 
 Bool SetShuttleVelocity(uint32_t velocity)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_TRANSACTION;
-    msg.opcode   = OP_SET_VELOCITY;
+    msg.type     = IPC_TYPE_CONFIG;
+    msg.opcode   = OP_SET_SHUTTLE_VELOCITY;
     msg.param1.U = velocity;
     msg.param2.U = 0;
 
@@ -374,8 +450,8 @@ Bool GetShuttleVelocity(uint32_t* velocity)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_TRANSACTION;
-    msg.opcode   = OP_GET_VELOCITY;
+    msg.type     = IPC_TYPE_CONFIG;
+    msg.opcode   = OP_GET_SHUTTLE_VELOCITY;
     msg.param1.U = 0;
     msg.param2.U = 0;
 

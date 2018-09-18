@@ -77,7 +77,6 @@
 /* Board Header file */
 #include "Board.h"
 #include "IPCTask.h"
-#include "CLITask.h"
 
 /* Global Data Items */
 static IPCSVR_OBJECT g_ipc;

@@ -13,25 +13,28 @@
 #define _IPCMESSAGE_H_
 
 /* ============================================================================
- * Message types for IPCMSG.type
+ * Message class types for IPCMSG.type
  * ============================================================================ */
 
-#define IPC_TYPE_NOTIFY				100
-#define IPC_TYPE_TRANSACTION		101
+#define IPC_TYPE_NOTIFY				10
+#define IPC_TYPE_CONFIG		        20
+#define IPC_TYPE_TRANSPORT          30
 
-/* ============================================================================
- * Notify IPCMSG.opcode for IPC_TYPE_NOTIFY type
- * ============================================================================ */
+/* IPC_TYPE_NOTIFY Operation codes */
+#define OP_NOTIFY_BUTTON			100
+#define OP_NOTIFY_TRANSPORT			101
 
-#define OP_NOTIFY_BUTTON			10
-#define OP_NOTIFY_TRANSPORT			11
+/* IPC_TYPE_CONFIG Operation codes */
+#define OP_GET_SHUTTLE_VELOCITY     200
+#define OP_SET_SHUTTLE_VELOCITY     201
 
-/* ============================================================================
- * Transaction IPCMSG.opcode for IPC_TYPE_TRANSACTION type
- * ============================================================================ */
-
-#define OP_GET_VELOCITY             200
-#define OP_SET_VELOCITY             201
+/* IPC_TYPE_TRANSPORT Operation codes */
+#define OP_MODE_STOP                300
+#define OP_MODE_PLAY                301
+#define OP_MODE_FWD                 302     /* param1 specifies velocity */
+#define OP_MODE_FWD_LIB             303
+#define OP_MODE_REW                 304     /* param1 specifies velocity */
+#define OP_MODE_REW_LIB             305
 
 /* OP_NOTIFY_BUTTON bits for param1.U */
 #define S_STOP          0x01        // stop button

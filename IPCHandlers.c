@@ -91,35 +91,35 @@ Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb)
 {
     uint32_t param1 = msg->param1.U;
 
-    if (msg->type == IPC_TYPE_NOTIFY)
-    {
-        switch(msg->opcode)
-        {
-        case OP_NOTIFY_BUTTON:
-            CLI_printf("BUTTON: %02x ", msg->param1.U);
-            if (param1 & S_STOP)
-                CLI_printf("STOP");
-            else if (param1 & S_PLAY)
-                CLI_printf("PLAY");
-            else if (param1 & S_REC)
-                CLI_printf("REC");
-            else if (param1 & S_REW)
-                CLI_printf("REW");
-            else if (param1 & S_FWD)
-                CLI_printf("FWD");
-            else if (param1 & S_LDEF)
-                CLI_printf("LDEF");
-            else if (param1 & S_TAPEOUT)
-                CLI_printf("TAPE OUT");
-            else if (param1 & S_TAPEIN)
-                CLI_printf("TAPE IN");
-            CLI_printf("\n");
-            break;
+    if (msg->type != IPC_TYPE_NOTIFY)
+        return FALSE;
 
-        case OP_NOTIFY_TRANSPORT:
-            CLI_printf("TRANSPORT: %02x\n", msg->param1.U);
-            break;
-        }
+    switch(msg->opcode)
+    {
+    case OP_NOTIFY_BUTTON:
+        CLI_printf("BUTTON: %02x ", msg->param1.U);
+        if (param1 & S_STOP)
+            CLI_printf("STOP");
+        else if (param1 & S_PLAY)
+            CLI_printf("PLAY");
+        else if (param1 & S_REC)
+            CLI_printf("REC");
+        else if (param1 & S_REW)
+            CLI_printf("REW");
+        else if (param1 & S_FWD)
+            CLI_printf("FWD");
+        else if (param1 & S_LDEF)
+            CLI_printf("LDEF");
+        else if (param1 & S_TAPEOUT)
+            CLI_printf("TAPE OUT");
+        else if (param1 & S_TAPEIN)
+            CLI_printf("TAPE IN");
+        CLI_printf("\n");
+        break;
+
+    case OP_NOTIFY_TRANSPORT:
+        CLI_printf("TRANSPORT: %02x\n", msg->param1.U);
+        break;
     }
 
     return TRUE;
@@ -140,19 +140,17 @@ Bool IPC_Handle_transaction(IPCMSG* msg, FCB* fcb, UInt32 timeout)
     memcpy(&msgReply, msg, sizeof(IPCMSG));
 
     /* Execute the transaction for request */
-    CLI_printf("Xact(%d) Begin: %d %02x\n", fcb->seqnum, msg->opcode, msg->param1.U);
-
-    if (msg->type == IPC_TYPE_TRANSACTION)
+    switch(msg->type)
     {
 
     }
 
-    /* Send the response msg+ack with command results returned */
+    /* Send the response MSG+ACK with command results returned */
 
     fcbReply.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ACK);
     fcbReply.acknak  = fcb->seqnum;
-    fcbReply.address = 0;
-    fcbReply.seqnum  = 0;
+    fcbReply.address = fcb->address;
+    fcbReply.seqnum  = IPC_GetTxSeqNum();
 
     return IPC_Message_post(&msgReply, &fcbReply, timeout);
 }
