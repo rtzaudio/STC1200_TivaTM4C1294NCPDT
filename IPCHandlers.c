@@ -89,7 +89,7 @@
 
 Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb)
 {
-    uint32_t param1 = msg->param1.U;
+    //uint32_t param1 = msg->param1.U;
 
     if (msg->type != IPC_TYPE_NOTIFY)
         return FALSE;
@@ -97,6 +97,7 @@ Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb)
     switch(msg->opcode)
     {
     case OP_NOTIFY_BUTTON:
+#if 0
         CLI_printf("BUTTON: %02x ", msg->param1.U);
         if (param1 & S_STOP)
             CLI_printf("STOP");
@@ -115,6 +116,7 @@ Bool IPC_Handle_datagram(IPCMSG* msg, FCB* fcb)
         else if (param1 & S_TAPEIN)
             CLI_printf("TAPE IN");
         CLI_printf("\n");
+#endif
         break;
 
     case OP_NOTIFY_TRANSPORT:

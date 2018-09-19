@@ -134,8 +134,6 @@ void CuePointStore(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
-
-	CLI_printf("SET Cue Point %d\r\n", index);
 }
 
 /*****************************************************************************
@@ -153,8 +151,6 @@ void CuePointClear(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
-
-	CLI_printf("CLEAR Cue Point %d\r\n", index);
 }
 
 /*****************************************************************************
@@ -207,28 +203,6 @@ Bool LocateCancel(void)
 }
 
 //*****************************************************************************
-// Pulse and I/O line LOW for the specified ms duration. The following
-// gpio lines are used to control the transport directly. Index should
-// be one of the following for the transport control buttons:
-//
-//   Board_STOP_N
-//   Board_PLAY_N
-//   Board_FWD_N
-//   Board_REW_N
-//
-//*****************************************************************************
-
-void GPIOPulseLow(uint32_t index, uint32_t duration)
-{
-	/* Set the i/o pin to low state */
-	GPIO_write(index, PIN_LOW);
-	/* Sleep for pulse duration */
-	Task_sleep(duration);
-	/* Return i/o pin to high state */
-	GPIO_write(index, PIN_HIGH);
-}
-
-//*****************************************************************************
 // Position reader/display task. This function reads the tape roller
 // quadrature encoder and stores the current position data. The 7-segement
 // tape position display is also updated via the task so the current tape
@@ -236,39 +210,40 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
 //*****************************************************************************
 
 typedef enum SearchState {
-    SEARCH_BEGIN,
-    SEARCH_SPEED_RANGE,
+    SEARCH_INITIAL_STATE,
+    SEARCH_BEGIN_NEAR,
+    SEARCH_BEGIN_FAR,
+    SEARCH_BEGIN_MID,
+    SEARCH_JOG_PREPARE,
+    SEARCH_JOG_STATE,
+    SEARCH_ZERO_CROSS,
     SEARCH_COMPLETE,
 } SearchState;
 
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
-	int dir;
+    int dir;
 	int delta;
-    float distance;
+	int abs_delta;
 	uint32_t key;
-	size_t index;
+	uint32_t uvel;
+	size_t cue_index;
 	size_t itemp;
-    uint32_t shuttle_vel;
+    bool cancel = FALSE;
     LocateMessage msg;
-    SearchState state;
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
 
     /* Initialize single transport cue point to zero */
     CuePointStore(LAST_CUE_POINT);
 
+    /* Clear SEARCHING_OUT status i/o pin */
+    GPIO_write(Board_SEARCHING, PIN_HIGH);
+
     while(TRUE)
     {
-    	/* Clear SEARCHING_OUT status i/o pin */
-    	GPIO_write(Board_SEARCHING, PIN_HIGH);
-
-    	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxLocate, &msg, 250))
-        {
-    		//CLI_printf("%.1f\r\n", g_sysData.tapeTach);
-        	continue;
-        }
+        /* Wait for a locate request */
+        Mailbox_pend(g_mailboxLocate, &msg, BIOS_WAIT_FOREVER);
 
         if (msg.command != LOCATE_SEARCH)
         	continue;
@@ -278,120 +253,165 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
          * for the single point cue/search buttons on the machine timer/roller.
          */
 
-        index = (size_t)msg.param1;
+        cue_index = (size_t)msg.param1;
 
-        if (index > MAX_CUE_POINTS)
+        if (cue_index > MAX_CUE_POINTS)
         	continue;
 
         /* Is the cue point is active? */
-        if (g_sysData.cuePoint[index].flags == 0)
+        if (g_sysData.cuePoint[cue_index].flags == 0)
         	continue;
 
-		/*
-		 * BEGIN AUTO-LOCATE SEARCH FUNCTION
-		 */
+        /* Set SEARCHING_OUT status i/o pin */
+        GPIO_write(Board_SEARCHING, PIN_LOW);
 
-        CLI_printf("LOCATE[%d] %d to %d\n", index,
-        		g_sysData.tapePosition,
-				g_sysData.cuePoint[index].ipos);
-
-		/* Calculate the current position delta from cue point */
-		delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
-
-		/* Determine which direction we need to go initially */
-
-		if (delta > 0)
-		{
-			dir = DIR_FWD;
-			CLI_printf("SEARCH FWD %d\n", delta);
-		}
-		else if (delta < 0)
-		{
-			dir = DIR_REW;
-			CLI_printf("SEARCH REW %d\n", delta);
-		}
-		else
-		{
-			dir = DIR_ZERO;
-			CLI_printf("AT ZERO ALREADY!\n");
-			continue;
-		}
-
-		/* Set SEARCHING_OUT status i/o pin */
-		GPIO_write(Board_SEARCHING, PIN_LOW);
-
-		/* Clear the global search cancel flag */
-	    key = Hwi_disable();
+        /* Clear the global search cancel flag */
+        key = Hwi_disable();
         g_sysData.searching = TRUE;
-	    g_sysData.searchCancel = FALSE;
-	    Hwi_restore(key);
+        g_sysData.searchCancel = FALSE;
+        Hwi_restore(key);
 
-	    /* Start the transport in either FWD or REV direction
-	     * based on the cue point and current location.
-	     */
+        /**************************************/
+        /* BEGIN MAIN AUTO-LOCATE SEARCH LOOP */
+        /**************************************/
 
-	    if (dir == DIR_FWD)
+        SearchState state = SEARCH_INITIAL_STATE;
+
+        cancel = FALSE;
+
+	    while (!cancel)
 	    {
-	    	//GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
-	    	Transport_Fwd(0);
-	    }
-	    else
-	    {
-	    	//GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
-	        Transport_Rew(0);
-	    }
+			/* Calculate the current absolute position delta from cue point */
+			delta = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
 
-	    /*
-	     * BEGIN MAIN AUTO-LOCATE SEARCH LOOP
-	     */
+			abs_delta = abs(delta);
 
-	    float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
-	    float revolutions;
+            CLI_printf("%d, %d\n", (int32_t)g_sysData.tapeTach, delta);
 
-	    state = SEARCH_BEGIN;
-
-	    while (!g_sysData.searchCancel)
-		{
-	        /* Make sure we have velocity */
-
-	        /* Calculate revolutions while avoiding division */
-            revolutions = (float)g_sysData.tapePosition * invRollerTicks;
-
-            /* Calculate distance from revolutions */
-            distance = revolutions * ROLLER_CIRCUMFERENCE_F;
-
-	        /* Get distance in inches from zero reset point */
-			//distance = POSITION_TO_INCHES((float)g_sysData.tapePosition);
-
-			/* Calculate the current position delta from cue point */
-			delta = g_sysData.cuePoint[index].ipos - g_sysData.tapePosition;
-
-			//CLI_printf("%.1f, %.1f, %d\n", g_sysData.tapeTach, distance, delta);
+			/* Finite State Machine */
 
 			switch(state)
 			{
-			case SEARCH_BEGIN:
-			    ++state;
+			case SEARCH_INITIAL_STATE:
+
+		        CLI_printf("LOCATE[%u] %d => ", cue_index, delta);
+
+		        /* Determine which direction we need to go initially */
+
+		        if (delta > 0)
+		        {
+		            dir = DIR_FWD;
+		            CLI_printf("FWD");
+		        }
+		        else if (delta < 0)
+		        {
+		            dir = DIR_REW;
+		            CLI_printf("REW");
+		        }
+		        else
+		        {
+		            dir = DIR_ZERO;
+                    cancel = TRUE;
+		            CLI_printf("AT ZERO!!\n");
+		            break;
+		        }
+
+                if (abs_delta >= 30000)
+                {
+                    uvel = 500;
+                    state = SEARCH_BEGIN_FAR;
+                    CLI_printf(" FAR\n");
+                }
+                else if ((abs_delta > 20000) && (abs_delta < 30000))
+                {
+                    uvel = 250;
+                    state = SEARCH_BEGIN_MID;
+                    CLI_printf(" MID\n");
+                }
+                else
+                {
+                    uvel = 100;
+                    state = SEARCH_BEGIN_NEAR;
+                    CLI_printf(" NEAR\n");
+                }
+
+		        /* Start the transport in either FWD or REV direction
+		         * based on the cue point and current location.
+		         */
+		        if (dir == DIR_FWD)
+		        {
+		            //GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
+		            Transport_Fwd(uvel);
+		        }
+		        else
+		        {
+		            //GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
+		            Transport_Rew(uvel);
+		        }
 			    break;
 
-			case SEARCH_SPEED_RANGE:
+			case SEARCH_BEGIN_NEAR:
+            case SEARCH_BEGIN_MID:
+            case SEARCH_BEGIN_FAR:
+			    if (abs_delta < 15000)
+			    {
+                    CLI_printf("DOWNSHIFT: %d\n", delta);
+
+                    Transport_Stop();
+
+	                //if (dir == DIR_FWD)
+	                //    Transport_Rew(uvel);
+	                //else
+	                //    Transport_Fwd(uvel);
+
+	                state = SEARCH_JOG_PREPARE;
+			    }
+			    break;
+
+			case SEARCH_JOG_PREPARE:
+			    if (g_sysData.tapeTach <= 25.0f)
+			    {
+			        CLI_printf("JOG STATE\n");
+			        state = SEARCH_JOG_STATE;
+			    }
+			    break;
+
+			case SEARCH_JOG_STATE:
+                if (dir == DIR_FWD)
+                    Transport_Fwd(100);
+                else
+                    Transport_Rew(100);
+                state = SEARCH_ZERO_CROSS;
+                break;
+
+			case SEARCH_ZERO_CROSS:
 			    break;
 
 			default:
 			    break;
 			}
 
-			/* Exit search if we've passed the zero mark */
+			/* Exit search if we've passed the zero or overshoot mark */
 
-			if (dir == DIR_FWD)         /* search forward mode completed? */
+			if (dir == DIR_FWD)
 			{
 				if (delta < 0)
+				{
+				    /* search forward overshoot, change direction */
+                    Transport_Rew(200);
+                    Task_sleep(1300);
 					break;
+				}
 			}
-			else if (dir == DIR_REW)    /* search rewind mode completed? */
+			else
 			{
 				if (delta > 0)
+				{
+				    /* search rewind overshoot, change direction */
+				    Transport_Fwd(200);
+                    Task_sleep(1300);
 					break;
+				}
 			}
 
 			/* Check for a new locate command. It's possible the user may have requested
@@ -412,34 +432,68 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	                if (itemp > MAX_CUE_POINTS)
 	                    continue;
 
-	                /* Is the cue point is active? */
+	                /* Is the new cue point is active? */
 	                if (g_sysData.cuePoint[itemp].flags == 0)
 	                    continue;
 
 	                /* Switch to new cue point index */
-	                index = itemp;
+	                cue_index = itemp;
 
 	                /* Reset initial search state machine */
-	                state = SEARCH_BEGIN;
+	                state = SEARCH_INITIAL_STATE;
 	            }
 	        }
-		}
 
-		/* Send STOP button pulse to stop transport */
-		//GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
+	        /* Check for search cancel */
+            if (g_sysData.searchCancel)
+                cancel = TRUE;
+	    }
+
+	    /* Send STOP button pulse to stop transport */
+	    //GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
 	    Transport_Stop();
 
-		/* Set SEARCHING_OUT status i/o pin */
-        GPIO_write(Board_SEARCHING, PIN_HIGH);
+	    /* Set SEARCHING_OUT status i/o pin */
+	    GPIO_write(Board_SEARCHING, PIN_HIGH);
 
-        /* Clear the search in progress flag */
-        key = Hwi_disable();
-        g_sysData.searching = FALSE;
-        Hwi_restore(key);
+	    /* Clear the search in progress flag */
+	    key = Hwi_disable();
+	    g_sysData.searching = FALSE;
+	    g_sysData.searchCancel = FALSE;
+	    Hwi_restore(key);
 
         CLI_printf("SEARCH END\n");
     }
 }
+
+/*****************************************************************************
+ * HELPER FUNCTIONS
+ *****************************************************************************/
+
+//*****************************************************************************
+// Pulse and I/O line LOW for the specified ms duration. The following
+// gpio lines are used to control the transport directly. Index should
+// be one of the following for the transport control buttons:
+//
+//   Board_STOP_N
+//   Board_PLAY_N
+//   Board_FWD_N
+//   Board_REW_N
+//
+//*****************************************************************************
+
+void GPIOPulseLow(uint32_t index, uint32_t duration)
+{
+    /* Set the i/o pin to low state */
+    GPIO_write(index, PIN_LOW);
+    /* Sleep for pulse duration */
+    Task_sleep(duration);
+    /* Return i/o pin to high state */
+    GPIO_write(index, PIN_HIGH);
+}
+
+
+
 
 /*****************************************************************************
  * DTC-1200 TRANSPORT COMMANDS
