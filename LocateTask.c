@@ -134,6 +134,8 @@ void CuePointStore(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
+
+	CLI_printf("CUE SET[%u] %d\n", index, g_sysData.cuePoint[index].ipos);
 }
 
 /*****************************************************************************
@@ -151,6 +153,8 @@ void CuePointClear(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
+
+	CLI_printf("CUE CLR[%u] %d\n", index, g_sysData.cuePoint[index].ipos);
 }
 
 /*****************************************************************************
@@ -223,10 +227,10 @@ typedef enum SearchState {
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
     int dir;
-	int delta;
-	int abs_delta;
+	int idist;
+	int adist;
 	uint32_t key;
-	uint32_t uvel;
+	uint32_t shuttle_vel;
 	size_t cue_index;
 	size_t itemp;
     bool cancel = FALSE;
@@ -234,11 +238,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
 
+    /* Clear SEARCHING_OUT status i/o pin */
+    GPIO_write(Board_SEARCHING, PIN_HIGH);
+
     /* Initialize single transport cue point to zero */
     CuePointStore(LAST_CUE_POINT);
 
-    /* Clear SEARCHING_OUT status i/o pin */
-    GPIO_write(Board_SEARCHING, PIN_HIGH);
+    /* Press STOP button */
+    GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
 
     while(TRUE)
     {
@@ -281,12 +288,29 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 	    while (!cancel)
 	    {
-			/* Calculate the current absolute position delta from cue point */
-			delta = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
+	        float time;
+            float velocity;
+	        //float distance;
 
-			abs_delta = abs(delta);
+			/* Calculate the current absolute position(distance) from cue point */
+			idist = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
 
-            CLI_printf("%d, %d\n", (int32_t)g_sysData.tapeTach, delta);
+			/* absolute distance unsigned */
+			adist = abs(idist);
+
+			/* v = d/t */
+			velocity = g_sysData.tapeTach;
+
+			if (velocity < 1.0f)
+			    velocity = 1;
+
+			/* t = d/v */
+			time = (float)adist / velocity;
+
+			/* d = v * t */
+			//distance = velocity * time;
+
+            CLI_printf("%u, %u, %f\n", (uint32_t)velocity, adist, time);
 
 			/* Finite State Machine */
 
@@ -294,16 +318,16 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			{
 			case SEARCH_INITIAL_STATE:
 
-		        CLI_printf("LOCATE[%u] %d => ", cue_index, delta);
+		        CLI_printf("LOCATE[%u] %d => ", cue_index, idist);
 
 		        /* Determine which direction we need to go initially */
 
-		        if (delta > 0)
+		        if (idist > 0)
 		        {
 		            dir = DIR_FWD;
 		            CLI_printf("FWD");
 		        }
-		        else if (delta < 0)
+		        else if (idist < 0)
 		        {
 		            dir = DIR_REW;
 		            CLI_printf("REW");
@@ -316,21 +340,16 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            break;
 		        }
 
-                if (abs_delta >= 30000)
+                //if (time >= 50.0f)
+                if (adist > 12500)
                 {
-                    uvel = 500;
+                    shuttle_vel = 500;
                     state = SEARCH_BEGIN_FAR;
                     CLI_printf(" FAR\n");
                 }
-                else if ((abs_delta > 20000) && (abs_delta < 30000))
-                {
-                    uvel = 250;
-                    state = SEARCH_BEGIN_MID;
-                    CLI_printf(" MID\n");
-                }
                 else
                 {
-                    uvel = 100;
+                    shuttle_vel = 250;
                     state = SEARCH_BEGIN_NEAR;
                     CLI_printf(" NEAR\n");
                 }
@@ -341,29 +360,30 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		        if (dir == DIR_FWD)
 		        {
 		            //GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
-		            Transport_Fwd(uvel);
+		            Transport_Fwd(shuttle_vel);
 		        }
 		        else
 		        {
 		            //GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
-		            Transport_Rew(uvel);
+		            Transport_Rew(shuttle_vel);
 		        }
 			    break;
 
 			case SEARCH_BEGIN_NEAR:
             case SEARCH_BEGIN_MID:
             case SEARCH_BEGIN_FAR:
-			    if (abs_delta < 15000)
+                if (time < 135.0f)
 			    {
-                    CLI_printf("DOWNSHIFT: %d\n", delta);
+	                if (g_sysData.tapeTach > 35.0f)
+	                {
+	                    CLI_printf("BRAKE PHASE: %d\n", idist);
+	                    Transport_Stop();
 
-                    Transport_Stop();
-
-	                //if (dir == DIR_FWD)
-	                //    Transport_Rew(uvel);
-	                //else
-	                //    Transport_Fwd(uvel);
-
+	                    //if (dir == DIR_FWD)
+	                    //    Transport_Rew(shuttle_vel);
+	                    //else
+	                    //    Transport_Fwd(shuttle_vel);
+	                }
 	                state = SEARCH_JOG_PREPARE;
 			    }
 			    break;
@@ -378,38 +398,39 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			case SEARCH_JOG_STATE:
                 if (dir == DIR_FWD)
-                    Transport_Fwd(100);
+                    Transport_Fwd(120);
                 else
-                    Transport_Rew(100);
+                    Transport_Rew(120);
                 state = SEARCH_ZERO_CROSS;
                 break;
 
 			case SEARCH_ZERO_CROSS:
+			    /* Last state, we check zero cross always */
 			    break;
 
 			default:
 			    break;
 			}
 
-			/* Exit search if we've passed the zero or overshoot mark */
+			/* ZERO CROSS - check taking direction into account */
 
 			if (dir == DIR_FWD)
 			{
-				if (delta < 0)
+				if (idist < 0)
 				{
-				    /* search forward overshoot, change direction */
-                    Transport_Rew(200);
-                    Task_sleep(1300);
+				    /* FORWARD overshoot, change direction */
+                    Transport_Rew(300);
+                    Task_sleep(1500);
 					break;
 				}
 			}
 			else
 			{
-				if (delta > 0)
+				if (idist > 0)
 				{
-				    /* search rewind overshoot, change direction */
-				    Transport_Fwd(200);
-                    Task_sleep(1300);
+				    /* REWIND overshoot, change direction */
+				    Transport_Fwd(300);
+                    Task_sleep(1500);
 					break;
 				}
 			}
