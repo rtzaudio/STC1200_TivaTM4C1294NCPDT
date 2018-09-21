@@ -214,11 +214,13 @@ Bool LocateCancel(void)
 //*****************************************************************************
 
 typedef enum SearchState {
-    SEARCH_INITIAL_STATE,
+    SEARCH_START_STATE,
+    SEARCH_SPEED_RANGE,
     SEARCH_BEGIN_NEAR,
     SEARCH_BEGIN_FAR,
     SEARCH_BEGIN_MID,
-    SEARCH_JOG_PREPARE,
+    SEARCH_BRAKE_PHASE,
+    SEARCH_JOG_PEND,
     SEARCH_JOG_STATE,
     SEARCH_ZERO_CROSS,
     SEARCH_COMPLETE,
@@ -282,7 +284,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* BEGIN MAIN AUTO-LOCATE SEARCH LOOP */
         /**************************************/
 
-        SearchState state = SEARCH_INITIAL_STATE;
+        SearchState state = SEARCH_START_STATE;
 
         cancel = FALSE;
 
@@ -316,21 +318,19 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			switch(state)
 			{
-			case SEARCH_INITIAL_STATE:
-
-		        CLI_printf("LOCATE[%u] %d => ", cue_index, idist);
-
+			case SEARCH_START_STATE:
 		        /* Determine which direction we need to go initially */
+			    CLI_printf("LOCATE[%u] %d => ", cue_index, idist);
 
-		        if (idist > 0)
+			    if (idist > 0)
 		        {
 		            dir = DIR_FWD;
-		            CLI_printf("FWD");
+		            CLI_printf("FWD\n");
 		        }
 		        else if (idist < 0)
 		        {
 		            dir = DIR_REW;
-		            CLI_printf("REW");
+		            CLI_printf("REW\n");
 		        }
 		        else
 		        {
@@ -339,64 +339,94 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            CLI_printf("AT ZERO!!\n");
 		            break;
 		        }
+		        state = SEARCH_SPEED_RANGE;
+		        break;
 
-                //if (time >= 50.0f)
+			case SEARCH_SPEED_RANGE:
+			    /* Determine the shuttle speed range based on distance out */
                 if (adist > 12500)
                 {
                     shuttle_vel = 500;
                     state = SEARCH_BEGIN_FAR;
                     CLI_printf(" FAR\n");
                 }
-                else
+                else if (adist < 6250)
                 {
-                    shuttle_vel = 250;
+                    shuttle_vel = 100;
                     state = SEARCH_BEGIN_NEAR;
                     CLI_printf(" NEAR\n");
+                }
+                else
+                {
+                    shuttle_vel = 300;
+                    state = SEARCH_BEGIN_MID;
+                    CLI_printf(" MID\n");
                 }
 
 		        /* Start the transport in either FWD or REV direction
 		         * based on the cue point and current location.
 		         */
 		        if (dir == DIR_FWD)
-		        {
-		            //GPIOPulseLow(Board_FWD_N, BUTTON_PULSE_TIME);
 		            Transport_Fwd(shuttle_vel);
-		        }
 		        else
-		        {
-		            //GPIOPulseLow(Board_REW_N, BUTTON_PULSE_TIME);
 		            Transport_Rew(shuttle_vel);
-		        }
 			    break;
 
-			case SEARCH_BEGIN_NEAR:
-            case SEARCH_BEGIN_MID:
             case SEARCH_BEGIN_FAR:
                 if (time < 135.0f)
 			    {
-	                if (g_sysData.tapeTach > 35.0f)
-	                {
-	                    CLI_printf("BRAKE PHASE: %d\n", idist);
-	                    Transport_Stop();
+                    state = SEARCH_JOG_PEND;
 
-	                    //if (dir == DIR_FWD)
-	                    //    Transport_Rew(shuttle_vel);
-	                    //else
-	                    //    Transport_Fwd(shuttle_vel);
-	                }
-	                state = SEARCH_JOG_PREPARE;
+	                if (g_sysData.tapeTach > 35.0f)
+	                    state = SEARCH_BRAKE_PHASE;
 			    }
 			    break;
 
-			case SEARCH_JOG_PREPARE:
+            case SEARCH_BEGIN_MID:
+                if (time < 90.0f)
+                {
+                    state = SEARCH_JOG_PEND;
+
+                    if (g_sysData.tapeTach > 35.0f)
+                        state = SEARCH_BRAKE_PHASE;
+                }
+                break;
+
+            case SEARCH_BEGIN_NEAR:
+                if (time < 45.0f)
+                {
+                    state = SEARCH_JOG_PEND;
+                }
+                break;
+
+            case SEARCH_BRAKE_PHASE:
+                CLI_printf("BRAKE PHASE: %d\n", idist);
+                Transport_Stop();
+                //if (dir == DIR_FWD)
+                //    Transport_Rew(shuttle_vel);
+                //else
+                //    Transport_Fwd(shuttle_vel);
+                state = SEARCH_JOG_PEND;
+                /* Fall through to next state.. */
+
+			case SEARCH_JOG_PEND:
+			    /* Wait for velocity to drop to 25 or below */
 			    if (g_sysData.tapeTach <= 25.0f)
 			    {
 			        CLI_printf("JOG STATE\n");
-			        state = SEARCH_JOG_STATE;
+
+	                /* Begin jog at low speed! */
+	                if (dir == DIR_FWD)
+	                    Transport_Fwd(120);
+	                else
+	                    Transport_Rew(120);
+
+			        state = SEARCH_ZERO_CROSS;
 			    }
 			    break;
 
 			case SEARCH_JOG_STATE:
+			    /* Switch direction! */
                 if (dir == DIR_FWD)
                     Transport_Fwd(120);
                 else
@@ -437,6 +467,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			/* Check for a new locate command. It's possible the user may have requested
 			 * a new locate cue point while a locate command was already in progress.
+			 * If so, we cancel the current locate request and reset to start searching
+			 * at the new cue point requested.
 			 */
 
 	        if (Mailbox_pend(g_mailboxLocate, &msg, 10))
@@ -461,7 +493,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	                cue_index = itemp;
 
 	                /* Reset initial search state machine */
-	                state = SEARCH_INITIAL_STATE;
+	                state = SEARCH_START_STATE;
 	            }
 	        }
 
@@ -512,9 +544,6 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
     /* Return i/o pin to high state */
     GPIO_write(index, PIN_HIGH);
 }
-
-
-
 
 /*****************************************************************************
  * DTC-1200 TRANSPORT COMMANDS
