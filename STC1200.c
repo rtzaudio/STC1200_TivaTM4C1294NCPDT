@@ -221,7 +221,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
      * Create the various system tasks
      */
 
-   Error_init(&eb);
+    Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 1024;
     taskParams.priority  = 10;

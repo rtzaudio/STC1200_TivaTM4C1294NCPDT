@@ -246,9 +246,6 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     /* Initialize single transport cue point to zero */
     CuePointStore(LAST_CUE_POINT);
 
-    /* Press STOP button */
-    GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
-
     while(TRUE)
     {
         /* Wait for a locate request */
@@ -273,6 +270,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_LOW);
+
+        /* Set transport to STOP mode */
+        Transport_Stop();
 
         /* Clear the global search cancel flag */
         key = Hwi_disable();

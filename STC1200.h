@@ -26,7 +26,7 @@
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
 
 //*****************************************************************************
-// GLOBAL MEMORY REAL-TIME DATA
+// GLOBAL SHARED MEMORY & REAL-TIME DATA
 //*****************************************************************************
 
 typedef struct _SYSDATA
@@ -34,7 +34,7 @@ typedef struct _SYSDATA
     uint8_t		ui8SerialNumber[16];		/* unique serial number       */
     uint32_t	tapePositionAbs;			/* absolute tape position     */
     int32_t 	tapePosition;				/* signed relative position   */
-    int32_t 	tapePositionPrev;			/* previous tape postion      */
+    int32_t 	tapePositionPrev;			/* previous tape position     */
     int32_t 	tapeDirection;				/* direction 1=fwd, 0=rew     */
     uint32_t	qei_error_cnt;				/* QEI phase error count      */
     float		tapeTach;					/* tape speed from roller     */
@@ -77,8 +77,6 @@ int main(void);
 int ReadSerialNumber(uint8_t ui8SerialNumber[16]);
 void EnableClockDivOutput(uint32_t div);
 Void CommandTaskFxn(UArg arg0, UArg arg1);
-Bool QueueLocateCommand(LocateType command, uint32_t param1, uint32_t param2);
-
 void InitSysDefaults(SYSPARMS* p);
 int SysParamsRead(SYSPARMS* sp);
 int SysParamsWrite(SYSPARMS* sp);

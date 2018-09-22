@@ -75,7 +75,7 @@
 
 /* External Data Items */
 
-//extern SYSDATA g_sysData;
+extern SYSDATA g_sysData;
 
 /* Global Data Items */
 
