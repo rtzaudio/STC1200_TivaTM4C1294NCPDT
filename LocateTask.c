@@ -101,6 +101,7 @@
 /* External Data Items */
 
 extern SYSDATA g_sysData;
+extern Event_Handle g_eventQEI;
 extern Mailbox_Handle g_mailboxLocate;
 
 /* Static Function Prototypes */
@@ -130,7 +131,7 @@ void CuePointStore(size_t index)
 	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = g_sysData.tapePosition;
-		g_sysData.cuePoint[index].flags = 0x01;
+		g_sysData.cuePoint[index].flags = CF_SET;
 	}
 
 	Semaphore_post(g_semaCue);
@@ -149,7 +150,7 @@ void CuePointClear(size_t index)
 	if (index <= MAX_CUE_POINTS)
 	{
 		g_sysData.cuePoint[index].ipos  = 0;
-		g_sysData.cuePoint[index].flags = 0x00;
+		g_sysData.cuePoint[index].flags = CF_NONE;
 	}
 
 	Semaphore_post(g_semaCue);
@@ -170,7 +171,7 @@ void CuePointClearAll(void)
     for (i=0; i < MAX_CUE_POINTS; i++)
     {
         g_sysData.cuePoint[i].ipos  = 0;
-        g_sysData.cuePoint[i].flags = 0x00;
+        g_sysData.cuePoint[i].flags = CF_NONE;
     }
 
     Semaphore_post(g_semaCue);
@@ -220,8 +221,9 @@ typedef enum SearchState {
     SEARCH_BEGIN_FAR,
     SEARCH_BEGIN_MID,
     SEARCH_BRAKE_PHASE,
-    SEARCH_JOG_PEND,
-    SEARCH_JOG_STATE,
+    SEARCH_BRAKE_VELOCITY,
+    SEARCH_PAST_ZERO,
+    SEARCH_ZERO_DIR,
     SEARCH_ZERO_CROSS,
     SEARCH_COMPLETE,
 } SearchState;
@@ -231,11 +233,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     int dir;
 	int idist;
 	int adist;
+	int last_dir;
 	uint32_t key;
 	uint32_t shuttle_vel;
 	size_t cue_index;
 	size_t itemp;
-    bool cancel = FALSE;
+    bool done = FALSE;
     LocateMessage msg;
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
@@ -274,7 +277,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Set transport to STOP mode */
         Transport_Stop();
 
-        /* Clear the global search cancel flag */
+        /* Clear the global search done flag */
         key = Hwi_disable();
         g_sysData.searching = TRUE;
         g_sysData.searchCancel = FALSE;
@@ -286,9 +289,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         SearchState state = SEARCH_START_STATE;
 
-        cancel = FALSE;
+        done = FALSE;
 
-	    while (!cancel)
+	    while (!done)
 	    {
 	        float time;
             float velocity;
@@ -311,8 +314,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			/* d = v * t */
 			//distance = velocity * time;
-
-            CLI_printf("%u, %u, %f\n", (uint32_t)velocity, adist, time);
+            //CLI_printf("%u, %u, %f\n", (uint32_t)velocity, adist, time);
 
 			/* Finite State Machine */
 
@@ -325,17 +327,17 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			    if (idist > 0)
 		        {
 		            dir = DIR_FWD;
-		            CLI_printf("FWD\n");
+		            CLI_printf("FWD");
 		        }
 		        else if (idist < 0)
 		        {
 		            dir = DIR_REW;
-		            CLI_printf("REW\n");
+		            CLI_printf("REW");
 		        }
 		        else
 		        {
 		            dir = DIR_ZERO;
-                    cancel = TRUE;
+                    done = TRUE;
 		            CLI_printf("AT ZERO!!\n");
 		            break;
 		        }
@@ -358,7 +360,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 }
                 else
                 {
-                    shuttle_vel = 300;
+                    shuttle_vel = 350;
                     state = SEARCH_BEGIN_MID;
                     CLI_printf(" MID\n");
                 }
@@ -375,18 +377,16 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             case SEARCH_BEGIN_FAR:
                 if (time < 135.0f)
 			    {
-                    state = SEARCH_JOG_PEND;
-
+                    state = SEARCH_BRAKE_VELOCITY;
 	                if (g_sysData.tapeTach > 35.0f)
 	                    state = SEARCH_BRAKE_PHASE;
 			    }
 			    break;
 
             case SEARCH_BEGIN_MID:
-                if (time < 90.0f)
+                if (time < 75.0f)
                 {
-                    state = SEARCH_JOG_PEND;
-
+                    state = SEARCH_BRAKE_VELOCITY;
                     if (g_sysData.tapeTach > 35.0f)
                         state = SEARCH_BRAKE_PHASE;
                 }
@@ -395,7 +395,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             case SEARCH_BEGIN_NEAR:
                 if (time < 45.0f)
                 {
-                    state = SEARCH_JOG_PEND;
+                    state = SEARCH_BRAKE_VELOCITY;
                 }
                 break;
 
@@ -406,63 +406,98 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 //    Transport_Rew(shuttle_vel);
                 //else
                 //    Transport_Fwd(shuttle_vel);
-                state = SEARCH_JOG_PEND;
-                /* Fall through to next state.. */
-
-			case SEARCH_JOG_PEND:
+                state = SEARCH_BRAKE_VELOCITY;
+                /*
+                 * Fall through to next state and check velocity...
+                 */
+			case SEARCH_BRAKE_VELOCITY:
 			    /* Wait for velocity to drop to 25 or below */
-			    if (g_sysData.tapeTach <= 25.0f)
-			    {
-			        CLI_printf("JOG STATE\n");
+			    if (g_sysData.tapeTach > 25.0f)
+			        break;
 
-	                /* Begin jog at low speed! */
-	                if (dir == DIR_FWD)
-	                    Transport_Fwd(120);
-	                else
-	                    Transport_Rew(120);
-
-			        state = SEARCH_ZERO_CROSS;
-			    }
-			    break;
-
-			case SEARCH_JOG_STATE:
-			    /* Switch direction! */
+		        CLI_printf("SLOW SHUTTLE\n");
+                /* Begin low speed shuttle */
                 if (dir == DIR_FWD)
                     Transport_Fwd(120);
                 else
                     Transport_Rew(120);
+
+                state = SEARCH_PAST_ZERO;
+			    break;
+
+			case SEARCH_PAST_ZERO:
+
+			    /* ZERO CROSS - check taking direction into account */
+
+	            if (dir == DIR_FWD)
+	            {
+	                if (idist < -300)
+	                {
+	                    CLI_printf("PASSED ZERO BY %d - CHANGE DIR\n", idist);
+                        last_dir = g_sysData.tapeDirection;
+	                    /* FORWARD overshoot, change direction */
+	                    Transport_Rew(250);
+                        state = SEARCH_ZERO_DIR;
+	                }
+	            }
+	            else
+	            {
+	                if (idist > 300)
+	                {
+                        CLI_printf("PASSED ZERO BY %d - CHANGE DIR\n", idist);
+                        last_dir = g_sysData.tapeDirection;
+	                    /* REWIND overshoot, change direction */
+	                    Transport_Fwd(250);
+	                    state = SEARCH_ZERO_DIR;
+	                }
+	            }
+			    break;
+
+			case SEARCH_ZERO_DIR:
+#if 0
+                if (Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_03, 2000))
+                {
+                    CLI_printf("DIRECTION CHANGE EVENT\n");
+                }
                 state = SEARCH_ZERO_CROSS;
+#else
+                /* Wait for tape direction to change */
+			    if (g_sysData.tapeDirection != last_dir)
+			    {
+                    CLI_printf("DIRECTION CHANGE EVENT\n");
+	                state = SEARCH_ZERO_CROSS;
+			    }
+#endif
                 break;
 
-			case SEARCH_ZERO_CROSS:
-			    /* Last state, we check zero cross always */
+            case SEARCH_ZERO_CROSS:
+
+                /* ZERO CROSS - check taking direction into account */
+
+                //CLI_printf("idist=%d\n", idist);
+
+                if (dir == DIR_FWD)
+                {
+                    if (idist >= 300)
+                        done = TRUE;
+                }
+                else
+                {
+                    if (idist <= 300)
+                        done = TRUE;
+                }
+
+                if (done)
+                {
+                    Transport_Stop();
+                    CLI_printf("ZERO CROSS %d\n", idist);
+                }
+                break;
+
+            default:
+			    /* invalid state! */
+			    done = TRUE;
 			    break;
-
-			default:
-			    break;
-			}
-
-			/* ZERO CROSS - check taking direction into account */
-
-			if (dir == DIR_FWD)
-			{
-				if (idist < 0)
-				{
-				    /* FORWARD overshoot, change direction */
-                    Transport_Rew(300);
-                    Task_sleep(1500);
-					break;
-				}
-			}
-			else
-			{
-				if (idist > 0)
-				{
-				    /* REWIND overshoot, change direction */
-				    Transport_Fwd(300);
-                    Task_sleep(1500);
-					break;
-				}
 			}
 
 			/* Check for a new locate command. It's possible the user may have requested
@@ -480,18 +515,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 /* New search requested? */
 	            if (msg.command == LOCATE_SEARCH)
 	            {
-	                itemp = (size_t)msg.param1;
-
-	                if (itemp > MAX_CUE_POINTS)
+	                /* Get valid cue point index */
+	                if ((itemp = (size_t)msg.param1) > MAX_CUE_POINTS)
 	                    continue;
-
 	                /* Is the new cue point is active? */
 	                if (g_sysData.cuePoint[itemp].flags == 0)
 	                    continue;
-
 	                /* Switch to new cue point index */
 	                cue_index = itemp;
-
 	                /* Reset initial search state machine */
 	                state = SEARCH_START_STATE;
 	            }
@@ -499,12 +530,15 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 	        /* Check for search cancel */
             if (g_sysData.searchCancel)
-                cancel = TRUE;
+            {
+                done = TRUE;
+                break;
+            }
 	    }
 
 	    /* Send STOP button pulse to stop transport */
-	    //GPIOPulseLow(Board_STOP_N, BUTTON_PULSE_TIME);
-	    Transport_Stop();
+	    if (!g_sysData.searchCancel)
+	        Transport_Stop();
 
 	    /* Set SEARCHING_OUT status i/o pin */
 	    GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -535,6 +569,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 //
 //*****************************************************************************
 
+#if 0
 void GPIOPulseLow(uint32_t index, uint32_t duration)
 {
     /* Set the i/o pin to low state */
@@ -544,6 +579,7 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
     /* Return i/o pin to high state */
     GPIO_write(index, PIN_HIGH);
 }
+#endif
 
 /*****************************************************************************
  * DTC-1200 TRANSPORT COMMANDS

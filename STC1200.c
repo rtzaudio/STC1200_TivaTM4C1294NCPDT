@@ -97,10 +97,10 @@
 
 #include "STC1200.h"
 #include "Board.h"
-#include "DisplayTask.h"
-#include "RemoteTask.h"
 #include "CLITask.h"
 #include "IPCTask.h"
+#include "DisplayTask.h"
+#include "RemoteTask.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
@@ -192,7 +192,6 @@ int main(void)
     return (0);
 }
 
-
 //*****************************************************************************
 // This function attempts to ready the unique serial number
 // from the I2C
@@ -267,7 +266,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     while (TRUE)
     {
-        timeout =  (g_sysData.searching) ? 250 : 500;
+        /* Blink LED fast when search in progress */
+        timeout =  (g_sysData.searching) ? 250 : 1000;
 
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxCommand, &msgCmd, timeout))
@@ -289,6 +289,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					/* Zero tape timer at current tape location */
 					PositionZeroReset();
+					/* Clear all cue points */
+                    CuePointClearAll();
 				}
 
 				Debounce_buttonLO(Board_BTN_RESET);
