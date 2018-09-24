@@ -72,10 +72,10 @@
 #include <stdbool.h>
 
 #include <driverlib/sysctl.h>
+#include <IPCServer.h>
 
 /* Board Header file */
 #include "Board.h"
-#include "IPCTask.h"
 #include "CLITask.h"
 
 /* External Data Items */

@@ -63,7 +63,7 @@ typedef struct _RAMP_SVR_OBJECT {
 
 Bool RAMP_Server_init(void);
 
-Bool RAMP_Message_post(RAMP_ELEM* elem, UInt32 timeout);
-Bool RAMP_Message_pend(RAMP_ELEM* elem, UInt32 timeout);
+Bool RAMP_post(RAMP_ELEM* msg, UInt32 timeout);
+Bool RAMP_pend(RAMP_ELEM* msg, UInt32 timeout);
 
 #endif /* __REMOTETASK_H */

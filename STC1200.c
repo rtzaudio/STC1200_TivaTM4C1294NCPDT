@@ -91,6 +91,8 @@
 
 /* Graphiclib Header file */
 #include <grlib/grlib.h>
+#include <IPCServer.h>
+#include <RAMPServer.h>
 #include "drivers/offscrmono.h"
 
 /* STC1200 Board Header file */
@@ -98,9 +100,7 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "CLITask.h"
-#include "IPCTask.h"
 #include "DisplayTask.h"
-#include "RemoteTask.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0

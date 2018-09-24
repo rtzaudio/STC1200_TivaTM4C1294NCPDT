@@ -86,10 +86,10 @@
 #include <driverlib/sysctl.h>
 #include <driverlib/qei.h>
 #include <driverlib/pin_map.h>
+#include <IPCServer.h>
 
 #include "STC1200.h"
 #include "Board.h"
-#include "IPCTask.h"
 #include "CLITask.h"
 
 /* Local Constants */
@@ -106,7 +106,7 @@ extern Mailbox_Handle g_mailboxLocate;
 
 /* Static Function Prototypes */
 
-static void GPIOPulseLow(uint32_t index, uint32_t duration);
+//static void GPIOPulseLow(uint32_t index, uint32_t duration);
 
 Bool Transport_Stop(void);
 Bool Transport_Play(void);

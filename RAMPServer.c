@@ -1,15 +1,4 @@
-/* ============================================================================
- *
- * DTC-1200 & STC-1200 Digital Transport Controllers for
- * Ampex MM-1200 Tape Machines
- *
- * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
- * All Rights Reserved
- *
- * RTZ is registered trademark of RTZ Professional Audio, LLC
- *
- * ============================================================================
- *
+/*
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -41,6 +30,11 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ *    ======== tcpEcho.c ========
+ *    Contains BSD sockets code.
+ */
+
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
@@ -49,15 +43,14 @@
 #include <xdc/runtime/Gate.h>
 #include <xdc/runtime/Memory.h>
 
-#include <ti/sysbios/BIOS.h>
-
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
-#include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/knl/Event.h>
-#include <ti/sysbios/knl/Queue.h>
 #include <ti/sysbios/knl/Mailbox.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Queue.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -66,7 +59,8 @@
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>
 
-#include <driverlib/sysctl.h>
+/* NDK BSD support */
+#include <sys/socket.h>
 
 #include <file.h>
 #include <stdio.h>
@@ -74,17 +68,36 @@
 #include <ctype.h>
 #include <stdbool.h>
 
-/* Board Header file */
+#include <driverlib/sysctl.h>
+
+/* Graphiclib Header file */
+#include <grlib/grlib.h>
+#include <RAMPServer.h>
+#include "drivers/offscrmono.h"
+
+/* PMX42 Board Header file */
 #include "Board.h"
-#include "IPCTask.h"
+#include "RAMP.h"
+#include "STC1200.h"
+
+/* External Data Items */
+
+extern SYSDATA g_sysData;
 
 /* Global Data Items */
-static IPCSVR_OBJECT g_ipc;
+
+UART_Handle g_handleUart422;
+FCB g_txFcb;
 
 /* Static Function Prototypes */
-static Void IPCReaderTaskFxn(UArg a0, UArg a1);
-static Void IPCWriterTaskFxn(UArg arg0, UArg arg1);
-static Void IPCWorkerTaskFxn(UArg arg0, UArg arg1);
+
+/* Global Data Items */
+static RAMP_SVR_OBJECT g_svr;
+
+/* Static Function Prototypes */
+static Void RAMPReaderTaskFxn(UArg a0, UArg a1);
+static Void RAMPWriterTaskFxn(UArg arg0, UArg arg1);
+static Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1);
 
 //*****************************************************************************
 // This function initializes the IPC server and creates all it's worker
@@ -92,15 +105,17 @@ static Void IPCWorkerTaskFxn(UArg arg0, UArg arg1);
 // semaphores needed to manage the queues and tasks.
 //*****************************************************************************
 
-Bool IPC_Server_init(void)
+Bool RAMP_Server_init(void)
 {
     Int i;
-    IPC_ELEM* msg;
+    RAMP_ELEM* msg;
     Error_Block eb;
     UART_Params uartParams;
     Task_Params taskParams;
 
-    /* Open the UART for binary mode */
+    /*
+     * Open the UART for RS-422 communications
+     */
 
     UART_Params_init(&uartParams);
 
@@ -118,28 +133,29 @@ Bool IPC_Server_init(void)
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
-    g_ipc.uartHandle = UART_open(Board_UART_IPC, &uartParams);
+    g_svr.uartHandle = UART_open(Board_UART_RS422_REMOTE, &uartParams);
 
-    if (g_ipc.uartHandle == NULL)
+    if (g_svr.uartHandle == NULL)
         System_abort("Error initializing UART\n");
 
+    /* Assert the RS-422 DE & RE pins */
+    GPIO_write(Board_RS422_DE, PIN_HIGH);
+    GPIO_write(Board_RS422_RE_N, PIN_LOW);
+
     /* Create the queues needed */
-    g_ipc.txFreeQue = Queue_create(NULL, NULL);
-    g_ipc.txDataQue = Queue_create(NULL, NULL);
-    g_ipc.rxFreeQue = Queue_create(NULL, NULL);
-    g_ipc.rxDataQue = Queue_create(NULL, NULL);
+    g_svr.txFreeQue = Queue_create(NULL, NULL);
+    g_svr.txDataQue = Queue_create(NULL, NULL);
+    g_svr.rxFreeQue = Queue_create(NULL, NULL);
+    g_svr.rxDataQue = Queue_create(NULL, NULL);
 
     /* Create semaphores needed */
-    g_ipc.txFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
-    g_ipc.txDataSem = Semaphore_create(0, NULL, NULL);
-    g_ipc.rxFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
-    g_ipc.rxDataSem = Semaphore_create(0, NULL, NULL);
+    g_svr.txFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
+    g_svr.txDataSem = Semaphore_create(0, NULL, NULL);
+    g_svr.rxFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
+    g_svr.rxDataSem = Semaphore_create(0, NULL, NULL);
 
     Error_init(&eb);
-    g_ipc.ackEvent  = Event_create(NULL, NULL);
-
-    g_ipc.datagramHandlerFxn    = NULL;
-    g_ipc.transactionHandlerFxn = NULL;
+    g_svr.ackEvent  = Event_create(NULL, NULL);
 
     /*
      * Allocate and Initialize TRANSMIT Buffer Memory
@@ -147,16 +163,16 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.txBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
+    g_svr.txBuf = (RAMP_ELEM*)Memory_alloc(NULL, sizeof(RAMP_ELEM) * MAX_WINDOW, 0, &eb);
 
-    if (g_ipc.txBuf == NULL)
+    if (g_svr.txBuf == NULL)
         System_abort("TxBuf allocation failed");
 
-    msg = g_ipc.txBuf;
+    msg = g_svr.txBuf;
 
     /* Put all tx message buffers on the freeQueue */
     for (i=0; i < MAX_WINDOW; i++, msg++) {
-        Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem*)msg);
+        Queue_enqueue(g_svr.txFreeQue, (Queue_Elem*)msg);
     }
 
     /*
@@ -165,16 +181,16 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.rxBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
+    g_svr.rxBuf = (RAMP_ELEM*)Memory_alloc(NULL, sizeof(RAMP_ELEM) * MAX_WINDOW, 0, &eb);
 
-    if (g_ipc.rxBuf == NULL)
+    if (g_svr.rxBuf == NULL)
         System_abort("RxBuf allocation failed");
 
-    msg = g_ipc.rxBuf;
+    msg = g_svr.rxBuf;
 
     /* Put all tx message buffers on the freeQueue */
     for (i=0; i < MAX_WINDOW; i++, msg++) {
-        Queue_enqueue(g_ipc.rxFreeQue, (Queue_Elem*)msg);
+        Queue_enqueue(g_svr.rxFreeQue, (Queue_Elem*)msg);
     }
 
     /*
@@ -183,23 +199,23 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.ackBuf = (IPC_ACK*)Memory_alloc(NULL, sizeof(IPC_ACK) * MAX_WINDOW, 0, &eb);
+    g_svr.ackBuf = (RAMP_ACK*)Memory_alloc(NULL, sizeof(RAMP_ACK) * MAX_WINDOW, 0, &eb);
 
-    if (g_ipc.ackBuf == NULL)
+    if (g_svr.ackBuf == NULL)
         System_abort("AckBuf allocation failed");
 
     /* Initialize Server Data Items */
 
-    g_ipc.txErrors      = 0;
-    g_ipc.txCount       = 0;
-    g_ipc.txNumFreeMsgs = MAX_WINDOW;
-    g_ipc.txNextSeq     = MIN_SEQ_NUM;      /* current tx sequence# */
+    g_svr.txErrors      = 0;
+    g_svr.txCount       = 0;
+    g_svr.txNumFreeMsgs = MAX_WINDOW;
+    g_svr.txNextSeq     = MIN_SEQ_NUM;      /* current tx sequence# */
 
-    g_ipc.rxErrors      = 0;
-    g_ipc.rxCount       = 0;
-    g_ipc.rxNumFreeMsgs = MAX_WINDOW;
-    g_ipc.rxLastSeq     = 0;                /* last seq# accepted   */
-    g_ipc.rxExpectedSeq = MIN_SEQ_NUM;      /* expected recv seq#   */
+    g_svr.rxErrors      = 0;
+    g_svr.rxCount       = 0;
+    g_svr.rxNumFreeMsgs = MAX_WINDOW;
+    g_svr.rxLastSeq     = 0;                /* last seq# accepted   */
+    g_svr.rxExpectedSeq = MIN_SEQ_NUM;      /* expected recv seq#   */
 
     /*
      * Finally, create the reader, writer and worker tasks
@@ -209,19 +225,25 @@ Bool IPC_Server_init(void)
     Task_Params_init(&taskParams);
     taskParams.stackSize = 700;
     taskParams.priority  = 6;
-    Task_create((Task_FuncPtr)IPCWriterTaskFxn, &taskParams, &eb);
+    taskParams.arg0      = (UArg)&g_svr;
+    taskParams.arg1      = 0;
+    Task_create((Task_FuncPtr)RAMPWriterTaskFxn, &taskParams, &eb);
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 700;
     taskParams.priority  = 6;
-    Task_create((Task_FuncPtr)IPCReaderTaskFxn, &taskParams, &eb);
+    taskParams.arg0      = (UArg)&g_svr;
+    taskParams.arg1      = 0;
+    Task_create((Task_FuncPtr)RAMPReaderTaskFxn, &taskParams, &eb);
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 1500;
     taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)IPCWorkerTaskFxn, &taskParams, &eb);
+    taskParams.arg0      = (UArg)&g_svr;
+    taskParams.arg1      = 0;
+    Task_create((Task_FuncPtr)RAMPWorkerTaskFxn, &taskParams, &eb);
 
     return TRUE;
 }
@@ -231,16 +253,16 @@ Bool IPC_Server_init(void)
 // counter to the next frame sequence number.
 //*****************************************************************************
 
-uint8_t IPC_GetTxSeqNum(void)
+uint8_t RAMP_GetTxSeqNum(void)
 {
     /* increment sequence number atomically */
     UInt key = Hwi_disable();
 
     /* Get the next frame sequence number */
-    uint8_t seqnum = g_ipc.txNextSeq;
+    uint8_t seqnum = g_svr.txNextSeq;
 
     /* Increment the servers sequence number */
-    g_ipc.txNextSeq = INC_SEQ_NUM(seqnum);
+    g_svr.txNextSeq = INC_SEQ_NUM(seqnum);
 
     /* re-enable ints */
     Hwi_restore(key);
@@ -255,24 +277,25 @@ uint8_t IPC_GetTxSeqNum(void)
 // period specified.
 //*****************************************************************************
 
-Bool IPC_Message_pend(IPCMSG* msg, FCB* fcb, UInt32 timeout)
+Bool RAMP_pend(RAMP_ELEM* msg, UInt32 timeout)
 {
+#if 0
     UInt key;
     IPC_ELEM* elem;
 
-    if (Semaphore_pend(g_ipc.rxDataSem, timeout))
+    if (Semaphore_pend(g_svr.rxDataSem, timeout))
     {
         /* get message from dataQue */
-        elem = Queue_get(g_ipc.rxDataQue);
+        elem = Queue_get(g_svr.rxDataQue);
 
         /* perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();
 
         /* put message on freeQue */
-        Queue_enqueue(g_ipc.rxFreeQue, (Queue_Elem *)elem);
+        Queue_enqueue(g_svr.rxFreeQue, (Queue_Elem *)elem);
 
         /* increment numFreeMsgs */
-        g_ipc.rxNumFreeMsgs++;
+        g_svr.rxNumFreeMsgs++;
 
         /* re-enable ints */
         Hwi_restore(key);
@@ -282,11 +305,11 @@ Bool IPC_Message_pend(IPCMSG* msg, FCB* fcb, UInt32 timeout)
         memcpy(fcb, &(elem->fcb), sizeof(FCB));
 
         /* post the semaphore */
-        Semaphore_post(g_ipc.rxFreeSem);
+        Semaphore_post(g_svr.rxFreeSem);
 
         return TRUE;
     }
-
+#endif
     return FALSE;
 }
 
@@ -296,47 +319,50 @@ Bool IPC_Message_pend(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 // transmission within the timeout period specified.
 //*****************************************************************************
 
-Bool IPC_Message_post(IPCMSG* msg, FCB* fcb, UInt32 timeout)
+Bool RAMP_post(RAMP_ELEM* msg, UInt32 timeout)
 {
     UInt key;
-    IPC_ELEM* elem;
+    RAMP_ELEM* elem;
 
     /* Wait for a free transmit buffer and timeout if necessary */
-    if (Semaphore_pend(g_ipc.txFreeSem, timeout))
+    if (Semaphore_pend(g_svr.txFreeSem, timeout))
     {
         /* perform the dequeue and decrement numFreeMsgs atomically */
         key = Hwi_disable();
 
         /* get a message from the free queue */
-        elem = Queue_dequeue(g_ipc.txFreeQue);
+        elem = Queue_dequeue(g_svr.txFreeQue);
 
         /* Make sure that a valid pointer was returned. */
-        if (elem == (IPC_ELEM*)(g_ipc.txFreeQue))
+        if (elem == (RAMP_ELEM*)(g_svr.txFreeQue))
         {
             Hwi_restore(key);
             return FALSE;
         }
 
         /* decrement the numFreeMsgs */
-        g_ipc.txNumFreeMsgs--;
+        g_svr.txNumFreeMsgs--;
 
         /* re-enable ints */
         Hwi_restore(key);
 
-        /* copy msg to element */
-        memcpy(&(elem->msg), msg, sizeof(IPCMSG));
-        memcpy(&(elem->fcb), fcb, sizeof(FCB));
+        /* Save pointer to data buffer */
+        elem->textbuf = msg->textbuf;
+        elem->textlen = msg->textlen;
+
+        /* copy FCB info to element */
+        memcpy(&(elem->fcb), &(msg->fcb), sizeof(FCB));
 
         /* put message on txDataQueue */
-        if (fcb->type & F_PRIORITY)
-            Queue_putHead(g_ipc.txDataQue, (Queue_Elem *)elem);
+        if (msg->fcb.type & F_PRIORITY)
+            Queue_putHead(g_svr.txDataQue, (Queue_Elem *)elem);
         else
-            Queue_put(g_ipc.txDataQue, (Queue_Elem *)elem);
+            Queue_put(g_svr.txDataQue, (Queue_Elem *)elem);
 
         /* post the semaphore */
-        Semaphore_post(g_ipc.txDataSem);
+        Semaphore_post(g_svr.txDataSem);
 
-        return TRUE;          /* success */
+        return TRUE;      /* success */
     }
 
     return FALSE;         /* error */
@@ -347,8 +373,10 @@ Bool IPC_Message_post(IPCMSG* msg, FCB* fcb, UInt32 timeout)
 // outgoing transmit message queue and transmits all items from the queue.
 //*****************************************************************************
 
-Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
+Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
 {
+    RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
+#if 0
     UInt key;
     IPC_ELEM* elem;
 
@@ -357,36 +385,37 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a packet in the tx queue */
-        if (!Semaphore_pend(g_ipc.txDataSem, 1000))
+        if (!Semaphore_pend(g_svr.txDataSem, 1000))
         {
             /* Timeout, nothing to send */
             continue;
         }
 
         /* Get the message from txDataQue */
-        elem = Queue_get(g_ipc.txDataQue);
+        elem = Queue_get(g_svr.txDataQue);
 
         /* Transmit the packet! */
-        RAMP_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+        RAMP_TxFrame(g_svr.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
 
         /* Perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();
 
         /* Put message buffer back on the free queue */
-        Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem *)elem);
+        Queue_enqueue(g_svr.txFreeQue, (Queue_Elem *)elem);
 
         /* Increment numFreeMsgs */
-        g_ipc.txNumFreeMsgs++;
+        g_svr.txNumFreeMsgs++;
 
         /* Increment total number of packets transmitted */
-        g_ipc.txCount++;
+        g_svr.txCount++;
 
         /* re-enable ints */
         Hwi_restore(key);
 
         /* post the semaphore */
-        Semaphore_post(g_ipc.txFreeSem);
+        Semaphore_post(g_svr.txFreeSem);
     }
+#endif
 }
 
 //*****************************************************************************
@@ -396,8 +425,10 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 // task that dispatches all the messages between the two peer nodes.
 //*****************************************************************************
 
-Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
+Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
 {
+    RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
+#if 0
     int rc;
     UInt key;
     IPC_ELEM* elem;
@@ -407,7 +438,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a free receive buffer if necessary */
-        if (!Semaphore_pend(g_ipc.rxFreeSem, 1000))
+        if (!Semaphore_pend(g_svr.rxFreeSem, 1000))
         {
             /* See if any packets have not been ACK'ed
              * and re-send if necessary.
@@ -419,17 +450,17 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         key = Hwi_disable();
 
         /* get a rx buffer from the free queue */
-        elem = Queue_dequeue(g_ipc.rxFreeQue);
+        elem = Queue_dequeue(g_svr.rxFreeQue);
 
         /* Make sure that a valid pointer was returned. */
-        if (elem == (IPC_ELEM*)(g_ipc.rxFreeQue))
+        if (elem == (IPC_ELEM*)(g_svr.rxFreeQue))
         {
             Hwi_restore(key);
             continue;
         }
 
         /* decrement the numFreeMsgs */
-        g_ipc.rxNumFreeMsgs--;
+        g_svr.rxNumFreeMsgs--;
 
         /* re-enable ints */
         Hwi_restore(key);
@@ -440,7 +471,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         {
             /* Attempt to read a frame from the peer */
 
-            rc = RAMP_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+            rc = RAMP_RxFrame(g_svr.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
 
             /* Zero means packet received successfully */
             if (rc == 0)
@@ -448,7 +479,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 
             if (rc > ERR_TIMEOUT)
             {
-                g_ipc.rxErrors++;
+                g_svr.rxErrors++;
 
                 System_printf("RAMP_RxFrame Error %d\n", rc);
                 System_flush();
@@ -456,28 +487,32 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         }
 
         /* Packet received, save the sequence number received */
-        g_ipc.rxLastSeq = elem->fcb.seqnum;
+        g_svr.rxLastSeq = elem->fcb.seqnum;
 
         /* Increment the total packets received count */
-        g_ipc.rxCount++;
+        g_svr.rxCount++;
 
         /*Put message on rxDataQueue */
         if (elem->fcb.type & F_PRIORITY)
-            Queue_putHead(g_ipc.rxDataQue, (Queue_Elem*)elem);
+            Queue_putHead(g_svr.rxDataQue, (Queue_Elem*)elem);
         else
-            Queue_put(g_ipc.rxDataQue, (Queue_Elem*)elem);
+            Queue_put(g_svr.rxDataQue, (Queue_Elem*)elem);
 
         /* post the semaphore */
-        Semaphore_post(g_ipc.rxDataSem);
+        Semaphore_post(g_svr.rxDataSem);
     }
+#endif
 }
 
 //*****************************************************************************
 //
 //*****************************************************************************
 
-Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
+Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1)
 {
+    RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
+
+#if 0
     FCB fcb;
     IPCMSG msg;
 
@@ -532,78 +567,16 @@ Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
             size_t index = (size_t)((acknak - 1) % MAX_WINDOW);
 
             /* Save the reply MSG+ACK in the ACK buffer */
-            memcpy(&g_ipc.ackBuf[index].msg, &msg, sizeof(IPCMSG));
+            memcpy(&g_svr.ackBuf[index].msg, &msg, sizeof(IPCMSG));
 
             /* Notify any pending transactions blocked that a MSG+ACK was received */
 
             UInt mask = Event_Id_00 << index;
 
-            Event_post(g_ipc.ackEvent, mask);
+            Event_post(g_svr.ackEvent, mask);
         }
     }
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-Bool IPC_Notify(IPCMSG* msg, UInt32 timeout)
-{
-    FCB fcb;
-
-    fcb.type    = MAKETYPE(F_DATAGRAM, TYPE_MSG_ONLY);
-    fcb.acknak  = 0;
-    fcb.seqnum  = 0;
-    fcb.address = 0;
-
-    return IPC_Message_post(msg, &fcb, timeout);
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-Bool IPC_Transaction(IPCMSG* msg, UInt32 timeout)
-{
-    FCB fcb;
-
-    fcb.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ONLY);
-    fcb.acknak  = 0;
-    fcb.seqnum  = IPC_GetTxSeqNum();
-    fcb.address = 0;
-
-    size_t index = (fcb.seqnum - 1) % MAX_WINDOW;
-
-    g_ipc.ackBuf[index].status = 1;
-    g_ipc.ackBuf[index].retry  = 5;
-    g_ipc.ackBuf[index].acknak = fcb.seqnum;
-    g_ipc.ackBuf[index].type   = fcb.type;
-
-    /* post the message to the transmit queue. We use the
-     * transmit sequence number as our unique identifier
-     * in the received message to locate the corresponding
-     * response packet when it's received later by the
-     * reader task.
-     */
-
-    if (!IPC_Message_post(msg, &fcb, timeout))
-        return FALSE;
-
-    /* Now block until we timeout or the selected bit fires */
-    UInt events = Event_pend(g_ipc.ackEvent, Event_Id_NONE, 0xFFFF, timeout);
-
-    if (events)
-    {
-        /* Return reply in the callers buffer */
-        msg->type   = g_ipc.ackBuf[index].msg.type;
-        msg->opcode = g_ipc.ackBuf[index].msg.opcode;
-        msg->param1 = g_ipc.ackBuf[index].msg.param1;
-        msg->param2 = g_ipc.ackBuf[index].msg.param2;
-
-        return TRUE;
-    }
-
-    return FALSE;
+#endif
 }
 
 // End-Of-File
