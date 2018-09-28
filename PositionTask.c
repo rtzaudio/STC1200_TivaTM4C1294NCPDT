@@ -94,6 +94,7 @@
 /* External Data Items */
 
 extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
 extern Event_Handle g_eventQEI;
 
 /* Static Data Items */
@@ -268,6 +269,15 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 				flags &= ~(F_PLUS);
 			else
 				flags |= F_PLUS;
+
+			/* Blink 7-seg display during searches */
+			if (g_sysParms.searchBlink)
+			{
+                if (g_sysData.searching)
+                    flags |= F_BLINK;
+                else
+                    flags &= ~(F_BLINK);
+			}
 
 			/* Get the current encoder position */
 			float position = fabsf((float)g_sysData.tapePosition);

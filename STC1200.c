@@ -577,8 +577,9 @@ int ReadSerialNumber(uint8_t ui8SerialNumber[16])
 void InitSysDefaults(SYSPARMS* p)
 {
     /* default servo parameters */
-    p->version                  = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    p->debug                    = 0;        /* debug mode 0=off                 */
+    p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    p->debug        = 0;        /* debug mode 0=off                 */
+    p->searchBlink  = TRUE;
 
 }
 
