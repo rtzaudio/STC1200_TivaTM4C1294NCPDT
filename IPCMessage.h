@@ -23,6 +23,7 @@
 /* IPC_TYPE_NOTIFY Operation codes to DTC from STC */
 #define OP_NOTIFY_BUTTON			100
 #define OP_NOTIFY_TRANSPORT			101
+#define OP_NOTIFY_EOT               102
 
 /* IPC_TYPE_CONFIG Operation codes from STC to DTC */
 #define OP_GET_SHUTTLE_VELOCITY     200

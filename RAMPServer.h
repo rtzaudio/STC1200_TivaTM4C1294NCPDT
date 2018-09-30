@@ -14,21 +14,38 @@
 
 #include "RAMP.h"
 
+/*** RAMP MESSAGE STRUCTURE ************************************************/
+
+typedef struct _RAMP_MSG {
+    uint16_t        type;           /* message type/class code     */
+    uint16_t        opcode;         /* application defined op code */
+    union {
+        uint32_t    U;
+        float       F;
+    } param1;                       /* unsigned or float param1 */
+    union {
+        uint32_t    U;
+        float       F;
+    }  param2;                      /* unsigned or float param2 */
+} RAMP_MSG;
+
+/*** RAMP ELEMENT STRUCTURES ***********************************************/
+
 typedef struct _RAMP_ELEM {
     Queue_Elem  elem;
-    FCB         fcb;
-    size_t      textlen;
-    void*       textbuf;
+    RAMP_FCB    fcb;
+    RAMP_MSG    msg;
 } RAMP_ELEM;
 
 typedef struct _RAMP_ACK {
-    uint8_t     status;
+    uint8_t     flags;
     uint8_t     acknak;
     uint8_t     retry;
     uint8_t     type;
+    RAMP_MSG    msg;
 } RAMP_ACK;
 
-/*** CONSTANTS AND CONFIGURATION *******************************************/
+/*** SERVER STRUCTURE ******************************************************/
 
 typedef struct _RAMP_SVR_OBJECT {
     UART_Handle         uartHandle;
@@ -63,7 +80,11 @@ typedef struct _RAMP_SVR_OBJECT {
 
 Bool RAMP_Server_init(void);
 
-Bool RAMP_post(RAMP_ELEM* msg, UInt32 timeout);
-Bool RAMP_pend(RAMP_ELEM* msg, UInt32 timeout);
+Bool RAMP_pend(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout);
+Bool RAMP_post(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout);
+
+Bool RAMP_Send_Display(UInt32 timeout);
+Bool RAMP_Send(RAMP_MSG* msg, UInt32 timeout);
+Bool RAMP_Transaction(RAMP_MSG* txMsg, RAMP_MSG* rxMsg, UInt32 timeout);
 
 #endif /* __REMOTETASK_H */

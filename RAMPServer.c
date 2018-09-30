@@ -81,23 +81,18 @@
 #include "STC1200.h"
 
 /* External Data Items */
-
 extern SYSDATA g_sysData;
 
-/* Global Data Items */
-
-UART_Handle g_handleUart422;
-FCB g_txFcb;
-
 /* Static Function Prototypes */
-
-/* Global Data Items */
 static RAMP_SVR_OBJECT g_svr;
 
 /* Static Function Prototypes */
 static Void RAMPReaderTaskFxn(UArg a0, UArg a1);
 static Void RAMPWriterTaskFxn(UArg arg0, UArg arg1);
 static Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1);
+static void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg);
+static void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg);
+static RAMP_ACK* GetAckBuf(uint8_t acknak);
 
 //*****************************************************************************
 // This function initializes the IPC server and creates all it's worker
@@ -271,17 +266,27 @@ uint8_t RAMP_GetTxSeqNum(void)
 }
 
 //*****************************************************************************
+// Return pointer to ACK buffer based on the sequence number.
+//*****************************************************************************
+
+RAMP_ACK* GetAckBuf(uint8_t seqnum)
+{
+    size_t index = (size_t)((seqnum - 1) % MAX_WINDOW);
+
+    return &g_svr.ackBuf[index];
+}
+
+//*****************************************************************************
 // This function blocks until an IPC message is available in the rx queue or
 // the timeout expires. A return FALSE value indicates the timeout expired
 // or a buffer never became available for the receiver within the timeout
 // period specified.
 //*****************************************************************************
 
-Bool RAMP_pend(RAMP_ELEM* msg, UInt32 timeout)
+Bool RAMP_pend(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout)
 {
-#if 0
     UInt key;
-    IPC_ELEM* elem;
+    RAMP_ELEM* elem;
 
     if (Semaphore_pend(g_svr.rxDataSem, timeout))
     {
@@ -301,15 +306,15 @@ Bool RAMP_pend(RAMP_ELEM* msg, UInt32 timeout)
         Hwi_restore(key);
 
         /* return message and fcb data to caller */
-        memcpy(msg, &(elem->msg), sizeof(IPCMSG));
-        memcpy(fcb, &(elem->fcb), sizeof(FCB));
+        memcpy(fcb, &(elem->fcb), sizeof(RAMP_FCB));
+        memcpy(msg, &(elem->msg), sizeof(RAMP_MSG));
 
         /* post the semaphore */
         Semaphore_post(g_svr.rxFreeSem);
 
         return TRUE;
     }
-#endif
+
     return FALSE;
 }
 
@@ -319,7 +324,7 @@ Bool RAMP_pend(RAMP_ELEM* msg, UInt32 timeout)
 // transmission within the timeout period specified.
 //*****************************************************************************
 
-Bool RAMP_post(RAMP_ELEM* msg, UInt32 timeout)
+Bool RAMP_post(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout)
 {
     UInt key;
     RAMP_ELEM* elem;
@@ -346,15 +351,16 @@ Bool RAMP_post(RAMP_ELEM* msg, UInt32 timeout)
         /* re-enable ints */
         Hwi_restore(key);
 
-        /* Save pointer to data buffer */
-        elem->textbuf = msg->textbuf;
-        elem->textlen = msg->textlen;
+        /* copy FCB & MSG to element */
+        memcpy(&(elem->fcb), fcb, sizeof(RAMP_FCB));
 
-        /* copy FCB info to element */
-        memcpy(&(elem->fcb), &(msg->fcb), sizeof(FCB));
+        if (msg)
+            memcpy(&(elem->msg), msg, sizeof(RAMP_MSG));
+        else
+            memset(&(elem->msg), 0, sizeof(RAMP_MSG));
 
         /* put message on txDataQueue */
-        if (msg->fcb.type & F_PRIORITY)
+        if (fcb->type & F_PRIORITY)
             Queue_putHead(g_svr.txDataQue, (Queue_Elem *)elem);
         else
             Queue_put(g_svr.txDataQue, (Queue_Elem *)elem);
@@ -375,10 +381,12 @@ Bool RAMP_post(RAMP_ELEM* msg, UInt32 timeout)
 
 Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
 {
-    RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
-#if 0
     UInt key;
-    IPC_ELEM* elem;
+    RAMP_ELEM* elem;
+    void* textbuf;
+    uint16_t textlen;
+
+    //RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
 
     /* Begin the packet transmit task loop */
 
@@ -395,7 +403,19 @@ Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
         elem = Queue_get(g_svr.txDataQue);
 
         /* Transmit the packet! */
-        RAMP_TxFrame(g_svr.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+        if ((elem->fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_USER)
+        {
+            textbuf = GrGetScreenBuffer();
+            textlen = GrGetScreenBufferSize();
+        }
+        else
+        {
+            textbuf = &(elem->msg);
+            textlen = sizeof(RAMP_MSG);
+        }
+
+        /* Transmit the packet frame out */
+        RAMP_TxFrame(g_svr.uartHandle, &(elem->fcb), textbuf, textlen);
 
         /* Perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();
@@ -415,7 +435,6 @@ Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
         /* post the semaphore */
         Semaphore_post(g_svr.txFreeSem);
     }
-#endif
 }
 
 //*****************************************************************************
@@ -427,11 +446,11 @@ Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
 
 Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
 {
-    RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
-#if 0
     int rc;
     UInt key;
-    IPC_ELEM* elem;
+    RAMP_ELEM* elem;
+
+    //RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
 
     /* Begin the packet receive task loop */
 
@@ -453,7 +472,7 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
         elem = Queue_dequeue(g_svr.rxFreeQue);
 
         /* Make sure that a valid pointer was returned. */
-        if (elem == (IPC_ELEM*)(g_svr.rxFreeQue))
+        if (elem == (RAMP_ELEM*)(g_svr.rxFreeQue))
         {
             Hwi_restore(key);
             continue;
@@ -471,7 +490,7 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
         {
             /* Attempt to read a frame from the peer */
 
-            rc = RAMP_RxFrame(g_svr.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+            rc = RAMP_RxFrame(g_svr.uartHandle, &(elem->fcb), &(elem->msg), sizeof(RAMP_MSG));
 
             /* Zero means packet received successfully */
             if (rc == 0)
@@ -501,7 +520,6 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
         /* post the semaphore */
         Semaphore_post(g_svr.rxDataSem);
     }
-#endif
 }
 
 //*****************************************************************************
@@ -510,17 +528,16 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
 
 Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1)
 {
-    RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
+    RAMP_FCB fcb;
+    RAMP_MSG msg;
 
-#if 0
-    FCB fcb;
-    IPCMSG msg;
+    //RAMP_SVR_OBJECT* obj = (RAMP_SVR_OBJECT*)arg0;
 
     while (1)
     {
         /* Wait for a RAMP message from peer */
 
-        if (!IPC_Message_pend(&msg, &fcb, 1000))
+        if (!RAMP_pend(&fcb, &msg, 1000))
         {
             /* Timeout, no message received, check to see if we have
              * any messages with ACK pending that haven't been
@@ -547,36 +564,147 @@ Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1)
         if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ONLY)
         {
             if (fcb.type & F_DATAGRAM)
-                IPC_Handle_datagram(&msg, &fcb);
+                RAMP_Handle_datagram(&fcb, &msg);
             else
-                IPC_Handle_transaction(&msg, &fcb, 1000);
+                RAMP_Handle_message(&fcb, &msg);
+        }
+        else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_USER)
+        {
+            /* User defined messages are used to indicate the
+             * message contains a single large frame of display
+             * buffer memory. In this case the OLED display data
+             * is received directly into the display buffer.
+             */
+
         }
         else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ACK)
         {
-            /* Handle MSG+ACK response from peer */
-
             uint8_t acknak = fcb.acknak;
 
+            /* Handle ACK response from peer */
             if ((acknak < MIN_SEQ_NUM) || (acknak > MAX_SEQ_NUM))
             {
                 System_printf("IPC invalid ACK seqnum\n");
                 System_flush();
                 continue;
+
             }
 
-            size_t index = (size_t)((acknak - 1) % MAX_WINDOW);
+            RAMP_ACK* ack = GetAckBuf(acknak);
 
             /* Save the reply MSG+ACK in the ACK buffer */
-            memcpy(&g_svr.ackBuf[index].msg, &msg, sizeof(IPCMSG));
+            memcpy(&(ack->msg), &msg, sizeof(RAMP_MSG));
+
+            ack->flags  = 0x01;
+            ack->type   = fcb.type;
+            ack->acknak = acknak;
+            ack->retry  = 0;
 
             /* Notify any pending transactions blocked that a MSG+ACK was received */
+
+            size_t index = (size_t)((acknak - 1) % MAX_WINDOW);
 
             UInt mask = Event_Id_00 << index;
 
             Event_post(g_svr.ackEvent, mask);
         }
     }
-#endif
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg)
+{
+
+}
+
+void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg)
+{
+
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+Bool RAMP_Send_Display(UInt32 timeout)
+{
+    RAMP_FCB fcb;
+
+    fcb.type    = MAKETYPE(F_PRIORITY, TYPE_MSG_USER);
+    fcb.acknak  = 0;
+    fcb.seqnum  = RAMP_GetTxSeqNum();
+    fcb.address = 0;
+
+    return RAMP_post(&fcb, NULL, timeout);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+Bool RAMP_Send_Message(RAMP_MSG* msg, UInt32 timeout)
+{
+    RAMP_FCB fcb;
+
+    fcb.type    = MAKETYPE(0, TYPE_MSG_ONLY);
+    fcb.acknak  = 0;
+    fcb.seqnum  = RAMP_GetTxSeqNum();
+    fcb.address = 0;
+
+    return RAMP_post(&fcb, msg, timeout);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+Bool RAMP_Transaction(RAMP_MSG* txmsg, RAMP_MSG* rxmsg, UInt32 timeout)
+{
+    RAMP_FCB fcb;
+    RAMP_ACK* ack;
+
+    fcb.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ONLY);
+    fcb.acknak  = 0;
+    fcb.seqnum  = RAMP_GetTxSeqNum();
+    fcb.address = 0;
+
+    ack = GetAckBuf(fcb.seqnum);
+
+    ack->flags  = 0x01;          /* ACK pending flag */
+    ack->retry  = 5;
+    ack->acknak = fcb.seqnum;
+    ack->type   = fcb.type;
+
+    /* post the message to the transmit queue. We use the
+     * transmit sequence number as our unique identifier
+     * in the received message to locate the corresponding
+     * response packet when it's received later by the
+     * reader task.
+     */
+
+    if (!RAMP_post(&fcb, txmsg, timeout))
+    {
+        /* ACK no longer pending */
+        ack->flags = 0x00;
+        return FALSE;
+    }
+
+    /* Now block until we timeout or the selected bit fires */
+    UInt events = Event_pend(g_svr.ackEvent, Event_Id_NONE, 0xFFFF, timeout);
+
+    if (events)
+    {
+        /* Return reply in the callers buffer */
+        memcpy(rxmsg, &(ack->msg), sizeof(RAMP_MSG));
+        /* ACK no longer pending */
+        ack->flags = 0x00;
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 // End-Of-File
