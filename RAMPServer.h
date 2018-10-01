@@ -13,6 +13,7 @@
 #define __REMOTETASK_H
 
 #include "RAMP.h"
+#include "RAMPMessage.h"
 
 /*** RAMP MESSAGE STRUCTURE ************************************************/
 

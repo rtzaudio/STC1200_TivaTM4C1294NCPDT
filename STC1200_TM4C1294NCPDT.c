@@ -58,6 +58,7 @@
 #include <driverlib/sysctl.h>
 #include <driverlib/uart.h>
 #include <driverlib/udma.h>
+#include <driverlib/eeprom.h>
 
 #include "STC1200_TM4C1294NCPDT.h"
 
@@ -160,7 +161,17 @@ void STC1200_initGeneral(void)
     // Enable pin PL2 for QEI0 PHB0
     GPIOPinConfigure(GPIO_PL2_PHB0);
     GPIOPinTypeQEI(GPIO_PORTL_BASE, GPIO_PIN_2);
+
+    // Initialize the EEPROM so we can access it later
+
+    SysCtlPeripheralEnable(SYSCTL_PERIPH_EEPROM0);
+
+    if (EEPROMInit() != EEPROM_INIT_OK)
+        System_abort("EEPROMInit() failed!\n");
+
+    uint32_t size = EEPROMSizeGet();
 }
+
 /*
  *  =============================== EMAC ===============================
  */

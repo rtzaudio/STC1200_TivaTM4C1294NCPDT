@@ -28,21 +28,54 @@
 // format as used by some mono display controllers like the SSD1309.
 
 //*****************************************************************************
+
+/* XDCtools Header files */
+#include <xdc/std.h>
+#include <xdc/cfg/global.h>
+#include <xdc/runtime/System.h>
+#include <xdc/runtime/Error.h>
+#include <xdc/runtime/Gate.h>
+#include <xdc/runtime/Memory.h>
+
+/* BIOS Header files */
+#include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/knl/Event.h>
+#include <ti/sysbios/knl/Mailbox.h>
+#include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/family/arm/m3/Hwi.h>
+
+/* TI-RTOS Driver files */
+#include <ti/drivers/GPIO.h>
+#include <ti/drivers/SDSPI.h>
+#include <ti/drivers/I2C.h>
+#include <ti/drivers/UART.h>
+
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <driverlib/debug.h>
 #include <grlib/grlib.h>
 
-#include "offscrmono.h"
+#include <driverlib/sysctl.h>
 
-unsigned char g_ucScreenBuffer[SCREEN_BUFSIZE];
+/* Graphiclib Header file */
+#include <grlib/grlib.h>
+
+#include "offscrmono.h"
+#include "../RAMPServer.h"
+
+/* Global context for drawing */
+tContext g_context;
 
 /* FEMA OLED Display buffer context for grlib */
 tDisplay g_FEMA128x64;
 
-/* Global context for drawing */
-tContext g_context;
+/* Display buffer memory */
+unsigned char g_ucScreenBuffer[SCREEN_BUFSIZE];
+
 
 //*****************************************************************************
 //
@@ -277,6 +310,36 @@ GrOffScreenMonoColorTranslate(void *pvDisplayData, uint32_t ui32Value)
 }
 
 //*****************************************************************************
+// GLOBAL GRAPHICS INTERFACE FUNCTIONS
+//*****************************************************************************
+
+//*****************************************************************************
+//
+//! Get the size of the offscreen video buffer memory.
+//!
+//! \return Buffer size in bytes.
+//
+//*****************************************************************************
+
+int GrGetScreenBufferSize(void)
+{
+    return SCREEN_BUFSIZE;
+}
+
+//*****************************************************************************
+//
+//! Get the size of the offscreen video buffer memory.
+//!
+//! \return Buffer size in bytes.
+//
+//*****************************************************************************
+
+unsigned char* GrGetScreenBuffer(void)
+{
+    return &g_ucScreenBuffer[0];
+}
+
+//*****************************************************************************
 //
 //! Flushes any cached drawing operations.
 //!
@@ -294,14 +357,9 @@ GrOffScreenMonoColorTranslate(void *pvDisplayData, uint32_t ui32Value)
 static void
 GrOffScreenMonoFlush(void *pvDisplayData)
 {
-    ASSERT(pvDisplayData);
-
     // Flush the screen buffer to the remote display via RS-422
+    RAMP_Send_Display(1000);
 }
-
-//*****************************************************************************
-// GLOBAL GRAPHICS INTERFACE FUNCTIONS
-//*****************************************************************************
 
 //*****************************************************************************
 //
@@ -354,32 +412,6 @@ GrOffScreenMonoInit()
 
     /* Initialize the graphics context */
     GrContextInit(&g_context, &g_FEMA128x64);
-}
-
-//*****************************************************************************
-//
-//! Get the size of the offscreen video buffer memory.
-//!
-//! \return Buffer size in bytes.
-//
-//*****************************************************************************
-
-int GrGetScreenBufferSize(void)
-{
-	return SCREEN_BUFSIZE;
-}
-
-//*****************************************************************************
-//
-//! Get the size of the offscreen video buffer memory.
-//!
-//! \return Buffer size in bytes.
-//
-//*****************************************************************************
-
-unsigned char* GrGetScreenBuffer(void)
-{
-	return &g_ucScreenBuffer[0];
 }
 
 //*****************************************************************************

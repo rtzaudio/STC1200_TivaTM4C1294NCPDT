@@ -37,8 +37,6 @@ extern tDisplay g_FEMA128x64;
 /* Global context for drawing */
 extern tContext g_context;
 
-//extern unsigned char g_ucScreenBuffer[SCREEN_BUFSIZE];
-
 //*****************************************************************************
 //
 // Prototypes for the globals exported by this driver.

@@ -44,22 +44,24 @@
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/knl/Event.h>
 #include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
-#include <ti/drivers/SDSPI.h>
-#include <ti/drivers/I2C.h>
-
-/* NDK BSD support */
-#include <sys/socket.h>
+#include <ti/drivers/UART.h>
 
 #include <file.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <DRC1200Task.h>
 #include <math.h>
 #include <stdbool.h>
 
@@ -69,23 +71,89 @@
 
 /* PMX42 Board Header file */
 #include "Board.h"
-#include "DisplayTask.h"
 #include "STC1200.h"
+#include "RAMPServer.h"
+#include "DRC1200Task.h"
 
-/* Global context for drawing */
-extern tContext g_context;
-extern tFont *g_psFontWDseg7bold24pt;
-
-/* Handles created dynamically */
-extern Mailbox_Handle g_mailboxDisplay;
-
-extern SYSDATA g_sysData;
+/* Various Local Constants */
+#define LAST_SCREEN     1
 
 /* Static Module Globals */
 uint32_t s_uScreenNum = 0;
 
+/* External Global Data */
+extern tContext g_context;
+extern tFont *g_psFontWDseg7bold24pt;
+extern Mailbox_Handle g_mailboxRemote;
+extern SYSDATA g_sysData;
+
 /* Static Function Prototypes */
+static void ClearDisplay();
+static void DisplayWelcome();
+static void DrawScreen(uint32_t uScreenNum);
 static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
+
+//*****************************************************************************
+// DRC-1200 Wired Remote Controller Task
+//
+// This task handles all communications to the DRC-1200 wired remote via
+// via the RS-422 port on the STC-1200 card. All of the OLED display drawing
+// functions draw into an in-memory display buffer that gets sent to the
+// OLED display in the DRC-1200 remote. The DRC-1200 is basically a dumb
+// terminal display device.
+//
+//*****************************************************************************
+
+Void DRC1200TaskFxn(UArg arg0, UArg arg1)
+{
+    RAMP_MSG msg;
+
+    if (!RAMP_Server_init()) {
+        System_abort("RAMP server init failed");
+    }
+
+    ClearDisplay();
+
+    DisplayWelcome();
+
+    while (TRUE)
+    {
+        /* Wait for a message up to 1 second */
+        if (!Mailbox_pend(g_mailboxRemote, &msg, 1000))
+        {
+            /* No message, blink the LED */
+            //GPIO_toggle(Board_STAT_LED1);
+            continue;
+        }
+
+        switch(msg.type)
+        {
+        case MSG_TYPE_DISPLAY:
+            if (msg.param1.U < LAST_SCREEN)
+                s_uScreenNum = msg.param1.U;
+            DrawScreen(s_uScreenNum);
+            break;
+
+        case MSG_TYPE_SWITCH:
+            ++s_uScreenNum;
+            if (s_uScreenNum > LAST_SCREEN)
+                s_uScreenNum = 0;
+            DrawScreen(s_uScreenNum);
+            break;
+
+        case MSG_TYPE_LED:
+            if (s_uScreenNum)
+                --s_uScreenNum;
+            else if (!s_uScreenNum)
+                s_uScreenNum = LAST_SCREEN;
+            DrawScreen(s_uScreenNum);
+            break;
+
+        default:
+            break;
+        }
+    }
+}
 
 //*****************************************************************************
 // Format a data buffer into an ascii hex string.
@@ -152,7 +220,7 @@ void DisplayWelcome()
     y = 4;
 	GrContextFontSet(&g_context, g_psFontCm28b);
     height = GrStringHeightGet(&g_context);
-    GrStringDraw(&g_context, "PMX42", -1, 21, y, 0);
+    GrStringDraw(&g_context, "STC-1200", -1, 21, y, 0);
     y += height;
 
     /* Switch to fixed system font */
@@ -177,10 +245,8 @@ void DisplayWelcome()
 }
 
 //*****************************************************************************
-// Display the curreent measurement screen data
+// Display the current measurement screen data
 //*****************************************************************************
-
-#define LAST_SCREEN		1
 
 void DrawScreen(uint32_t uScreenNum)
 {
@@ -302,68 +368,6 @@ void DrawScreen(uint32_t uScreenNum)
     }
 
     GrFlush(&g_context);
-}
-
-//*****************************************************************************
-// OLED Display Drawing task
-//
-// It is pending for the message either from console task or from button ISR.
-// Once the messages received, it draws to the screen based on information
-//  contained in the message.
-//
-//*****************************************************************************
-
-Void DisplayTaskFxn(UArg arg0, UArg arg1)
-{
-	//static char lineBuf[65];
-
-    DisplayMessage msg;
-    //unsigned int i = 0;
-    //unsigned int fontHeight;
-
-    //fontHeight = GrStringHeightGet(&g_context);
-
-    ClearDisplay();
-
-    DisplayWelcome();
-
-    while (true)
-    {
-    	/* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxDisplay, &msg, 1000))
-        {
-        	/* No message, blink the LED */
-    		//GPIO_toggle(Board_STAT_LED1);
-        	continue;
-        }
-
-		switch(msg.dispCommand)
-		{
-        case SETSCREEN:
-        	if (msg.dispArg1 < LAST_SCREEN)
-        		s_uScreenNum = msg.dispArg1;
-        	DrawScreen(s_uScreenNum);
-            break;
-
-        case NEXTSCREEN:
-        	++s_uScreenNum;
-        	if (s_uScreenNum > LAST_SCREEN)
-        		s_uScreenNum = 0;
-        	DrawScreen(s_uScreenNum);
-            break;
-
-        case PREVSCREEN:
-        	if (s_uScreenNum)
-        		--s_uScreenNum;
-        	else if (!s_uScreenNum)
-        		s_uScreenNum = LAST_SCREEN;
-        	DrawScreen(s_uScreenNum);
-            break;
-
-        default:
-            break;
-        }
-    }
 }
 
 // End-Of-File

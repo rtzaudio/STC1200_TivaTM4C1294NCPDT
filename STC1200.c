@@ -88,6 +88,7 @@
 #include <driverlib/pin_map.h>
 #include <driverlib/sysctl.h>
 #include <driverlib/fpu.h>
+#include <DRC1200Task.h>
 
 /* Graphiclib Header file */
 #include <grlib/grlib.h>
@@ -100,7 +101,6 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "CLITask.h"
-#include "DisplayTask.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
@@ -112,7 +112,7 @@ SYSPARMS g_sysParms;
 /* Handles created dynamically */
 
 Mailbox_Handle g_mailboxLocate  = NULL;
-Mailbox_Handle g_mailboxDisplay = NULL;
+Mailbox_Handle g_mailboxRemote = NULL;
 Mailbox_Handle g_mailboxCommand = NULL;
 
 Event_Handle g_eventQEI;
@@ -171,8 +171,8 @@ int main(void)
     /* Create display task mailbox */
     Error_init(&eb);
     Mailbox_Params_init(&mboxParams);
-    g_mailboxDisplay = Mailbox_create(sizeof(DisplayMessage), 2, &mboxParams, &eb);
-    if (g_mailboxDisplay == NULL) {
+    g_mailboxRemote = Mailbox_create(sizeof(RAMP_MSG), 8, &mboxParams, &eb);
+    if (g_mailboxRemote == NULL) {
         System_abort("Mailbox create failed\nAborting...");
     }
 
@@ -210,6 +210,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     	System_flush();
     }
 
+    /* Load system config from EPROM */
+    SysParamsRead(&g_sysParms);
+
     /* Initialize the command line serial debug console port */
     CLI_init();
 
@@ -232,19 +235,11 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.priority  = 12;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
-#if 0
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
     taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)DisplayTaskFxn, &taskParams, &eb);
-
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 1024;
-    taskParams.priority  = 12;
-    Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
-#endif
+    Task_create((Task_FuncPtr)DRC1200TaskFxn, &taskParams, &eb);
 
     /* Setup the callback Hwi handler for each button */
 

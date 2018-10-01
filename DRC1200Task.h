@@ -1,0 +1,19 @@
+/*
+ * PMX42.h : created 5/18/2015
+ *
+ * Copyright (C) 2015, Robert E. Starr. ALL RIGHTS RESERVED.
+ *
+ * THIS MATERIAL CONTAINS  CONFIDENTIAL, PROPRIETARY AND TRADE
+ * SECRET INFORMATION. NO DISCLOSURE OR USE OF ANY
+ * PORTIONS OF THIS MATERIAL MAY BE MADE WITHOUT THE EXPRESS
+ * WRITTEN CONSENT OF THE AUTHOR.
+ */
+
+#ifndef __DRC1200TASK_H
+#define __DRC1200TASK_H
+
+/*** FUNCTION PROTOTYPES ***************************************************/
+
+Void DRC1200TaskFxn(UArg arg0, UArg arg1);
+
+#endif /* __DRC1200TASK_H */

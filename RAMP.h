@@ -46,7 +46,7 @@
  *      * Flags: E=ERROR, D=DATAGRAM, P=PRIORITY, A=ACK/NAK response required
  *
  *      * Type: 1 = ACK-only           2 = NAK-only           3 = msg-only
- *              4 = msg+piggyback-ACK  5 = msg+piggyback-NAK
+ *              4 = msg+piggyback-ACK  5 = msg+piggyback-NAK  6 = user defined
  * 
  *      * Address: Specifies the remote slave node address (0-16)
  *
