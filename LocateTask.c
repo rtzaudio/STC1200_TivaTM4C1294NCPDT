@@ -592,7 +592,7 @@ Bool Transport_Stop(void)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.type     = IPC_TYPE_XPORT;
     msg.opcode   = OP_MODE_STOP;
     msg.param1.U = 0;
     msg.param2.U = 0;
@@ -604,7 +604,7 @@ Bool Transport_Play(void)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.type     = IPC_TYPE_XPORT;
     msg.opcode   = OP_MODE_PLAY;
     msg.param1.U = 0;
     msg.param2.U = 0;
@@ -616,7 +616,7 @@ Bool Transport_Fwd(uint32_t velocity)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.type     = IPC_TYPE_XPORT;
     msg.opcode   = OP_MODE_FWD;
     msg.param1.U = velocity;
     msg.param2.U = 0;
@@ -628,7 +628,7 @@ Bool Transport_Rew(uint32_t velocity)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.type     = IPC_TYPE_XPORT;
     msg.opcode   = OP_MODE_REW;
     msg.param1.U = velocity;
     msg.param2.U = 0;

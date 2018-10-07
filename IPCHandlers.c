@@ -75,21 +75,23 @@
 #include <IPCServer.h>
 
 /* Board Header file */
+#include "STC1200.h"
 #include "Board.h"
 #include "CLITask.h"
 
 /* External Data Items */
+extern SYSDATA g_sysData;
 
 /* Global Data Items */
 
 //*****************************************************************************
 // This handler processes application specific datagram messages received
-// from the peer. No response is required for datagrams.
+// from the DTC-1200 peer. No response is required for datagrams.
 //*****************************************************************************
 
 Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
 {
-    //uint32_t param1 = msg->param1.U;
+    uint32_t param1;
 
     if (msg->type != IPC_TYPE_NOTIFY)
         return FALSE;
@@ -97,30 +99,42 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
     switch(msg->opcode)
     {
     case OP_NOTIFY_BUTTON:
-#if 0
-        CLI_printf("BUTTON: %02x ", msg->param1.U);
-        if (param1 & S_STOP)
-            CLI_printf("STOP");
-        else if (param1 & S_PLAY)
-            CLI_printf("PLAY");
-        else if (param1 & S_REC)
-            CLI_printf("REC");
-        else if (param1 & S_REW)
-            CLI_printf("REW");
-        else if (param1 & S_FWD)
-            CLI_printf("FWD");
-        else if (param1 & S_LDEF)
-            CLI_printf("LDEF");
-        else if (param1 & S_TAPEOUT)
-            CLI_printf("TAPE OUT");
-        else if (param1 & S_TAPEIN)
-            CLI_printf("TAPE IN");
-        CLI_printf("\n");
-#endif
+        param1 = msg->param1.U;
+        //CLI_printf("BUTTON: %02x ", param1);
+        if (param1 & S_STOP) {
+            //CLI_printf("STOP");
+            g_sysData.searchCancel = TRUE;
+        } else if (param1 & S_PLAY) {
+            //CLI_printf("PLAY");
+            g_sysData.searchCancel = TRUE;
+        } else if (param1 & S_REC) {
+            //CLI_printf("REC");
+        } else if (param1 & S_REW) {
+            //CLI_printf("REW");
+            g_sysData.searchCancel = TRUE;
+        } else if (param1 & S_FWD) {
+            //CLI_printf("FWD");
+            g_sysData.searchCancel = TRUE;
+        } else if (param1 & S_LDEF) {
+            //CLI_printf("LDEF");
+        } else if (param1 & S_TAPEOUT) {
+            //CLI_printf("TAPE OUT");
+            g_sysData.searchCancel = TRUE;
+        } else if (param1 & S_TAPEIN) {
+            //CLI_printf("TAPE IN");
+        }
+        //CLI_printf("\n");
+        break;
+
+    case OP_NOTIFY_LED:
+        /* Update the current transport LED mask */
+        g_sysData.ledMask       = msg->param1.U;
+        g_sysData.transportMode = msg->param2.U;
         break;
 
     case OP_NOTIFY_TRANSPORT:
-        CLI_printf("TRANSPORT: %02x\n", msg->param1.U);
+        g_sysData.transportMode = msg->param1.U;
+        //CLI_printf("TRANSPORT: %02x\n", g_sysData.transportMode);
         break;
     }
 
@@ -130,7 +144,7 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
 //*****************************************************************************
 // This handler processes an incoming transaction request from a peer
 // message received. It executes the command requested and returns the
-// results in a MSG+ACK reply to indicate completion.
+// results in a MSG+ACK reply to indicate completion with results.
 //*****************************************************************************
 
 Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)

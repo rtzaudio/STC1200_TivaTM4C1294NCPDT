@@ -18,18 +18,19 @@
 
 #define IPC_TYPE_NOTIFY				10      /* Notifications from DTC to STC  */
 #define IPC_TYPE_CONFIG		        20      /* DTC config Get/Set transaction */
-#define IPC_TYPE_TRANSPORT          30      /* DTC transport control commands */
+#define IPC_TYPE_XPORT              30      /* DTC transport control commands */
 
 /* IPC_TYPE_NOTIFY Operation codes to DTC from STC */
 #define OP_NOTIFY_BUTTON			100
 #define OP_NOTIFY_TRANSPORT			101
 #define OP_NOTIFY_EOT               102
+#define OP_NOTIFY_LED               103
 
 /* IPC_TYPE_CONFIG Operation codes from STC to DTC */
 #define OP_GET_SHUTTLE_VELOCITY     200
 #define OP_SET_SHUTTLE_VELOCITY     201
 
-/* IPC_TYPE_TRANSPORT Operation codes STC->DTC */
+/* IPC_TYPE_XPORT Operation codes STC->DTC */
 #define OP_MODE_STOP                300
 #define OP_MODE_PLAY                301
 #define OP_MODE_FWD                 302     /* param1 specifies velocity */
@@ -41,14 +42,30 @@
  * Notification Bit Flags
  * ============================================================================ */
 
+/* Transport Mode Constants */
+#define MODE_HALT       0               /* all servo motion halted      */
+#define MODE_STOP       1               /* servo stop mode              */
+#define MODE_PLAY       2               /* servo play mode              */
+#define MODE_FWD        3               /* servo forward mode           */
+#define MODE_REW        4               /* servo rewind mode            */
+
+#define M_LIBWIND       0x40            /* shuttle library wind flag    */
+#define M_RECORD        0x80            /* upper bit indicates record   */
+
+#define MODE_MASK       0x07
+
 /* OP_NOTIFY_BUTTON bits for param1.U */
-#define S_STOP          0x01                /* stop button       */
-#define S_PLAY          0x02                /* play button        */
-#define S_REC           0x04                /* record button      */
-#define S_REW           0x08                /* rewind button      */
-#define S_FWD           0x10                /* fast fwd button    */
-#define S_LDEF          0x20                /* lift defeat button */
-#define S_TAPEOUT       0x40                /* tape detect out    */
-#define S_TAPEIN        0x80                /* tape detect in     */
+/* DTC Transport Switch Inputs */
+#define S_STOP          0x01        // stop button
+#define S_PLAY          0x02        // play button
+#define S_REC           0x04        // record button
+#define S_REW           0x08        // rewind button
+#define S_FWD           0x10        // fast fwd button
+#define S_LDEF          0x20        // lift defeat button
+#define S_TAPEOUT       0x40        // tape out switch
+#define S_TAPEIN        0x80        // tape detect (dummy bit)
+
+#define S_BUTTON_MASK   (S_STOP | S_PLAY | S_REC | S_LDEF | S_FWD | S_REW)
+#define S_SWITCH_MASK   (S_TAPEOUT)
 
 #endif /* _IPCMESSAGE_H_ */

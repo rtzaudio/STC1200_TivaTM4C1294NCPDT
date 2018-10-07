@@ -65,7 +65,10 @@
 #include <grlib/grlib.h>
 
 #include "offscrmono.h"
+#include "../STC1200.h"
 #include "../RAMPServer.h"
+
+extern SYSDATA g_sysData;
 
 /* Global context for drawing */
 tContext g_context;
@@ -75,7 +78,6 @@ tDisplay g_FEMA128x64;
 
 /* Display buffer memory */
 unsigned char g_ucScreenBuffer[SCREEN_BUFSIZE];
-
 
 //*****************************************************************************
 //
@@ -357,6 +359,14 @@ unsigned char* GrGetScreenBuffer(void)
 static void
 GrOffScreenMonoFlush(void *pvDisplayData)
 {
+    /* two extra words of the display buffer at the end contain
+     * the LED/lamp state bits for all the button LED's.
+     */
+    uint32_t *p = (uint32_t*)&g_ucScreenBuffer[OLED_BUFSIZE];
+
+    *p++ = g_sysData.ledMask;
+    *p++ = 0xFACE;
+
     // Flush the screen buffer to the remote display via RS-422
     RAMP_Send_Display(1000);
 }
@@ -382,8 +392,8 @@ GrOffScreenMonoFlush(void *pvDisplayData)
 void
 GrOffScreenMonoInit()
 {
-	int32_t i32Width  = 128;
-	int32_t i32Height = 64;
+	int32_t i32Width  = SCREEN_WIDTH;
+	int32_t i32Height = SCREEN_HEIGHT;
 
 	uint8_t *pui8Image = g_ucScreenBuffer;
 

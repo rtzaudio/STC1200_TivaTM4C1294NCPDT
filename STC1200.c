@@ -235,11 +235,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.priority  = 12;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 2048;
-    taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)DRC1200TaskFxn, &taskParams, &eb);
+    /* Initialize the remote task */
+    DRC1200_Task_init();
 
     /* Setup the callback Hwi handler for each button */
 

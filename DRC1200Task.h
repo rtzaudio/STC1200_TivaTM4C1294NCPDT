@@ -14,6 +14,6 @@
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-Void DRC1200TaskFxn(UArg arg0, UArg arg1);
+Bool DRC1200_Task_init();
 
 #endif /* __DRC1200TASK_H */

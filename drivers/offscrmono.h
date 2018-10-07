@@ -26,10 +26,13 @@
 #ifndef __FEMA128X66_H__
 #define __FEMA128X64_H__
 
-#define SCREEN_WIDTH	128
-#define SCREEN_HEIGHT	64
+#define SCREEN_WIDTH    128
+#define SCREEN_HEIGHT   64
 
-#define SCREEN_BUFSIZE	(GrOffScreen1BPPSize(SCREEN_WIDTH, SCREEN_HEIGHT))
+#define OLED_BUFSIZE    (GrOffScreen1BPPSize(SCREEN_WIDTH, SCREEN_HEIGHT))
+#define LED_BUFSIZE     (sizeof(uint32_t) * 2)
+
+#define SCREEN_BUFSIZE  (OLED_BUFSIZE + LED_BUFSIZE)
 
 /* Display buffer context for grlib */
 extern tDisplay g_FEMA128x64;

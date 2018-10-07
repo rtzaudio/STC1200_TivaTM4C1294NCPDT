@@ -77,7 +77,8 @@
 
 /* PMX42 Board Header file */
 #include "Board.h"
-#include "RAMP.h"
+#include "RAMPServer.h"
+#include "IPCServer.h"
 #include "STC1200.h"
 
 /* External Data Items */
@@ -90,8 +91,6 @@ static RAMP_SVR_OBJECT g_svr;
 static Void RAMPReaderTaskFxn(UArg a0, UArg a1);
 static Void RAMPWriterTaskFxn(UArg arg0, UArg arg1);
 static Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1);
-static void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg);
-static void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg);
 static RAMP_ACK* GetAckBuf(uint8_t acknak);
 
 //*****************************************************************************
@@ -124,7 +123,7 @@ Bool RAMP_Server_init(void)
     uartParams.writeDataMode  = UART_DATA_BINARY;
     uartParams.readDataMode   = UART_DATA_BINARY;
     uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 115200;
+    uartParams.baudRate       = 500000;             //115200;
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
@@ -609,20 +608,6 @@ Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1)
             Event_post(g_svr.ackEvent, mask);
         }
     }
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg)
-{
-
-}
-
-void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg)
-{
-
 }
 
 //*****************************************************************************

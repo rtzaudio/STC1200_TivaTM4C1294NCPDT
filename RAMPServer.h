@@ -9,8 +9,8 @@
  * WRITTEN CONSENT OF THE AUTHOR.
  */
 
-#ifndef __REMOTETASK_H
-#define __REMOTETASK_H
+#ifndef __RAMPSERVER_H
+#define __RAMPSERVER_H
 
 #include "RAMP.h"
 #include "RAMPMessage.h"
@@ -88,4 +88,7 @@ Bool RAMP_Send_Display(UInt32 timeout);
 Bool RAMP_Send(RAMP_MSG* msg, UInt32 timeout);
 Bool RAMP_Transaction(RAMP_MSG* txMsg, RAMP_MSG* rxMsg, UInt32 timeout);
 
-#endif /* __REMOTETASK_H */
+void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg);
+void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg);
+
+#endif /* __RAMPSERVER_H */

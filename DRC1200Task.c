@@ -72,6 +72,7 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
+#include "IPCMessage.h"
 #include "RAMPServer.h"
 #include "DRC1200Task.h"
 
@@ -89,9 +90,34 @@ extern SYSDATA g_sysData;
 
 /* Static Function Prototypes */
 static void ClearDisplay();
-static void DisplayWelcome();
+//static void DisplayWelcome();
 static void DrawScreen(uint32_t uScreenNum);
-static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
+//static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
+
+static Void DRC1200TaskFxn(UArg arg0, UArg arg1);
+
+//*****************************************************************************
+// Initialize the remote display task
+//*****************************************************************************
+
+Bool DRC1200_Task_init(void)
+{
+    Error_Block eb;
+    Task_Params taskParams;
+
+    Error_init(&eb);
+
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = 1500;
+    taskParams.priority  = 10;
+    taskParams.arg0      = 0;
+    taskParams.arg1      = 0;
+
+    Task_create((Task_FuncPtr)DRC1200TaskFxn, &taskParams, &eb);
+
+    return TRUE;
+}
 
 //*****************************************************************************
 // DRC-1200 Wired Remote Controller Task
@@ -112,17 +138,13 @@ Void DRC1200TaskFxn(UArg arg0, UArg arg1)
         System_abort("RAMP server init failed");
     }
 
-    ClearDisplay();
-
-    DisplayWelcome();
 
     while (TRUE)
     {
         /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxRemote, &msg, 1000))
+        if (!Mailbox_pend(g_mailboxRemote, &msg, 250))
         {
-            /* No message, blink the LED */
-            //GPIO_toggle(Board_STAT_LED1);
+            DrawScreen(0);
             continue;
         }
 
@@ -159,6 +181,7 @@ Void DRC1200TaskFxn(UArg arg0, UArg arg1)
 // Format a data buffer into an ascii hex string.
 //*****************************************************************************
 
+#if 0
 int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len)
 {
 	char fmt[8];
@@ -182,6 +205,7 @@ int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len)
 
 	return strlen(pTextBuf);
 }
+#endif
 
 //*****************************************************************************
 //
@@ -193,35 +217,38 @@ void ClearDisplay()
     GrContextForegroundSetTranslated(&g_context, 0);
     GrContextBackgroundSetTranslated(&g_context, 0);
     GrRectFill(&g_context, &rect);
+    GrFlush(&g_context);
 }
 
 //*****************************************************************************
 //
 //*****************************************************************************
 
+#if 0
 void DisplayWelcome()
 {
-	char buf[64];
+    int len;
+    char buf[64];
 
-	/* Set foreground pixel color on to 0x01 */
-	GrContextForegroundSetTranslated(&g_context, 1);
-	GrContextBackgroundSetTranslated(&g_context, 0);
+    /* Set foreground pixel color on to 0x01 */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
 
-    tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
-    GrRectDraw(&g_context, &rect);
+    //tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
+    //GrRectDraw(&g_context, &rect);
 
     /* Setup font */
-
-	uint32_t y;
-	uint32_t height;
-	uint32_t spacing = 2;
+    uint32_t y;
+    uint32_t height;
+    uint32_t spacing = 2;
 
     /* Display the program version/revision */
-    y = 4;
-	GrContextFontSet(&g_context, g_psFontCm28b);
+    GrContextFontSet(&g_context, g_psFontCm28b);
     height = GrStringHeightGet(&g_context);
-    GrStringDraw(&g_context, "STC-1200", -1, 21, y, 0);
-    y += height;
+    y = 12;
+    len = sprintf(buf, "STC-1200");
+    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
+    y += (height/2) + 4;
 
     /* Switch to fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
@@ -229,7 +256,7 @@ void DisplayWelcome()
 
     sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
     GrStringDraw(&g_context, buf, -1, 25, y, 0);
-    y += height + spacing + 2;
+    y += height + spacing + 4;
 
     /* Get the serial number string and display it */
 
@@ -243,6 +270,7 @@ void DisplayWelcome()
 
     GrFlush(&g_context);
 }
+#endif
 
 //*****************************************************************************
 // Display the current measurement screen data
@@ -278,11 +306,47 @@ void DrawScreen(uint32_t uScreenNum)
 			GrContextForegroundSetTranslated(&g_context, 1);
 			GrContextBackgroundSetTranslated(&g_context, 0);
 
-			len = sprintf(buf, "STOP");
+			y = 4;
+
+			if (g_sysData.searching)
+			{
+                len = sprintf(buf, "SEARCH");
+			}
+			else
+			{
+                switch(g_sysData.transportMode & MODE_MASK)
+                {
+                case MODE_HALT:
+                    len = sprintf(buf, "HALT");
+                    break;
+
+                case MODE_STOP:
+                    len = sprintf(buf, "STOP");
+                    break;
+
+                case MODE_PLAY:
+                    if (g_sysData.transportMode & M_RECORD)
+                        len = sprintf(buf, "REC");
+                    else
+                        len = sprintf(buf, "PLAY");
+                    break;
+
+                case MODE_FWD:
+                    len = sprintf(buf, "FWD");
+                    break;
+
+                case MODE_REW:
+                    len = sprintf(buf, "REW");
+                    break;
+
+                default:
+                    break;
+                }
+			}
+
 			//width = GrStringWidthGet(&g_context, buf, len);
 			GrStringDraw(&g_context, buf, -1, 0, y, 1);
-
-			len = sprintf(buf, "30ips");
+		    len = sprintf(buf, "%s IPS", (g_sysData.transportMode & 0x8000) ? "30" : "15");
 			width = GrStringWidthGet(&g_context, buf, len);
 			GrStringDraw(&g_context, buf, -1, (SCREEN_WIDTH - 1) - width, y, 1);
 			y += height + spacing;
@@ -297,15 +361,21 @@ void DrawScreen(uint32_t uScreenNum)
 			//GrContextFontSet(&g_context, g_psFontCm30b);
 			height = GrStringHeightGet(&g_context);
 
-			len = sprintf(buf, "%c%02u:%02u:%02u",
+			len = sprintf(buf, "%c%1u:%02u:%02u",
 					(g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
 					g_sysData.tapeTime.hour,
 					g_sysData.tapeTime.mins,
 					g_sysData.tapeTime.secs);
 
 			//GrStringDraw(&g_context, buf, -1, 10, y, 0);
-			GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, SCREEN_HEIGHT/2, FALSE);
+			GrStringDrawCentered(&g_context, buf, len, (SCREEN_WIDTH/2)-4, SCREEN_HEIGHT/2, FALSE);
 			y += height + spacing;
+
+			/* Draw the sign in a different font as 7-seg does not have these chars */
+            GrContextFontSet(&g_context, g_psFontCmss14b);
+            height = GrStringHeightGet(&g_context);
+            len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+            GrStringDrawCentered(&g_context, buf, len, 6, SCREEN_HEIGHT/2, FALSE);
 			break;
 
 		/* 4 Channel Measurement Data */

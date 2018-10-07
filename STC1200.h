@@ -32,6 +32,10 @@
 typedef struct _SYSDATA
 {
     uint8_t		ui8SerialNumber[16];		/* unique serial number       */
+    /* These items are updated from DTC notifications */
+    uint32_t    ledMask;                    /* current transport LED mask */
+    uint32_t    transportMode;              /* Current transport mode     */
+    /* These items  are internal to STC */
     uint32_t	tapePositionAbs;			/* absolute tape position     */
     int32_t 	tapePosition;				/* signed relative position   */
     int32_t 	tapePositionPrev;			/* previous tape position     */
