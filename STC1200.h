@@ -32,8 +32,9 @@
 typedef struct _SYSDATA
 {
     uint8_t		ui8SerialNumber[16];		/* unique serial number       */
-    /* These items are updated from DTC notifications */
-    uint32_t    ledMask;                    /* current transport LED mask */
+    uint32_t    ledMaskButton;              /* DRC remote button LED mask */
+    /* Items below are updated from DTC notifications */
+    uint32_t    ledMaskTransport;           /* current transport LED mask */
     uint32_t    transportMode;              /* Current transport mode     */
     /* These items  are internal to STC */
     uint32_t	tapePositionAbs;			/* absolute tape position     */
@@ -45,6 +46,7 @@ typedef struct _SYSDATA
 	bool		searchCancel;
 	bool        searching;                  /* true if search in progress */
     TAPETIME	tapeTime;					/* current tape time position */
+    size_t      currentCueIndex;            /* currend cue table index    */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
 

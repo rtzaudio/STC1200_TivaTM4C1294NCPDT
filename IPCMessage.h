@@ -55,6 +55,7 @@
 #define MODE_MASK       0x07
 
 /* OP_NOTIFY_BUTTON bits for param1.U */
+
 /* DTC Transport Switch Inputs */
 #define S_STOP          0x01        // stop button
 #define S_PLAY          0x02        // play button
@@ -67,5 +68,12 @@
 
 #define S_BUTTON_MASK   (S_STOP | S_PLAY | S_REC | S_LDEF | S_FWD | S_REW)
 #define S_SWITCH_MASK   (S_TAPEOUT)
+
+/* DTC Lamp Driver Outputs */
+#define DTC_L_REC       0x01        // record indicator lamp
+#define DTC_L_PLAY      0x02        // play indicator lamp
+#define DTC_L_STOP      0x04        // stop indicator lamp
+#define DTC_L_FWD       0x08        // forward indicator lamp
+#define DTC_L_REW       0x10        // rewind indicator lamp
 
 #endif /* _IPCMESSAGE_H_ */

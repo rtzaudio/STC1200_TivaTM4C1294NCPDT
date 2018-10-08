@@ -9,11 +9,15 @@
  * WRITTEN CONSENT OF THE AUTHOR.
  */
 
-#ifndef __DRC1200TASK_H
-#define __DRC1200TASK_H
+#ifndef _REMOTETASK_H_
+#define _REMOTETASK_H_
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-Bool DRC1200_Task_init();
+Bool Remote_Task_init();
 
-#endif /* __DRC1200TASK_H */
+void SetLocButtonLED(size_t index);
+
+uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask);
+
+#endif /* _REMOTETASK_H_ */

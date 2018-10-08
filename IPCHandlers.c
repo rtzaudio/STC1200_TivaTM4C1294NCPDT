@@ -72,21 +72,22 @@
 #include <stdbool.h>
 
 #include <driverlib/sysctl.h>
-#include <IPCServer.h>
-
 /* Board Header file */
 #include "STC1200.h"
 #include "Board.h"
+#include "IPCServer.h"
+#include "RAMPServer.h"
 #include "CLITask.h"
 
 /* External Data Items */
 extern SYSDATA g_sysData;
 
-/* Global Data Items */
+/* Static Function Prototypes */
+static uint32_t dtc_to_drc_lamp_mask(uint32_t bits);
 
 //*****************************************************************************
 // This handler processes application specific datagram messages received
-// from the DTC-1200 peer. No response is required for datagrams.
+// from the peer DTC. No response is required for datagrams.
 //*****************************************************************************
 
 Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
@@ -128,7 +129,7 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
 
     case OP_NOTIFY_LED:
         /* Update the current transport LED mask */
-        g_sysData.ledMask       = msg->param1.U;
+        g_sysData.ledMaskTransport = dtc_to_drc_lamp_mask(msg->param1.U);
         g_sysData.transportMode = msg->param2.U;
         break;
 
@@ -139,6 +140,33 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
     }
 
     return TRUE;
+}
+
+/* DTC Lamp Driver Bits */
+#define L_DTC_REC      0x01             // record indicator lamp
+#define L_DTC_PLAY     0x02             // play indicator lamp
+#define L_DTC_STOP     0x04             // stop indicator lamp
+#define L_DTC_FWD      0x08             // forward indicator lamp
+#define L_DTC_REW      0x10             // rewind indicator lamp
+
+uint32_t dtc_to_drc_lamp_mask(uint32_t bits)
+{
+    uint32_t mask = 0;
+
+    if (bits & L_DTC_REC)       /* DTC record lamp bit */
+        mask |= L_REC;
+    if (bits & L_DTC_PLAY)      /* DTC play lamp bit */
+        mask |= L_PLAY;
+    if (bits & L_DTC_STOP)      /* DTC stop lamp bit */
+        mask |= L_STOP;
+    if (bits & L_DTC_FWD)       /* DTC fwd lamp bit */
+        mask |= L_FWD;
+    if (bits & L_DTC_REW)       /* DTC rew lamp bit */
+        mask |= L_REW;
+
+    bits = (bits & 0xFFF0) | mask;
+
+    return mask;
 }
 
 //*****************************************************************************
@@ -161,7 +189,7 @@ Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
     {
         /* The STC doesn't support any incoming transactions
          * from the DTC. In general, the DTC acts as a slave
-         * to the DTC.
+         * to the STC.
          */
     }
 

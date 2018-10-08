@@ -118,6 +118,36 @@ void PositionZeroReset(void)
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
 }
 
+/*****************************************************************************
+ * Reset the QEI position to ZERO.
+ *****************************************************************************/
+
+void PositionGetTime(int tapePosition, TAPETIME* tapeTime)
+{
+    float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
+
+    /* Get the current encoder position */
+    float position = fabsf((float)tapePosition);
+
+    /* Calculate the number of revolutions from the position */
+    //float revolutions = position / ROLLER_TICKS_PER_REV_F;
+    float revolutions = position * invRollerTicks;
+
+    /* Calculate the distance in inches based on the number of revolutions */
+    float distance = revolutions * ROLLER_CIRCUMFERENCE_F;
+
+    /* Get the current speed setting */
+    float invspeed = GPIO_read(Board_SPEED_SELECT) ? (1.0f/30.0f) : (1.0f/15.0f);
+
+    /* Calculate the time in seconds from the distance and speed
+     * while avoiding any divisions.
+     */
+    uint32_t seconds = (uint32_t)(distance * invspeed);
+
+    /* Convert the total seconds value into binary HH:MM:SS values */
+    btime(seconds, 0, tapeTime);
+}
+
 //*****************************************************************************
 // Position reader/display task. This function reads the tape roller
 // quadrature encoder and stores the current position data. The 7-segement

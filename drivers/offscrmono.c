@@ -364,10 +364,12 @@ GrOffScreenMonoFlush(void *pvDisplayData)
      */
     uint32_t *p = (uint32_t*)&g_ucScreenBuffer[OLED_BUFSIZE];
 
-    *p++ = g_sysData.ledMask;
-    *p++ = 0xFACE;
+    uint32_t ledmask = (g_sysData.ledMaskButton << 8) | (g_sysData.ledMaskTransport & 0xFF);
 
-    // Flush the screen buffer to the remote display via RS-422
+    *p++ = ledmask;
+    *p++ = 0x0000;
+
+    // Flush the screen buffer to the DRC remote display via RS-422
     RAMP_Send_Display(1000);
 }
 

@@ -85,7 +85,7 @@ Bool RAMP_pend(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout);
 Bool RAMP_post(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout);
 
 Bool RAMP_Send_Display(UInt32 timeout);
-Bool RAMP_Send(RAMP_MSG* msg, UInt32 timeout);
+Bool RAMP_Send_Message(RAMP_MSG* msg, UInt32 timeout);
 Bool RAMP_Transaction(RAMP_MSG* txMsg, RAMP_MSG* rxMsg, UInt32 timeout);
 
 void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg);

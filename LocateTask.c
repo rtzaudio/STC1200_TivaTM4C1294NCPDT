@@ -86,10 +86,11 @@
 #include <driverlib/sysctl.h>
 #include <driverlib/qei.h>
 #include <driverlib/pin_map.h>
-#include <IPCServer.h>
 
 #include "STC1200.h"
 #include "Board.h"
+#include "IPCServer.h"
+#include "RemoteTask.h"
 #include "CLITask.h"
 
 /* Local Constants */
@@ -135,8 +136,6 @@ void CuePointStore(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
-
-	CLI_printf("CUE SET[%u] %d\n", index, g_sysData.cuePoint[index].ipos);
 }
 
 /*****************************************************************************
@@ -154,8 +153,39 @@ void CuePointClear(size_t index)
 	}
 
 	Semaphore_post(g_semaCue);
+}
 
-	CLI_printf("CUE CLR[%u] %d\n", index, g_sysData.cuePoint[index].ipos);
+/*****************************************************************************
+ *
+ *****************************************************************************/
+
+uint32_t CuePointGet(size_t index, int* ipos)
+{
+    if (index <= MAX_CUE_POINTS)
+    {
+        if (ipos)
+            *ipos = g_sysData.cuePoint[index].ipos;
+
+        return g_sysData.cuePoint[index].flags;
+    }
+
+    return 0;
+}
+
+/*****************************************************************************
+ * Return the tape time from the cue point absolute position.
+ *****************************************************************************/
+
+void CuePointGetTime(size_t index, TAPETIME* tapeTime)
+{
+    memset(tapeTime, 0, sizeof(TAPETIME));
+
+    if (index <= MAX_CUE_POINTS)
+    {
+        int tapePosition = g_sysData.cuePoint[index].ipos;
+
+        PositionGetTime(tapePosition, tapeTime);
+    }
 }
 
 /*****************************************************************************
@@ -248,6 +278,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize single transport cue point to zero */
     CuePointStore(LAST_CUE_POINT);
+
+    /* Initialize LOC-1 to zero */
+    CuePointStore(g_sysData.currentCueIndex);
 
     while(TRUE)
     {

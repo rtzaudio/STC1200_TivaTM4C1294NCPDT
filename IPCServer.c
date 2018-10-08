@@ -450,7 +450,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
             {
                 g_ipc.rxErrors++;
 
-                System_printf("RAMP_RxFrame Error %d\n", rc);
+                System_printf("IPC RxError %d\n", rc);
                 System_flush();
             }
         }

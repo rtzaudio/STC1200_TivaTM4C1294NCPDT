@@ -26,8 +26,8 @@ typedef struct _CUE_POINT {
 #define CF_SET      0x01    /* cue point available to search    */
 
 /* This defines the array size that holds all cue point memories. Note
- * one extra cue point is reserved in the buffer space for the
- * transport deck search/cue buttons.
+ * one extra cue point is reserved in the buffer space at the end for
+ * the transport deck search/cue buttons.
  */
 #define MAX_CUE_POINTS		64
 
@@ -62,6 +62,8 @@ typedef struct _LocateMessage {
 void CuePointStore(size_t index);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);
+void CuePointGetTime(size_t index, TAPETIME* tapeTime);
+uint32_t CuePointGet(size_t index, int* ipos);
 
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex);

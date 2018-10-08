@@ -79,13 +79,14 @@
 #include "Board.h"
 #include "RAMPServer.h"
 #include "IPCServer.h"
+#include "RemoteTask.h"
 #include "STC1200.h"
 
 /* External Data Items */
 extern SYSDATA g_sysData;
+extern Mailbox_Handle g_mailboxRemote;
 
 /* Static Function Prototypes */
-static uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask);
 
 //*****************************************************************************
 // These handlers process messages received from the DRC wired remote.
@@ -98,58 +99,16 @@ void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg)
 
 void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg)
 {
-    uint32_t mask;
-    IPCMSG ipc;
-
     switch(msg->type)
     {
     case MSG_TYPE_SWITCH:
-        if (msg->opcode == OP_SWITCH_PRESS)
-        {
-            /* Convert DRC switch bits to STC/DTC bit mask form */
-            mask = xlate_to_dtc_transport_switch_mask(msg->param1.U);
-
-            /* Send the transport button mask to the DTC */
-            ipc.type     = IPC_TYPE_NOTIFY;
-            ipc.opcode   = OP_NOTIFY_BUTTON;
-            ipc.param1.U = (uint32_t)mask;
-            ipc.param2.U = 0;
-
-            IPC_Notify(&ipc, 0);
-        }
+        /* Send switch class events to remote task */
+        Mailbox_post(g_mailboxRemote, msg, 0);
         break;
 
     default:
         break;
     }
-}
-
-//*****************************************************************************
-// This converts the DRC gpio switch mask to STC/DTC switch mask form
-// for the transport controls. The gpio button order on the remote is
-// different from the DTC transport control button assignments.
-//*****************************************************************************
-
-uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask)
-{
-    uint32_t bits = 0;
-
-    if (mask & SW_REC)      /* REC button */
-        bits |= S_REC;
-
-    if (mask & SW_PLAY)     /* PLAY button */
-        bits |= S_PLAY;
-
-    if (mask & SW_REW)      /* REW button */
-        bits |= S_REW;
-
-    if (mask & SW_FWD)      /* FWD button */
-        bits |= S_FWD;
-
-    if (mask & SW_STOP)     /* STOP button */
-        bits |= S_STOP;
-
-    return bits;
 }
 
 // End-Of-File

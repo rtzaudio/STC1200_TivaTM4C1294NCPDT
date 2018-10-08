@@ -54,7 +54,7 @@ typedef struct _TAPETIME {
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 void PositionZeroReset(void);
-
+void PositionGetTime(int tapePosition, TAPETIME* tapeTime);
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 
 /*** INLINE FUNCTIONS ******************************************************/

@@ -88,12 +88,10 @@
 #include <driverlib/pin_map.h>
 #include <driverlib/sysctl.h>
 #include <driverlib/fpu.h>
-#include <DRC1200Task.h>
-
-/* Graphiclib Header file */
 #include <grlib/grlib.h>
 #include <IPCServer.h>
 #include <RAMPServer.h>
+#include <RemoteTask.h>
 #include "drivers/offscrmono.h"
 
 /* STC1200 Board Header file */
@@ -171,7 +169,7 @@ int main(void)
     /* Create display task mailbox */
     Error_init(&eb);
     Mailbox_Params_init(&mboxParams);
-    g_mailboxRemote = Mailbox_create(sizeof(RAMP_MSG), 8, &mboxParams, &eb);
+    g_mailboxRemote = Mailbox_create(sizeof(RAMP_MSG), 16, &mboxParams, &eb);
     if (g_mailboxRemote == NULL) {
         System_abort("Mailbox create failed\nAborting...");
     }
@@ -236,7 +234,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
     /* Initialize the remote task */
-    DRC1200_Task_init();
+    Remote_Task_init();
 
     /* Setup the callback Hwi handler for each button */
 
@@ -281,8 +279,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				{
 					/* Zero tape timer at current tape location */
 					PositionZeroReset();
-					/* Clear all cue points */
-                    CuePointClearAll();
 				}
 
 				Debounce_buttonLO(Board_BTN_RESET);
