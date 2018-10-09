@@ -114,7 +114,7 @@ Bool IPC_Server_init(void)
     uartParams.writeDataMode  = UART_DATA_BINARY;
     uartParams.readDataMode   = UART_DATA_BINARY;
     uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 115200;
+    uartParams.baudRate       = 250000;
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 

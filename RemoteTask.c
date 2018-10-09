@@ -79,8 +79,13 @@
 /* Various Local Constants */
 #define LAST_SCREEN     1
 
+#define MODE_UNDEFINED  0
+#define MODE_CUE        1
+#define MODE_STORE      2
+
 /* Static Module Globals */
-uint32_t s_uScreenNum = 0;
+static uint32_t s_uScreenNum = 0;
+static uint32_t s_searchMode = MODE_CUE;
 
 /* External Global Data */
 extern tContext g_context;
@@ -94,10 +99,10 @@ static void DrawScreen(uint32_t uScreenNum);
 static void DrawTapeTime(void);
 static void DrawWelcome(void);
 static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
-
 static void HandleSwitchPress(uint32_t bits);
-
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
+static void HandleSetSearchMemory(size_t index);
+static void HandleSetSearchMode(uint32_t mode);
 
 //*****************************************************************************
 // Initialize the remote display task
@@ -135,10 +140,15 @@ Bool Remote_Task_init(void)
 
 Void RemoteTaskFxn(UArg arg0, UArg arg1)
 {
+    IPCMSG ipc;
     RAMP_MSG msg;
 
     g_sysData.currentCueIndex = 0;
-    g_sysData.ledMaskButton |= L_LOC1;
+    g_sysData.currentCueBank  = 0;
+
+    /* Initialize LOC-1 memory as RTZ */
+    HandleSetSearchMode(MODE_CUE);
+    HandleSetSearchMemory(0);
 
     if (!RAMP_Server_init()) {
         System_abort("RAMP server init failed");
@@ -156,22 +166,34 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
         switch(msg.type)
         {
         case MSG_TYPE_DISPLAY:
+            /* Refresh the OLED display with contents of display.
+             * buffer.
+             */
             if (msg.opcode == OP_DISPLAY_REFRESH)
                 DrawScreen(s_uScreenNum);
             break;
 
         case MSG_TYPE_SWITCH:
+            /* A transport button (stop, play, etc)  or locator button
+             * was pressed on the DRC remote unit. Convert the DRC transport
+             * button bit mask to DTC format and send the button press event
+             * to the DTC to execute the new transport mode requested.
+             */
             if (msg.opcode == OP_SWITCH_TRANSPORT)
             {
-                IPCMSG ipc;
-
                 /* Convert DRC switch bits to STC/DTC bit mask form */
                 uint32_t mask = xlate_to_dtc_transport_switch_mask(msg.param1.U);
 
-                /* Send the transport button mask to the DTC */
+                /* Cancel any search in progress */
+                if (LocateIsSearching())
+                {
+                    LocateAbort();
+                    Task_sleep(250);
+                }
+                /* Send the transport command button mask to the DTC */
                 ipc.type     = IPC_TYPE_NOTIFY;
                 ipc.opcode   = OP_NOTIFY_BUTTON;
-                ipc.param1.U = (uint32_t)mask;
+                ipc.param1.U = mask;
                 ipc.param2.U = 0;
 
                 IPC_Notify(&ipc, 0);
@@ -195,26 +217,25 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 void HandleSwitchPress(uint32_t bits)
 {
     if (bits & SW_LOC1) {
-        g_sysData.currentCueIndex = 0;
+        HandleSetSearchMemory(0);
     } else if (bits & SW_LOC2) {
-        g_sysData.currentCueIndex = 1;
+        HandleSetSearchMemory(1);
     } else if (bits & SW_LOC3) {
-        g_sysData.currentCueIndex = 2;
+        HandleSetSearchMemory(2);
     } else if (bits & SW_LOC4) {
-        g_sysData.currentCueIndex = 3;
+        HandleSetSearchMemory(3);
     } else if (bits & SW_LOC5) {
-        g_sysData.currentCueIndex = 4;
+        HandleSetSearchMemory(4);
     } else if (bits & SW_LOC6) {
-        g_sysData.currentCueIndex = 5;
+        HandleSetSearchMemory(5);
     } else if (bits & SW_LOC7) {
-        g_sysData.currentCueIndex = 6;
+        HandleSetSearchMemory(6);
     } else if (bits & SW_LOC8) {
-        g_sysData.currentCueIndex = 7;
-    }
-    else if (bits & SW_STORE) {
-        CuePointStore(g_sysData.currentCueIndex);
+        HandleSetSearchMemory(7);
+    } else if (bits & SW_STORE) {
+        HandleSetSearchMode(MODE_STORE);
     } else if (bits & SW_CUE)  {
-        LocateSearch(g_sysData.currentCueIndex);
+        HandleSetSearchMode(MODE_CUE);
     } else if (bits & SW_SET)  {
 
     } else if (bits & SW_ESC)  {
@@ -228,51 +249,80 @@ void HandleSwitchPress(uint32_t bits)
     } else if (bits & SW_EDIT) {
 
     }
-
-    SetLocButtonLED(g_sysData.currentCueIndex);
 }
 
 //*****************************************************************************
 //
 //*****************************************************************************
 
-void SetLocButtonLED(size_t index)
+void HandleSetSearchMode(uint32_t mode)
+{
+    uint32_t key = Hwi_disable();
+
+    if (s_searchMode == mode)
+    {
+        if (mode == MODE_STORE)
+            g_sysData.ledMaskButton = g_sysData.ledMaskButton & ~(L_STORE);
+        else
+            g_sysData.ledMaskButton = g_sysData.ledMaskButton & ~(L_CUE);
+
+        s_searchMode = MODE_UNDEFINED;
+    }
+    else
+    {
+        s_searchMode = mode;
+
+        if (mode == MODE_STORE)
+            g_sysData.ledMaskButton = (g_sysData.ledMaskButton & ~(L_STORE | L_CUE)) | L_STORE;
+        else if (mode == MODE_CUE)
+            g_sysData.ledMaskButton = (g_sysData.ledMaskButton & ~(L_STORE | L_CUE)) | L_CUE;
+        else
+            g_sysData.ledMaskButton = (g_sysData.ledMaskButton & ~(L_STORE | L_CUE));
+    }
+
+    Hwi_restore(key);
+}
+
+
+void HandleSetSearchMemory(size_t index)
+{
+    g_sysData.currentCueIndex = index;
+
+    SetLocateButtonLED(index);
+
+    if (s_searchMode == MODE_CUE)
+    {
+        /* Begin locate search */
+        LocateSearch(index);
+    }
+    else if (s_searchMode == MODE_STORE)
+    {
+        /* Store the current locate point */
+        CuePointSet(index, g_sysData.tapePosition);
+    }
+}
+
+/*****************************************************************************
+ * This functions set the appropriate LOC button LED bit flag on and
+ * clears all other LOC button LED bits so only one LED is on.
+ *****************************************************************************/
+
+void SetLocateButtonLED(size_t index)
 {
     uint32_t mask = 0;
 
     size_t shift = index % 8;
 
-    //mask = L_LOC1 << shift;
-#if 1
-    switch(index % 8)
-    {
-    case 0:
-        mask = L_LOC1;
-        break;
-    case 1:
-        mask = L_LOC2;
-        break;
-    case 2:
-        mask = L_LOC3;
-        break;
-    case 3:
-        mask = L_LOC4;
-        break;
-    case 4:
-        mask = L_LOC5;
-        break;
-    case 5:
-        mask = L_LOC6;
-        break;
-    case 6:
-        mask = L_LOC7;
-        break;
-    case 7:
-        mask = L_LOC8;
-        break;
-    }
-#endif
+    mask = L_LOC1 << shift;
+
+    if (s_searchMode == MODE_CUE)
+        mask |= L_CUE;
+    else if (s_searchMode == MODE_STORE)
+        mask |= L_STORE;
+
+    uint32_t key = Hwi_disable();
     g_sysData.ledMaskButton = (g_sysData.ledMaskButton & 0xFF00) | mask;
+    Hwi_restore(key);
 }
 
 //*****************************************************************************
@@ -345,12 +395,14 @@ void DrawTapeTime(void)
 {
     char buf[64];
     int len;
-    uint32_t y = 0;
+    uint32_t x, y;
     uint32_t height;
     uint32_t width;
     uint32_t spacing = 0;
-    tRectangle rect;
+    tRectangle rect, rect2;
     TAPETIME tapeTime;
+
+    y = x = spacing = 0;
 
     /* Top line fixed system font in inverse */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
@@ -362,7 +414,7 @@ void DrawTapeTime(void)
 
     y = 2;
 
-    if (g_sysData.searching)
+    if (LocateIsSearching())
     {
         len = sprintf(buf, "SEARCH");
     }
@@ -480,10 +532,34 @@ void DrawTapeTime(void)
     {
         GrStringDraw(&g_context, "-:--:--", -1, width+6, y+1, 0);
     }
+
+    /* Display locate progress bar */
+
+    if (LocateIsSearching())
+    {
+        x = 40;
+
+        rect.i16XMin = SCREEN_WIDTH - x;
+        rect.i16YMin = y;
+        rect.i16XMax = SCREEN_WIDTH - 1;
+        rect.i16YMax = y + height;
+
+        GrContextForegroundSetTranslated(&g_context, 1);
+        GrContextBackgroundSetTranslated(&g_context, 0);
+        GrRectDraw(&g_context, &rect);
+
+        rect2 = rect;
+
+        rect2.i16XMin += 2;
+        rect2.i16YMin += 2;
+        rect2.i16XMax -= 2;
+        rect2.i16YMax -= 2;
+
+        GrContextForegroundSetTranslated(&g_context, 1);
+        GrContextBackgroundSetTranslated(&g_context, 0);
+        GrRectFill(&g_context, &rect2);
+    }
 }
-
-
-
 
 //*****************************************************************************
 // Draw the welome screen with version info

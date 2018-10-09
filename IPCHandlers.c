@@ -103,7 +103,6 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
         param1 = msg->param1.U;
         //CLI_printf("BUTTON: %02x ", param1);
         if (param1 & S_STOP) {
-            //CLI_printf("STOP");
             g_sysData.searchCancel = TRUE;
         } else if (param1 & S_PLAY) {
             //CLI_printf("PLAY");
@@ -127,7 +126,7 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
         //CLI_printf("\n");
         break;
 
-    case OP_NOTIFY_LED:
+    case OP_NOTIFY_LAMP:
         /* Update the current transport LED mask */
         g_sysData.ledMaskTransport = dtc_to_drc_lamp_mask(msg->param1.U);
         g_sysData.transportMode = msg->param2.U;

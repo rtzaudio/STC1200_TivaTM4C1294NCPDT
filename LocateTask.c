@@ -119,27 +119,6 @@ Bool Config_GetShuttleVelocity(uint32_t* velocity);
 
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
- * cue point locate table. The parameter index must be the range of
- * zero to MAX_CUE_POINTS-1. Cue point 0-63 are for the remote control
- * memories. Cue point 64 is for the single memory cue point buttons
- * on the machine.
- *****************************************************************************/
-
-void CuePointStore(size_t index)
-{
-    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
-
-	if (index <= MAX_CUE_POINTS)
-	{
-		g_sysData.cuePoint[index].ipos  = g_sysData.tapePosition;
-		g_sysData.cuePoint[index].flags = CF_SET;
-	}
-
-	Semaphore_post(g_semaCue);
-}
-
-/*****************************************************************************
- * This functions stores the current tape position to a cue point in the
  *****************************************************************************/
 
 void CuePointClear(size_t index)
@@ -148,11 +127,66 @@ void CuePointClear(size_t index)
 
 	if (index <= MAX_CUE_POINTS)
 	{
+	    uint32_t key = Hwi_disable();
+
 		g_sysData.cuePoint[index].ipos  = 0;
 		g_sysData.cuePoint[index].flags = CF_NONE;
+
+		Hwi_restore(key);
 	}
 
 	Semaphore_post(g_semaCue);
+}
+
+/*****************************************************************************
+ * Clear all cue point memories except single cue point on the deck.
+ *****************************************************************************/
+
+void CuePointClearAll(void)
+{
+    size_t i;
+
+    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+    for (i=0; i < MAX_CUE_POINTS; i++)
+    {
+        uint32_t key = Hwi_disable();
+
+        g_sysData.cuePoint[i].ipos  = 0;
+        g_sysData.cuePoint[i].flags = CF_NONE;
+
+        Hwi_restore(key);
+    }
+
+    Semaphore_post(g_semaCue);
+}
+
+/*****************************************************************************
+ * This functions stores the current tape position to a cue point in the
+ * cue point locate table. The parameter index must be the range of
+ * zero to MAX_CUE_POINTS-1. Cue point 0-63 are for the remote control
+ * memories. Cue point 64 is for the single memory cue point buttons
+ * on the machine.
+ *****************************************************************************/
+
+void CuePointSet(size_t index, int ipos)
+{
+    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+    if (!ipos)
+        ipos = g_sysData.tapePosition;
+
+    if (index <= MAX_CUE_POINTS)
+    {
+        uint32_t key = Hwi_disable();
+
+        g_sysData.cuePoint[index].ipos  = ipos;
+        g_sysData.cuePoint[index].flags = CF_SET;
+
+        Hwi_restore(key);
+    }
+
+    Semaphore_post(g_semaCue);
 }
 
 /*****************************************************************************
@@ -161,15 +195,25 @@ void CuePointClear(size_t index)
 
 uint32_t CuePointGet(size_t index, int* ipos)
 {
+    uint32_t flags = 0;
+
+    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
     if (index <= MAX_CUE_POINTS)
     {
+        uint32_t key = Hwi_disable();
+
         if (ipos)
             *ipos = g_sysData.cuePoint[index].ipos;
 
-        return g_sysData.cuePoint[index].flags;
+        flags = g_sysData.cuePoint[index].flags;
+
+        Hwi_restore(key);
     }
 
-    return 0;
+    Semaphore_post(g_semaCue);
+
+    return flags;
 }
 
 /*****************************************************************************
@@ -188,25 +232,6 @@ void CuePointGetTime(size_t index, TAPETIME* tapeTime)
     }
 }
 
-/*****************************************************************************
- * Clear all cue point memories except single cue point on the deck.
- *****************************************************************************/
-
-void CuePointClearAll(void)
-{
-    size_t i;
-
-    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
-
-    for (i=0; i < MAX_CUE_POINTS; i++)
-    {
-        g_sysData.cuePoint[i].ipos  = 0;
-        g_sysData.cuePoint[i].flags = CF_NONE;
-    }
-
-    Semaphore_post(g_semaCue);
-}
-
 //*****************************************************************************
 // Cue up a locate request to the locator. The cue point index is specified
 // in param1. Cue point 65 is single point for cue/search buttons on machine.
@@ -217,6 +242,10 @@ Bool LocateSearch(size_t cuePointIndex)
     LocateMessage msgLocate;
 
     if (cuePointIndex > LAST_CUE_POINT)
+        return FALSE;
+
+    /* Make sure the memory location has a cue point stored */
+    if (!(g_sysData.cuePoint[cuePointIndex].flags & CF_SET))
         return FALSE;
 
     msgLocate.command = LOCATE_SEARCH;
@@ -235,6 +264,16 @@ Bool LocateCancel(void)
     msgLocate.param2  = 0;
 
     return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
+}
+
+void LocateAbort(void)
+{
+    g_sysData.searchCancel = TRUE;
+}
+
+bool LocateIsSearching(void)
+{
+    return g_sysData.searching;
 }
 
 //*****************************************************************************
@@ -277,10 +316,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     GPIO_write(Board_SEARCHING, PIN_HIGH);
 
     /* Initialize single transport cue point to zero */
-    CuePointStore(LAST_CUE_POINT);
+    CuePointSet(LAST_CUE_POINT, 0);
 
     /* Initialize LOC-1 to zero */
-    CuePointStore(g_sysData.currentCueIndex);
+    CuePointSet(g_sysData.currentCueIndex, 0);
 
     while(TRUE)
     {
@@ -303,6 +342,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Is the cue point is active? */
         if (g_sysData.cuePoint[cue_index].flags == 0)
         	continue;
+
+        /* Locate button LED on */
+        SetLocateButtonLED(cue_index);
 
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_LOW);
@@ -625,48 +667,48 @@ Bool Transport_Stop(void)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_XPORT;
+    msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_STOP;
     msg.param1.U = 0;
     msg.param2.U = 0;
 
-    return IPC_Transaction(&msg, IPC_TIMEOUT);
+    return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
 Bool Transport_Play(void)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_XPORT;
+    msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_PLAY;
     msg.param1.U = 0;
     msg.param2.U = 0;
 
-    return IPC_Transaction(&msg, IPC_TIMEOUT);
+    return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
 Bool Transport_Fwd(uint32_t velocity)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_XPORT;
+    msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_FWD;
     msg.param1.U = velocity;
     msg.param2.U = 0;
 
-    return IPC_Transaction(&msg, IPC_TIMEOUT);
+    return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
 Bool Transport_Rew(uint32_t velocity)
 {
     IPCMSG msg;
 
-    msg.type     = IPC_TYPE_XPORT;
+    msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_REW;
     msg.param1.U = velocity;
     msg.param2.U = 0;
 
-    return IPC_Transaction(&msg, IPC_TIMEOUT);
+    return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
 /*****************************************************************************

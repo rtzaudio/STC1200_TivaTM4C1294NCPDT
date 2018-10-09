@@ -47,6 +47,7 @@ typedef struct _SYSDATA
 	bool        searching;                  /* true if search in progress */
     TAPETIME	tapeTime;					/* current tape time position */
     size_t      currentCueIndex;            /* currend cue table index    */
+    size_t      currentCueBank;             /* current cue bank (1-8)     */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
 

@@ -10,8 +10,8 @@
  * ============================================================================
  */
 
-#ifndef __LOCATETASK_H
-#define __LOCATETASK_H
+#ifndef _LOCATETASK_H_
+#define _LOCATETASK_H_
 
 /*** CUE POINT DATA STRUCTURE **********************************************/
 
@@ -59,16 +59,17 @@ typedef struct _LocateMessage {
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-void CuePointStore(size_t index);
+uint32_t CuePointGet(size_t index, int* ipos);
+void CuePointSet(size_t index, int ipos);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);
 void CuePointGetTime(size_t index, TAPETIME* tapeTime);
-uint32_t CuePointGet(size_t index, int* ipos);
 
+void LocateAbort(void);
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex);
+bool LocateIsSearching(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 
-#endif /* __LOCATETASK_H */
-
+#endif /* _LOCATETASK_H_ */

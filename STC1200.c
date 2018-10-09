@@ -290,7 +290,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				if (Debounce_buttonHI(Board_BTN_CUE))
 				{
 					/* Store the current position at cue point 65 */
-					CuePointStore(LAST_CUE_POINT);
+					CuePointSet(LAST_CUE_POINT, 0);
 				}
 
 				Debounce_buttonLO(Board_BTN_CUE);

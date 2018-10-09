@@ -16,7 +16,7 @@
 
 Bool Remote_Task_init();
 
-void SetLocButtonLED(size_t index);
+void SetLocateButtonLED(size_t index);
 
 uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask);
 
