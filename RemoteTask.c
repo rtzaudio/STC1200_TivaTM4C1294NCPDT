@@ -85,7 +85,7 @@
 
 /* Static Module Globals */
 static uint32_t s_uScreenNum = 0;
-static uint32_t s_searchMode = MODE_CUE;
+static uint32_t s_searchMode = MODE_UNDEFINED;
 
 /* External Global Data */
 extern tContext g_context;
@@ -146,7 +146,8 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     g_sysData.currentCueIndex = 0;
     g_sysData.currentCueBank  = 0;
 
-    /* Initialize LOC-1 memory as RTZ */
+    /* Initialize LOC-1 memory as RTZ and select CUE mode */
+    s_searchMode = MODE_UNDEFINED;
     HandleSetSearchMode(MODE_CUE);
     HandleSetSearchMemory(0);
 
@@ -257,14 +258,12 @@ void HandleSwitchPress(uint32_t bits)
 
 void HandleSetSearchMode(uint32_t mode)
 {
-    uint32_t key = Hwi_disable();
-
     if (s_searchMode == mode)
     {
         if (mode == MODE_STORE)
-            g_sysData.ledMaskButton = g_sysData.ledMaskButton & ~(L_STORE);
+            SetButtonLedMask(0, L_STORE);
         else
-            g_sysData.ledMaskButton = g_sysData.ledMaskButton & ~(L_CUE);
+            SetButtonLedMask(0, L_CUE);
 
         s_searchMode = MODE_UNDEFINED;
     }
@@ -273,16 +272,17 @@ void HandleSetSearchMode(uint32_t mode)
         s_searchMode = mode;
 
         if (mode == MODE_STORE)
-            g_sysData.ledMaskButton = (g_sysData.ledMaskButton & ~(L_STORE | L_CUE)) | L_STORE;
+            SetButtonLedMask(L_STORE, L_CUE | L_STORE);
         else if (mode == MODE_CUE)
-            g_sysData.ledMaskButton = (g_sysData.ledMaskButton & ~(L_STORE | L_CUE)) | L_CUE;
+            SetButtonLedMask(L_CUE, L_CUE | L_STORE);
         else
-            g_sysData.ledMaskButton = (g_sysData.ledMaskButton & ~(L_STORE | L_CUE));
+            SetButtonLedMask(0, L_CUE | L_STORE);
     }
-
-    Hwi_restore(key);
 }
 
+//*****************************************************************************
+//
+//*****************************************************************************
 
 void HandleSetSearchMemory(size_t index)
 {
@@ -320,8 +320,25 @@ void SetLocateButtonLED(size_t index)
     else if (s_searchMode == MODE_STORE)
         mask |= L_STORE;
 
+    SetButtonLedMask(mask, 0x00FF);
+}
+
+/*****************************************************************************
+ * This function sets or clears button LED bits on the remote.
+ *****************************************************************************/
+
+void SetButtonLedMask(uint32_t setMask, uint32_t clearMask)
+{
+    /* Atomic change bits */
     uint32_t key = Hwi_disable();
-    g_sysData.ledMaskButton = (g_sysData.ledMaskButton & 0xFF00) | mask;
+
+    /* Clear any bits in the clear mask */
+    g_sysData.ledMaskButton &= ~(clearMask);
+
+    /* Set any bits in the set mask */
+    g_sysData.ledMaskButton |= setMask;
+
+    /* Restore interrupts */
     Hwi_restore(key);
 }
 
@@ -402,17 +419,9 @@ void DrawTapeTime(void)
     tRectangle rect, rect2;
     TAPETIME tapeTime;
 
-    y = x = spacing = 0;
-
-    /* Top line fixed system font in inverse */
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
-    height = GrStringHeightGet(&g_context);
-
-    /* Inverse Mono */
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-
-    y = 2;
+    /*
+     * Draw the current transport mode text on top line
+     */
 
     if (LocateIsSearching())
     {
@@ -450,27 +459,40 @@ void DrawTapeTime(void)
         }
     }
 
+    x = 0;
+    y = 2;
+
+    /* Top line fixed system font in inverse */
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    /* Mono */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    //width = GrStringWidthGet(&g_context, buf, len);
+    GrStringDraw(&g_context, buf, -1, x, y, 1);
+
     /*
      * Draw current tape speed active
      */
 
-    //width = GrStringWidthGet(&g_context, buf, len);
-    GrStringDraw(&g_context, buf, -1, 0, y, 1);
     len = sprintf(buf, "%s IPS", (g_sysData.transportMode & 0x8000) ? "30" : "15");
     width = GrStringWidthGet(&g_context, buf, len);
-    GrStringDraw(&g_context, buf, -1, (SCREEN_WIDTH - 1) - width, y, 1);
+    x = (SCREEN_WIDTH - 1) - width;
+    GrStringDraw(&g_context, buf, -1, x, y, 1);
     y += height + spacing;
-
-    /* Normal Mono */
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
 
     /*
      * Draw the big time digits centered
      */
 
-    GrContextFontSet(&g_context, g_psFontWDseg7bold24pt);
+    /* Normal Mono */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
     //GrContextFontSet(&g_context, g_psFontCm30b);
+    GrContextFontSet(&g_context, g_psFontWDseg7bold24pt);
     height = GrStringHeightGet(&g_context);
 
     len = sprintf(buf, "%c%1u:%02u:%02u",
@@ -479,13 +501,12 @@ void DrawTapeTime(void)
             g_sysData.tapeTime.mins,
             g_sysData.tapeTime.secs);
 
-    //GrStringDraw(&g_context, buf, -1, 10, y, 0);
-    GrStringDrawCentered(&g_context, buf, len, (SCREEN_WIDTH/2)-4, SCREEN_HEIGHT/2, FALSE);
-    y += height + spacing;
+    x = (SCREEN_WIDTH / 2) - 4;
+    y = SCREEN_HEIGHT / 2;
+    GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 
     /* Draw the sign in a different font as 7-seg does not have these chars */
     GrContextFontSet(&g_context, g_psFontCmss14b);
-    height = GrStringHeightGet(&g_context);
     len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
     GrStringDrawCentered(&g_context, buf, len, 6, (SCREEN_HEIGHT/2)-3, FALSE);
 
@@ -496,6 +517,7 @@ void DrawTapeTime(void)
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
+    x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
     len = sprintf(buf, "LOC-%u", g_sysData.currentCueIndex+1);
@@ -504,7 +526,7 @@ void DrawTapeTime(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    rect.i16XMin = 0;
+    rect.i16XMin = x;
     rect.i16YMin = y;
     rect.i16XMax = width + 1;
     rect.i16YMax = y + height;
@@ -513,7 +535,7 @@ void DrawTapeTime(void)
     GrContextBackgroundSetTranslated(&g_context, 1);
 
     width = GrStringWidthGet(&g_context, buf, len);
-    GrStringDraw(&g_context, buf, -1, 1, y+1, 1);
+    GrStringDraw(&g_context, buf, -1, x+1, y+1, 1);
 
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
@@ -522,22 +544,28 @@ void DrawTapeTime(void)
 
     /* Get the cue point tape time and display it */
 
+    x = width + 6;
+    y = y + 1;
+
     if (CuePointGet(g_sysData.currentCueIndex, NULL) & CF_SET)
     {
         CuePointGetTime(g_sysData.currentCueIndex, &tapeTime);
         sprintf(buf, "%u:%02u:%02u", tapeTime.hour, tapeTime.mins, tapeTime.secs);
-        GrStringDraw(&g_context, buf, -1, width+6, y+1, 0);
+        GrStringDraw(&g_context, buf, -1, x, y, 0);
     }
     else
     {
-        GrStringDraw(&g_context, "-:--:--", -1, width+6, y+1, 0);
+        GrStringDraw(&g_context, "-:--:--", -1, x, y, 0);
     }
 
     /* Display locate progress bar */
 
-    if (LocateIsSearching())
+    //if (LocateIsSearching())
     {
         x = 40;
+        //y = y + 1;
+
+        height -= 2;
 
         rect.i16XMin = SCREEN_WIDTH - x;
         rect.i16YMin = y;

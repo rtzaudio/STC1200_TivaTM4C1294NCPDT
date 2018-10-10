@@ -18,6 +18,8 @@ Bool Remote_Task_init();
 
 void SetLocateButtonLED(size_t index);
 
+void SetButtonLedMask(uint32_t setMask, uint32_t clearMask);
+
 uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask);
 
 #endif /* _REMOTETASK_H_ */

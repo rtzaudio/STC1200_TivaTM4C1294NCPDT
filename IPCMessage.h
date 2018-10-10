@@ -18,7 +18,7 @@
 
 #define IPC_TYPE_NOTIFY				10      /* Notifications from DTC to STC  */
 #define IPC_TYPE_CONFIG		        20      /* DTC config Get/Set transaction */
-#define IPC_TYPE_TRANSPORT              30      /* DTC transport control commands */
+#define IPC_TYPE_TRANSPORT          30      /* DTC transport control commands */
 
 /* IPC_TYPE_NOTIFY Operation codes to DTC from STC */
 #define OP_NOTIFY_BUTTON			100
@@ -30,13 +30,17 @@
 #define OP_GET_SHUTTLE_VELOCITY     200
 #define OP_SET_SHUTTLE_VELOCITY     201
 
-/* IPC_TYPE_XPORT Operation codes STC->DTC */
+/* IPC_TYPE_TRANSPORT Operation codes STC->DTC */
 #define OP_MODE_STOP                300
 #define OP_MODE_PLAY                301
 #define OP_MODE_FWD                 302     /* param1 specifies velocity */
 #define OP_MODE_FWD_LIB             303
 #define OP_MODE_REW                 304     /* param1 specifies velocity */
 #define OP_MODE_REW_LIB             305
+
+#define OP_TRANSPORT_GET_MODE       320     /* get current transport mode */
+#define OP_TRANSPORT_GET_VELOCITY   321
+#define OP_TRANSPORT_GET_TACH       322
 
 /* ============================================================================
  * DTC Constants and Notification Bit Flags

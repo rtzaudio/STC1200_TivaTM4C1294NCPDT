@@ -114,6 +114,8 @@ Bool Transport_Play(void);
 Bool Transport_Fwd(uint32_t velocity);
 Bool Transport_Rew(uint32_t velocity);
 
+Bool Transport_GetMode(uint32_t* mode);
+
 Bool Config_SetShuttleVelocity(uint32_t velocity);
 Bool Config_GetShuttleVelocity(uint32_t* velocity);
 
@@ -311,6 +313,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     LocateMessage msg;
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
+
+    /* Get current transport mode from DTC */
+    Transport_GetMode(&g_sysData.transportMode);
 
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -709,6 +714,28 @@ Bool Transport_Rew(uint32_t velocity)
     msg.param2.U = 0;
 
     return IPC_Notify(&msg, IPC_TIMEOUT);
+}
+
+/*****************************************************************************
+ * DTC-1200 TRANSPORT TRANSACTIONS
+ *****************************************************************************/
+
+Bool Transport_GetMode(uint32_t* mode)
+{
+    IPCMSG msg;
+
+    msg.type     = IPC_TYPE_TRANSPORT;
+    msg.opcode   = OP_TRANSPORT_GET_MODE;
+    msg.param1.U = 0;
+    msg.param2.U = 0;
+
+    if (!IPC_Transaction(&msg, IPC_TIMEOUT))
+        return FALSE;
+
+    /* return current transport mode */
+    *mode = msg.param1.U;
+
+    return TRUE;
 }
 
 /*****************************************************************************
