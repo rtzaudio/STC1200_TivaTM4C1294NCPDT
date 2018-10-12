@@ -7,6 +7,8 @@
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
  *
+ * InterProcess Communications (IPC) Services via serial link.
+ *
  * ============================================================================ */
 
 #ifndef _IPCMESSAGE_H_

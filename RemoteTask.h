@@ -1,13 +1,14 @@
-/*
- * PMX42.h : created 5/18/2015
+/***************************************************************************
  *
- * Copyright (C) 2015, Robert E. Starr. ALL RIGHTS RESERVED.
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
  *
- * THIS MATERIAL CONTAINS  CONFIDENTIAL, PROPRIETARY AND TRADE
- * SECRET INFORMATION. NO DISCLOSURE OR USE OF ANY
- * PORTIONS OF THIS MATERIAL MAY BE MADE WITHOUT THE EXPRESS
- * WRITTEN CONSENT OF THE AUTHOR.
- */
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ ***************************************************************************/
 
 #ifndef _REMOTETASK_H_
 #define _REMOTETASK_H_

@@ -1,13 +1,14 @@
-/*
- * PMX42.h : created 5/18/2015
+/***************************************************************************
  *
- * Copyright (C) 2015, Robert E. Starr. ALL RIGHTS RESERVED.
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
  *
- * THIS MATERIAL CONTAINS  CONFIDENTIAL, PROPRIETARY AND TRADE
- * SECRET INFORMATION. NO DISCLOSURE OR USE OF ANY
- * PORTIONS OF THIS MATERIAL MAY BE MADE WITHOUT THE EXPRESS
- * WRITTEN CONSENT OF THE AUTHOR.
- */
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ ***************************************************************************/
 
 #ifndef __STC1200_H
 #define __STC1200_H
@@ -37,10 +38,11 @@ typedef struct _SYSDATA
     uint32_t    ledMaskTransport;           /* current transport LED mask */
     uint32_t    transportMode;              /* Current transport mode     */
     /* These items  are internal to STC */
-    uint32_t	tapePositionAbs;			/* absolute tape position     */
+    int32_t     tapeDirection;              /* direction 1=fwd, 0=rew     */
+    uint32_t    tapePositionAbs;            /* absolute tape position     */
     int32_t 	tapePosition;				/* signed relative position   */
     int32_t 	tapePositionPrev;			/* previous tape position     */
-    int32_t 	tapeDirection;				/* direction 1=fwd, 0=rew     */
+    int32_t     searchProgress;             /* progress to cue (0-100%)   */
     uint32_t	qei_error_cnt;				/* QEI phase error count      */
     float		tapeTach;					/* tape speed from roller     */
 	bool		searchCancel;

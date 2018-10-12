@@ -359,17 +359,22 @@ unsigned char* GrGetScreenBuffer(void)
 static void
 GrOffScreenMonoFlush(void *pvDisplayData)
 {
-    /* two extra words of the display buffer at the end contain
-     * the LED/lamp state bits for all the button LED's.
+    /* Two extra words of the display buffer at the end contain
+     * the LED/lamp state bits for all the button LED's and the
+     * second word contains the current transport mode.
      */
     uint32_t *p = (uint32_t*)&g_ucScreenBuffer[OLED_BUFSIZE];
 
+    /* 24-bits of the led mask. The transport lamp bits came from the
+     * DTC via LED status IPC notifications. We're just passing these
+     * along to the DRC remote.
+     */
     uint32_t ledmask = (g_sysData.ledMaskButton << 8) | (g_sysData.ledMaskTransport & 0xFF);
 
     *p++ = ledmask;
-    *p++ = 0x0000;
+    *p++ = g_sysData.transportMode;
 
-    // Flush the screen buffer to the DRC remote display via RS-422
+    /* Flush the screen buffer to the DRC remote display via RS-422! */
     RAMP_Send_Display(1000);
 }
 

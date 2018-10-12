@@ -1,4 +1,4 @@
-/* ============================================================================
+/***************************************************************************
  *
  * DTC-1200 & STC-1200 Digital Transport Controllers for
  * Ampex MM-1200 Tape Machines
@@ -8,7 +8,7 @@
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
  *
- * ============================================================================
+ ***************************************************************************
  *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
@@ -39,7 +39,8 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ *
+ ***************************************************************************/
 
 /* XDCtools Header files */
 #include <xdc/std.h>
@@ -77,6 +78,8 @@
 #include "Board.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
+#include "LocateTask.h"
+#include "PositionTask.h"
 #include "CLITask.h"
 
 /* External Data Items */
@@ -103,38 +106,36 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
         param1 = msg->param1.U;
         //CLI_printf("BUTTON: %02x ", param1);
         if (param1 & S_STOP) {
-            g_sysData.searchCancel = TRUE;
+            LocateAbort();
         } else if (param1 & S_PLAY) {
-            //CLI_printf("PLAY");
-            g_sysData.searchCancel = TRUE;
-        } else if (param1 & S_REC) {
-            //CLI_printf("REC");
+            LocateAbort();
         } else if (param1 & S_REW) {
-            //CLI_printf("REW");
-            g_sysData.searchCancel = TRUE;
+            LocateAbort();
         } else if (param1 & S_FWD) {
-            //CLI_printf("FWD");
-            g_sysData.searchCancel = TRUE;
+            LocateAbort();
         } else if (param1 & S_LDEF) {
-            //CLI_printf("LDEF");
+            LocateAbort();
         } else if (param1 & S_TAPEOUT) {
-            //CLI_printf("TAPE OUT");
-            g_sysData.searchCancel = TRUE;
+            LocateAbort();
         } else if (param1 & S_TAPEIN) {
-            //CLI_printf("TAPE IN");
+            LocateAbort();
         }
-        //CLI_printf("\n");
         break;
 
     case OP_NOTIFY_LAMP:
-        /* Update the current transport LED mask */
+        /* Update the current transport LED mask. The DTC also sends the
+         * transport mode along with the LED/lamp mask to help reduce traffic.
+         */
         g_sysData.ledMaskTransport = dtc_to_drc_lamp_mask(msg->param1.U);
         g_sysData.transportMode = msg->param2.U;
         break;
 
     case OP_NOTIFY_TRANSPORT:
+        /* Currently the DTC doesn't send this notification as it's handled
+         * by the lamp notify above. But, we've implemented this here in case
+         * we need to send additional separate notifications for some reason.
+         */
         g_sysData.transportMode = msg->param1.U;
-        //CLI_printf("TRANSPORT: %02x\n", g_sysData.transportMode);
         break;
     }
 

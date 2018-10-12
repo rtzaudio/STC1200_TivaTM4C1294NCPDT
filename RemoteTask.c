@@ -1,4 +1,15 @@
-/*
+/***************************************************************************
+ *
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
+ *
+ * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ ***************************************************************************
+ *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -28,7 +39,8 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ *
+ ***************************************************************************/
 
 /*
  *    ======== tcpEcho.c ========
@@ -550,17 +562,24 @@ void DrawTapeTime(void)
     if (CuePointGet(g_sysData.currentCueIndex, NULL) & CF_SET)
     {
         CuePointGetTime(g_sysData.currentCueIndex, &tapeTime);
-        sprintf(buf, "%u:%02u:%02u", tapeTime.hour, tapeTime.mins, tapeTime.secs);
+        int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';
+        sprintf(buf, "%c%u:%02u:%02u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
     }
     else
     {
-        GrStringDraw(&g_context, "-:--:--", -1, x, y, 0);
+        GrStringDraw(&g_context, " -:--:--", -1, x, y, 0);
     }
 
     /* Display locate progress bar */
 
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    sprintf(buf, "%d%%", g_sysData.searchProgress);
+    GrStringDraw(&g_context, buf, -1, 90, y, 0);
+
+
     //if (LocateIsSearching())
+    if (0)
     {
         x = 40;
         //y = y + 1;
@@ -585,6 +604,7 @@ void DrawTapeTime(void)
 
         GrContextForegroundSetTranslated(&g_context, 1);
         GrContextBackgroundSetTranslated(&g_context, 0);
+
         GrRectFill(&g_context, &rect2);
     }
 }

@@ -95,9 +95,22 @@
 
 /* Local Constants */
 
-#define BUTTON_PULSE_TIME	50
-
 #define IPC_TIMEOUT         1000
+#define BUTTON_PULSE_TIME   50
+
+typedef enum SearchState {
+    SEARCH_START_STATE,
+    SEARCH_SPEED_RANGE,
+    SEARCH_BEGIN_NEAR,
+    SEARCH_BEGIN_FAR,
+    SEARCH_BEGIN_MID,
+    SEARCH_BRAKE_PHASE,
+    SEARCH_BRAKE_VELOCITY,
+    SEARCH_PAST_ZERO,
+    SEARCH_ZERO_DIR,
+    SEARCH_ZERO_CROSS,
+    SEARCH_COMPLETE,
+} SearchState;
 
 /* External Data Items */
 
@@ -113,9 +126,8 @@ Bool Transport_Stop(void);
 Bool Transport_Play(void);
 Bool Transport_Fwd(uint32_t velocity);
 Bool Transport_Rew(uint32_t velocity);
-
 Bool Transport_GetMode(uint32_t* mode);
-
+bool IsTransportHaltMode(void);
 Bool Config_SetShuttleVelocity(uint32_t velocity);
 Bool Config_GetShuttleVelocity(uint32_t* velocity);
 
@@ -228,9 +240,9 @@ void CuePointGetTime(size_t index, TAPETIME* tapeTime)
 
     if (index <= MAX_CUE_POINTS)
     {
-        int tapePosition = g_sysData.cuePoint[index].ipos;
-
-        PositionGetTime(tapePosition, tapeTime);
+        int cuePosition = g_sysData.cuePoint[index].ipos;
+        PositionGetTime(cuePosition, tapeTime);
+        tapeTime->flags = (cuePosition < 0) ? 0 : F_PLUS;
     }
 }
 
@@ -278,6 +290,15 @@ bool LocateIsSearching(void)
     return g_sysData.searching;
 }
 
+bool IsTransportHaltMode()
+{
+    /* Abort if transport halted, must be tape out? */
+    if ((g_sysData.transportMode & MODE_MASK) == MODE_HALT)
+        return TRUE;
+
+    return FALSE;
+}
+
 //*****************************************************************************
 // Position reader/display task. This function reads the tape roller
 // quadrature encoder and stores the current position data. The 7-segement
@@ -285,31 +306,18 @@ bool LocateIsSearching(void)
 // position is always being shown on the machine's display on the transport.
 //*****************************************************************************
 
-typedef enum SearchState {
-    SEARCH_START_STATE,
-    SEARCH_SPEED_RANGE,
-    SEARCH_BEGIN_NEAR,
-    SEARCH_BEGIN_FAR,
-    SEARCH_BEGIN_MID,
-    SEARCH_BRAKE_PHASE,
-    SEARCH_BRAKE_VELOCITY,
-    SEARCH_PAST_ZERO,
-    SEARCH_ZERO_DIR,
-    SEARCH_ZERO_CROSS,
-    SEARCH_COMPLETE,
-} SearchState;
-
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
-    int dir;
-	int idist;
-	int adist;
-	int last_dir;
-	uint32_t key;
-	uint32_t shuttle_vel;
-	size_t cue_index;
-	size_t itemp;
-    bool done = FALSE;
+    int32_t       dir;
+	int32_t       idist;
+	int32_t       adist;
+	int32_t       from;
+	int32_t       last_dir;
+	uint32_t      key;
+	uint32_t      shuttle_vel;
+	size_t        cue_index;
+	size_t        itemp;
+    bool          cancel;
     LocateMessage msg;
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
@@ -331,8 +339,13 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Wait for a locate request */
         Mailbox_pend(g_mailboxLocate, &msg, BIOS_WAIT_FOREVER);
 
+        /* Only look for locate requests initially */
         if (msg.command != LOCATE_SEARCH)
         	continue;
+
+        /* Discare locate request if in halt mode */
+        if (IsTransportHaltMode())
+            continue;
 
         /* Get the cue point memory index. The cue point table is arranged
          * with 64 memory positions from 0-63. Memory location 64 is reserved
@@ -357,11 +370,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Set transport to STOP mode */
         Transport_Stop();
 
-        /* Clear the global search done flag */
+        /* Clear the global search cancel flag */
         key = Hwi_disable();
         g_sysData.searching = TRUE;
         g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
+
+        /* Save cue position we're at */
+        g_sysData.searchProgress  = 0;
 
         /**************************************/
         /* BEGIN MAIN AUTO-LOCATE SEARCH LOOP */
@@ -369,140 +385,201 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         SearchState state = SEARCH_START_STATE;
 
-        done = FALSE;
+        cancel = FALSE;
 
-	    while (!done)
+        /* The position we're cuing from */
+
+        if ((from = g_sysData.tapePosition) == 0.0f)
+            from = 0.01f;
+
+	    while (!cancel)
 	    {
 	        float time;
             float velocity;
-	        //float distance;
 
-			/* Calculate the current absolute position(distance) from cue point */
-			idist = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
+            /* Abort if transport halted, must be tape out? */
+            if (IsTransportHaltMode())
+                break;
 
-			/* absolute distance unsigned */
-			adist = abs(idist);
+			/* Get the current absolute position(distance) from cue point */
+            idist = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
+
+            adist = abs(idist);
 
 			/* v = d/t */
-			velocity = g_sysData.tapeTach;
+			if ((velocity = g_sysData.tapeTach) < 1.0f)
+			    velocity = 1.0f;
 
-			if (velocity < 1.0f)
-			    velocity = 1;
-
+			/* d = v * t */
 			/* t = d/v */
 			time = (float)adist / velocity;
 
-			/* d = v * t */
-			//distance = velocity * time;
-            //CLI_printf("%u, %u, %f\n", (uint32_t)velocity, adist, time);
+			/*
+			 * Calculate the percentage of search time left
+			 */
 
-			/* Finite State Machine */
+            float progress;
+            float dist = (float)idist;
+            float cue  = (float)g_sysData.cuePoint[cue_index].ipos;
+
+            progress = fabs((dist/from) * 100.0f);
+
+            g_sysData.searchProgress = (int32_t)progress;
+
+            CLI_printf("d=%d, t=%u, v=%u\n", idist, (uint32_t)time, (uint32_t)velocity);
+
+			/*
+			 * SEARCH FINITE STATE MACHINE
+			 */
 
 			switch(state)
 			{
 			case SEARCH_START_STATE:
-		        /* Determine which direction we need to go initially */
-			    CLI_printf("LOCATE[%u] %d => ", cue_index, idist);
 
-			    if (idist > 0)
+			    /* Determine which direction we need to go initially */
+
+			    CLI_printf("\nLOCATE[%u] d=%d => ", cue_index, idist);
+
+			    if (g_sysData.cuePoint[cue_index].ipos > g_sysData.tapePosition)
 		        {
+                    CLI_printf("FWD");
 		            dir = DIR_FWD;
-		            CLI_printf("FWD");
 		        }
-		        else if (idist < 0)
+		        else if (g_sysData.cuePoint[cue_index].ipos < g_sysData.tapePosition)
 		        {
+                    CLI_printf("REW");
 		            dir = DIR_REW;
-		            CLI_printf("REW");
 		        }
 		        else
 		        {
+                    CLI_printf("AT ZERO!!\n");
 		            dir = DIR_ZERO;
-                    done = TRUE;
-		            CLI_printf("AT ZERO!!\n");
+                    cancel = TRUE;
 		            break;
 		        }
-		        state = SEARCH_SPEED_RANGE;
+
+			    state = SEARCH_SPEED_RANGE;
 		        break;
 
 			case SEARCH_SPEED_RANGE:
+
 			    /* Determine the shuttle speed range based on distance out */
-                if (adist > 12500)
+
+                //if (adist < 4000)
+                if (time < 80.0f)
                 {
-                    shuttle_vel = 500;
-                    state = SEARCH_BEGIN_FAR;
-                    CLI_printf(" FAR\n");
-                }
-                else if (adist < 6250)
-                {
+                    CLI_printf(" NEAR\n");
                     shuttle_vel = 100;
                     state = SEARCH_BEGIN_NEAR;
-                    CLI_printf(" NEAR\n");
+                }
+                //else if ((adist >= 4000) && (adist < 8000))
+                else if ((time > 80.0f) && (time < 100.0f))
+                {
+                    CLI_printf(" MID\n");
+                    shuttle_vel = 400;
+                    state = SEARCH_BEGIN_MID;
                 }
                 else
                 {
-                    shuttle_vel = 350;
-                    state = SEARCH_BEGIN_MID;
-                    CLI_printf(" MID\n");
+                    CLI_printf(" FAR\n");
+                    shuttle_vel = 500;
+                    state = SEARCH_BEGIN_FAR;
                 }
 
-		        /* Start the transport in either FWD or REV direction
+                /* Start the transport in either FWD or REV direction
 		         * based on the cue point and current location.
 		         */
-		        if (dir == DIR_FWD)
+                if (dir == DIR_FWD)
 		            Transport_Fwd(shuttle_vel);
 		        else
 		            Transport_Rew(shuttle_vel);
 			    break;
 
             case SEARCH_BEGIN_FAR:
-                if (time < 135.0f)
+
+                if (time < 130.0f)
 			    {
                     state = SEARCH_BRAKE_VELOCITY;
+
 	                if (g_sysData.tapeTach > 35.0f)
+	                {
+                        CLI_printf("NEAR BRAKE PHASE %d\n", idist);
+
 	                    state = SEARCH_BRAKE_PHASE;
+	                }
 			    }
 			    break;
 
             case SEARCH_BEGIN_MID:
-                if (time < 75.0f)
+
+                if (time < 60.0f)
                 {
                     state = SEARCH_BRAKE_VELOCITY;
+
                     if (g_sysData.tapeTach > 35.0f)
+                    {
+                        CLI_printf("MID BRAKE PHASE %d\n", idist);
+
                         state = SEARCH_BRAKE_PHASE;
+                    }
                 }
                 break;
 
             case SEARCH_BEGIN_NEAR:
-                if (time < 45.0f)
+
+                if (time < 30.0f)
                 {
+                    CLI_printf("NEAR BRAKE %d\n", idist);
+
                     state = SEARCH_BRAKE_VELOCITY;
                 }
                 break;
 
             case SEARCH_BRAKE_PHASE:
-                CLI_printf("BRAKE PHASE: %d\n", idist);
-                Transport_Stop();
-                //if (dir == DIR_FWD)
-                //    Transport_Rew(shuttle_vel);
-                //else
-                //    Transport_Fwd(shuttle_vel);
-                state = SEARCH_BRAKE_VELOCITY;
-                /*
-                 * Fall through to next state and check velocity...
-                 */
-			case SEARCH_BRAKE_VELOCITY:
-			    /* Wait for velocity to drop to 25 or below */
-			    if (g_sysData.tapeTach > 25.0f)
-			        break;
 
-		        CLI_printf("SLOW SHUTTLE\n");
+                CLI_printf("BRAKE PHASE: d=%d, v=%u\n", adist, (uint32_t)g_sysData.tapeTach);
+
+                if (g_sysData.tapeTach > 40.0f)
+                {
+                    CLI_printf("BRAKE...\n");
+                    Transport_Stop();
+
+                    state = SEARCH_BRAKE_VELOCITY;
+                }
+                else
+                {
+                    CLI_printf("SKIP BRAKE: v=%u\n", (uint32_t)g_sysData.tapeTach);
+
+                    /* Begin low speed shuttle */
+                    if (dir == DIR_FWD)
+                        Transport_Fwd(130);
+                    else
+                        Transport_Rew(130);
+
+                    state = SEARCH_ZERO_CROSS;
+                }
+
+                /* Fall through to next velocity check state */
+
+			case SEARCH_BRAKE_VELOCITY:
+
+			    /* Wait for velocity to drop to 20 or below */
+			    //if (g_sysData.tapeTach > 25.0f)
+			    if (time < 15.0f)
+			    {
+			        break;
+			    }
+
+			    CLI_printf("BEGIN SLOW SHUTTLE\n");
+
                 /* Begin low speed shuttle */
                 if (dir == DIR_FWD)
-                    Transport_Fwd(120);
+                    Transport_Fwd(130);
                 else
-                    Transport_Rew(120);
+                    Transport_Rew(130);
 
-                state = SEARCH_PAST_ZERO;
+                //state = SEARCH_PAST_ZERO;
+                state = SEARCH_ZERO_CROSS;
 			    break;
 
 			case SEARCH_PAST_ZERO:
@@ -511,9 +588,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 	            if (dir == DIR_FWD)
 	            {
-	                if (idist < -300)
+	                if (idist < 300)
 	                {
-	                    CLI_printf("PASSED ZERO BY %d - CHANGE DIR\n", idist);
+	                    CLI_printf("PASSED ZERO BY d=%d - CHANGE DIR\n", idist);
                         last_dir = g_sysData.tapeDirection;
 	                    /* FORWARD overshoot, change direction */
 	                    Transport_Rew(250);
@@ -524,7 +601,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	            {
 	                if (idist > 300)
 	                {
-                        CLI_printf("PASSED ZERO BY %d - CHANGE DIR\n", idist);
+                        CLI_printf("PASSED ZERO BY d=%d - CHANGE DIR\n", idist);
                         last_dir = g_sysData.tapeDirection;
 	                    /* REWIND overshoot, change direction */
 	                    Transport_Fwd(250);
@@ -534,49 +611,33 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			    break;
 
 			case SEARCH_ZERO_DIR:
-#if 0
-                if (Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_03, 2000))
-                {
-                    CLI_printf("DIRECTION CHANGE EVENT\n");
-                }
-                state = SEARCH_ZERO_CROSS;
-#else
+
                 /* Wait for tape direction to change */
 			    if (g_sysData.tapeDirection != last_dir)
 			    {
                     CLI_printf("DIRECTION CHANGE EVENT\n");
 	                state = SEARCH_ZERO_CROSS;
 			    }
-#endif
                 break;
 
             case SEARCH_ZERO_CROSS:
 
                 /* ZERO CROSS - check taking direction into account */
 
-                //CLI_printf("idist=%d\n", idist);
+                //CLI_printf("ZERO-X d=%d, t=%u, v=%u\n", idist, (uint32_t)time, (uint32_t)velocity);
 
-                if (dir == DIR_FWD)
+                if (adist <= 10)
                 {
-                    if (idist >= 300)
-                        done = TRUE;
-                }
-                else
-                {
-                    if (idist <= 300)
-                        done = TRUE;
-                }
-
-                if (done)
-                {
+                    //g_sysData.searchProgress = 100;
+                    cancel = TRUE;
                     Transport_Stop();
-                    CLI_printf("ZERO CROSS %d\n", idist);
+                    CLI_printf("ZERO CROSSED %d\n", idist);
                 }
                 break;
 
             default:
 			    /* invalid state! */
-			    done = TRUE;
+			    cancel = TRUE;
 			    break;
 			}
 
@@ -586,34 +647,46 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			 * at the new cue point requested.
 			 */
 
-	        if (Mailbox_pend(g_mailboxLocate, &msg, 10))
+			if (cancel)
+                break;
+
+	        if (Mailbox_pend(g_mailboxLocate, &msg, 5))
 	        {
 	            /* Abort search loop if cancel requested */
                 if (msg.command == LOCATE_CANCEL)
+                {
+                    cancel = TRUE;
                     break;
-
-                /* New search requested? */
-	            if (msg.command == LOCATE_SEARCH)
+                }
+                else if (msg.command == LOCATE_SEARCH)
 	            {
+                    /* New search requested! */
+
 	                /* Get valid cue point index */
 	                if ((itemp = (size_t)msg.param1) > MAX_CUE_POINTS)
-	                    continue;
+	                    break;
+
 	                /* Is the new cue point is active? */
 	                if (g_sysData.cuePoint[itemp].flags == 0)
-	                    continue;
-	                /* Switch to new cue point index */
-	                cue_index = itemp;
-	                /* Reset initial search state machine */
-	                state = SEARCH_START_STATE;
+	                    break;
+
+	                cue_index = (size_t)msg.param1;
+
+	                if (cue_index > MAX_CUE_POINTS)
+	                    break;
+
+	                /* Locate button LED on */
+	                SetLocateButtonLED(cue_index);
 	            }
 	        }
 
-	        /* Check for search cancel */
-            if (g_sysData.searchCancel)
-            {
-                done = TRUE;
+	        /* Abort if transport halted, must be tape out? */
+            if (IsTransportHaltMode())
                 break;
-            }
+
+	        /* Exit if user search cancel */
+            if (g_sysData.searchCancel)
+                break;
 	    }
 
 	    /* Send STOP button pulse to stop transport */

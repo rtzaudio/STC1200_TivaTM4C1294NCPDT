@@ -1,5 +1,4 @@
-/* ============================================================================
- *
+/*
  * DTC-1200 & STC-1200 Digital Transport Controllers for
  * Ampex MM-1200 Tape Machines
  *
@@ -7,39 +6,7 @@
  * All Rights Reserved
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
- *
- * ============================================================================
- *
- * Copyright (c) 2014, Texas Instruments Incorporated
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- *
- * *  Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- *
- * *  Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * *  Neither the name of Texas Instruments Incorporated nor the names of
- *    its contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
- * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * ============================================================================ */
+ */
 
 #ifndef _IPCTASK_H_
 #define _IPCTASK_H_
@@ -47,9 +14,7 @@
 #include "RAMP.h"
 #include "IPCMessage.h"
 
-/* ============================================================================
- * IPC Message Structure
- * ============================================================================ */
+/*** IPC MESSAGE STRUCTURE *************************************************/
 
 typedef struct _IPCMSG {
     uint16_t        type;           /* the IPC message type code   */
@@ -64,13 +29,11 @@ typedef struct _IPCMSG {
     }  param2;                      /* unsigned or float param2 */
 } IPCMSG;
 
-/* ============================================================================
- * IPC Tx/Rx Message List Element Structure
- * ============================================================================ */
+/*** IPC TX/RX MESSAGE LIST ELEMENT STRUCTURE ******************************/
 
 typedef struct _IPC_ELEM {
-	Queue_Elem	elem;
-	RAMP_FCB			fcb;
+	Queue_Elem  elem;
+	RAMP_FCB    fcb;
     IPCMSG      msg;
 } IPC_ELEM;
 
@@ -82,9 +45,7 @@ typedef struct _IPC_ACK {
     IPCMSG      msg;
 } IPC_ACK;
 
-/* ============================================================================
- * IPC Message Server Object
- * ============================================================================ */
+/*** IPC MESSAGE SERVER OBJECT *********************************************/
 
 typedef struct _IPCSVR_OBJECT {
 	UART_Handle         uartHandle;
@@ -118,9 +79,7 @@ typedef struct _IPCSVR_OBJECT {
     IPC_ACK*            ackBuf;
 } IPCSVR_OBJECT;
 
-/* ============================================================================
- * IPC Function Prototypes
- * ============================================================================ */
+/*** IPC FUNCTION PROTOTYPES ***********************************************/
 
 Bool IPC_Server_init(void);
 
