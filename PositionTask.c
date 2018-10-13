@@ -114,7 +114,7 @@ static Void QEIHwi(UArg arg);
 
 void PositionZeroReset(void)
 {
-	CLI_printf("Zero Reset\r\n");
+	CLI_printf("Zero Reset\n");
 	QEIPositionSet(QEI_BASE_ROLLER, 0);
 }
 

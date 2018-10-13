@@ -103,6 +103,9 @@
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
 
+/* Debounce time for transport locator buttons */
+#define DEBOUNCE_TIME   30
+
 /* Global STC-1200 System data */
 SYSDATA g_sysData;
 SYSPARMS g_sysParms;
@@ -122,8 +125,6 @@ static void gpioButtonCueHwi(unsigned int index);
 
 static void gpioButtonStopHwi(unsigned int index);
 static void Hardware_init();
-static int Debounce_buttonHI(uint32_t index);
-static int Debounce_buttonLO(uint32_t index);
 
 #if (DIV_CLOCK_ENABLED > 0)
 static void EnableClockDivOutput(uint32_t div);
@@ -198,6 +199,7 @@ int main(void)
 Void CommandTaskFxn(UArg arg0, UArg arg1)
 {
     UInt32 timeout;
+    uint32_t btn;
     Error_Block eb;
 	Task_Params taskParams;
     CommandMessage msgCmd;
@@ -233,8 +235,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.priority  = 12;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
-    /* Initialize the remote task */
-    Remote_Task_init();
+    /* Initialize the remote task if CFG2 switch is ON */
+    if (GPIO_read(Board_DIPSW_CFG2) == 0)
+        Remote_Task_init();
 
     /* Setup the callback Hwi handler for each button */
 
@@ -275,39 +278,51 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
 			if (msgCmd.param == Board_BTN_RESET)
 			{
-				if (Debounce_buttonHI(Board_BTN_RESET))
-				{
-					/* Zero tape timer at current tape location */
-					PositionZeroReset();
-				}
+				/* Zero tape timer at current tape location */
+				PositionZeroReset();
 
-				Debounce_buttonLO(Board_BTN_RESET);
+				/* Debounce button delay */
+				Task_sleep(DEBOUNCE_TIME);
+
+				/* Wait for button to release, then re-enable interrupt */
+				do {
+			        btn = GPIO_read(Board_BTN_RESET);
+			        Task_sleep(10);
+			    } while (btn);
 
 				GPIO_enableInt(Board_BTN_RESET);
 			}
 			else if (msgCmd.param == Board_BTN_CUE)
 			{
-				if (Debounce_buttonHI(Board_BTN_CUE))
-				{
-					/* Store the current position at cue point 65 */
-					CuePointSet(LAST_CUE_POINT, 0);
-				}
+				/* Store the current position at cue point 65 */
+				CuePointSet(LAST_CUE_POINT, 0);
 
-				Debounce_buttonLO(Board_BTN_CUE);
+                /* Debounce button delay */
+                Task_sleep(DEBOUNCE_TIME);
+
+                /* Wait for button to release, then re-enable interrupt */
+                do {
+                    btn = GPIO_read(Board_BTN_CUE);
+                    Task_sleep(10);
+                } while (btn);
 
 				GPIO_enableInt(Board_BTN_CUE);
 			}
 			else if (msgCmd.param == Board_BTN_SEARCH)
 			{
-				if (Debounce_buttonHI(Board_BTN_SEARCH))
-				{
-					/* Begin locate to last cue point memory. This is the
-					 * memory used by the cue/search buttons on the transport.
-					 */
-				    LocateSearch(LAST_CUE_POINT);
-				}
+				/* Begin locate to last cue point memory. This is the
+				 * memory used by the cue/search buttons on the transport.
+				 */
+			    LocateSearch(LAST_CUE_POINT);
 
-				Debounce_buttonLO(Board_BTN_SEARCH);
+			    /* Debounce button delay */
+                Task_sleep(DEBOUNCE_TIME);
+
+                /* Wait for button to release, then re-enable interrupt */
+                do {
+                    btn = GPIO_read(Board_BTN_SEARCH);
+                    Task_sleep(10);
+                } while (btn);
 
 				GPIO_enableInt(Board_BTN_SEARCH);
 			}
@@ -378,51 +393,6 @@ void EnableClockDivOutput(uint32_t div)
     SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
 }
 #endif
-
-//*****************************************************************************
-// This function attempts to debounce an I/O pin button state by attempting
-// to read the button state repeatedly for DEBOUNCE cycles. If the pin goes
-// low during this time, then it's considered an invalid button press.
-//*****************************************************************************
-
-#define DEBOUNCE_HI	10
-#define DEBOUNCE_LO	20
-
-/* Check that button remains HI for DEBOUNCE_HI cycles */
-
-int Debounce_buttonHI(uint32_t index)
-{
-	int i;
-	int f = 1;
-
-	for (i=0; i < DEBOUNCE_LO; i++)
-	{
-		if (!GPIO_read(index))
-			f = 0;
-
-		Task_sleep(5);
-	}
-
-	return f;
-}
-
-/* Check that button remains LOW for DEBOUNCE_LO cycles */
-
-int Debounce_buttonLO(uint32_t index)
-{
-	int i;
-	int f = 0;
-
-	for (i=0; i < DEBOUNCE_LO; i++)
-	{
-		if (GPIO_read(index))
-			f = 1;
-
-		Task_sleep(5);
-	}
-
-	return f;
-}
 
 //*****************************************************************************
 // HWI Callback function for top left button
