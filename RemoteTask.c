@@ -417,7 +417,8 @@ void DrawScreen(uint32_t uScreenNum)
 }
 
 //*****************************************************************************
-// Display the normal tape time/position screen
+// Display the home tape time/position screen. This is the main application
+// screen that users see in normal operation mode.
 //*****************************************************************************
 
 void DrawTapeTime(void)
@@ -451,10 +452,7 @@ void DrawTapeTime(void)
             break;
 
         case MODE_PLAY:
-            if (g_sysData.transportMode & M_RECORD)
-                len = sprintf(buf, "REC");
-            else
-                len = sprintf(buf, "PLAY");
+            len = sprintf(buf, "PLAY");
             break;
 
         case MODE_FWD:
@@ -502,15 +500,14 @@ void DrawTapeTime(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    //GrContextFontSet(&g_context, g_psFontCm30b);
     GrContextFontSet(&g_context, g_psFontWDseg7bold24pt);
     height = GrStringHeightGet(&g_context);
 
     len = sprintf(buf, "%c%1u:%02u:%02u",
             (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
-            g_sysData.tapeTime.hour,
-            g_sysData.tapeTime.mins,
-            g_sysData.tapeTime.secs);
+             g_sysData.tapeTime.hour,
+             g_sysData.tapeTime.mins,
+             g_sysData.tapeTime.secs);
 
     x = (SCREEN_WIDTH / 2) - 4;
     y = SCREEN_HEIGHT / 2;
@@ -533,9 +530,6 @@ void DrawTapeTime(void)
 
     len = sprintf(buf, "LOC-%u", g_sysData.currentCueIndex+1);
     width = GrStringWidthGet(&g_context, buf, len);
-
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
 
     rect.i16XMin = x;
     rect.i16YMin = y;
@@ -572,7 +566,36 @@ void DrawTapeTime(void)
 
     /* Display locate progress bar */
 
-    if (LocateIsSearching())
+    if (!LocateIsSearching())
+    {
+        if (g_sysData.transportMode & M_RECORD)
+        {
+            GrContextFontSet(&g_context, g_psFontFixed6x8);
+            height = GrStringHeightGet(&g_context);
+
+            len = sprintf(buf, "RECORD");
+            width = GrStringWidthGet(&g_context, buf, len);
+
+            x = (SCREEN_WIDTH - 1) - width;
+            y = SCREEN_HEIGHT - height - 1;
+
+            rect.i16XMin = x;
+            rect.i16YMin = y;
+            rect.i16XMax = x + width + 1;
+            rect.i16YMax = y + height;
+
+            GrContextForegroundSetTranslated(&g_context, 0);
+            GrContextBackgroundSetTranslated(&g_context, 1);
+
+            GrStringDraw(&g_context, buf, -1, x+1, y+1, 1);
+
+            GrContextForegroundSetTranslated(&g_context, 1);
+            GrContextBackgroundSetTranslated(&g_context, 0);
+
+            GrRectDraw(&g_context, &rect);
+        }
+    }
+    else
     {
         if (0)
         {
