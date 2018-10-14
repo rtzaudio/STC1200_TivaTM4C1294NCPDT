@@ -123,17 +123,16 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
         break;
 
     case OP_NOTIFY_LAMP:
-        /* Update the current transport LED mask. The DTC also sends the
-         * transport mode along with the LED/lamp mask to help reduce traffic.
+        /* Update the current transport LED mask. The DTC also
+         * sends the tape speed along with the LED/lamp mask.
          */
         g_sysData.ledMaskTransport = dtc_to_drc_lamp_mask(msg->param1.U);
-        g_sysData.transportMode = msg->param2.U;
+        g_sysData.tapeSpeed = msg->param2.U;
         break;
 
     case OP_NOTIFY_TRANSPORT:
-        /* Currently the DTC doesn't send this notification as it's handled
-         * by the lamp notify above. But, we've implemented this here in case
-         * we need to send additional separate notifications for some reason.
+        /* The DTC sends this notification with the current
+         * transport mode (stop, play, etc).
          */
         g_sysData.transportMode = msg->param1.U;
         break;

@@ -219,6 +219,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Startup the IPC server tasks */
     IPC_Server_init();
 
+    /* Startup the IPC server threads */
+    IPC_Server_startup();
+
     /*
      * Create the various system tasks
      */

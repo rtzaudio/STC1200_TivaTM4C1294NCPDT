@@ -417,7 +417,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             if (progress > 100.0f)
                 progress = 100.0f;
 
-            g_sysData.searchProgress = (int32_t)progress;
+            if (progress < 0.0f)
+                progress = 0.0f;
+
+            g_sysData.searchProgress = 100 - (int32_t)progress;
 
             //if (state >= SEARCH_SHUTTLE_FAR)
             //    CLI_printf("d=%d, t=%u, v=%u\n", cue_dist, (uint32_t)time, (uint32_t)velocity);

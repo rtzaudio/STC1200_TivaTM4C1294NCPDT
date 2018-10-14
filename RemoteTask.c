@@ -423,11 +423,10 @@ void DrawScreen(uint32_t uScreenNum)
 void DrawTapeTime(void)
 {
     char buf[64];
-    int len;
-    uint32_t x, y;
-    uint32_t height;
-    uint32_t width;
-    uint32_t spacing = 0;
+    int32_t x, y;
+    int32_t len;
+    int32_t width;
+    int32_t height;
     tRectangle rect, rect2;
     TAPETIME tapeTime;
 
@@ -489,11 +488,11 @@ void DrawTapeTime(void)
      * Draw current tape speed active
      */
 
-    len = sprintf(buf, "%s IPS", (g_sysData.transportMode & 0x8000) ? "30" : "15");
+    len = sprintf(buf, "%s IPS", (g_sysData.tapeSpeed == 30) ? "30" : "15");
     width = GrStringWidthGet(&g_context, buf, len);
     x = (SCREEN_WIDTH - 1) - width;
     GrStringDraw(&g_context, buf, -1, x, y, 1);
-    y += height + spacing;
+    y += height;
 
     /*
      * Draw the big time digits centered
@@ -573,39 +572,58 @@ void DrawTapeTime(void)
 
     /* Display locate progress bar */
 
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
-    sprintf(buf, "%d%%", g_sysData.searchProgress);
-    GrStringDraw(&g_context, buf, -1, 90, y, 0);
-
-
-    //if (LocateIsSearching())
-    if (0)
+    if (LocateIsSearching())
     {
-        x = 40;
-        //y = y + 1;
+        if (0)
+        {
+            /* Draw progress as text only */
+            GrContextFontSet(&g_context, g_psFontFixed6x8);
+            sprintf(buf, "%d%%", g_sysData.searchProgress);
+            GrStringDraw(&g_context, buf, -1, 100, y, 0);
+        }
+        else
+        {
+            /* Draw progress bar */
 
-        height -= 2;
+            x = 40;
+            height -= 2;
 
-        rect.i16XMin = SCREEN_WIDTH - x;
-        rect.i16YMin = y;
-        rect.i16XMax = SCREEN_WIDTH - 1;
-        rect.i16YMax = y + height;
+            rect.i16XMin = SCREEN_WIDTH - x;
+            rect.i16YMin = y;
+            rect.i16XMax = SCREEN_WIDTH - 1;
+            rect.i16YMax = y + height;
 
-        GrContextForegroundSetTranslated(&g_context, 1);
-        GrContextBackgroundSetTranslated(&g_context, 0);
-        GrRectDraw(&g_context, &rect);
+            GrContextForegroundSetTranslated(&g_context, 1);
+            GrContextBackgroundSetTranslated(&g_context, 0);
+            GrRectDraw(&g_context, &rect);
 
-        rect2 = rect;
+            rect2 = rect;
 
-        rect2.i16XMin += 2;
-        rect2.i16YMin += 2;
-        rect2.i16XMax -= 2;
-        rect2.i16YMax -= 2;
+            rect2.i16XMin += 2;
+            rect2.i16YMin += 2;
+            rect2.i16XMax -= 2;
+            rect2.i16YMax -= 2;
 
-        GrContextForegroundSetTranslated(&g_context, 1);
-        GrContextBackgroundSetTranslated(&g_context, 0);
+            int32_t x1 = rect2.i16XMin;
+            int32_t x2 = rect2.i16XMax;
 
-        GrRectFill(&g_context, &rect2);
+            float progress = (float)g_sysData.searchProgress * 0.01f;
+
+            x = (int16_t)((float)(x2 - x1) * progress) + x1;
+
+            if (x > x2)
+                x = x2;
+
+            if (x < x1)
+                x = x1;
+
+            rect2.i16XMax = (int16_t)x - 1;
+
+            GrContextForegroundSetTranslated(&g_context, 1);
+            GrContextBackgroundSetTranslated(&g_context, 0);
+
+            GrRectFill(&g_context, &rect2);
+        }
     }
 }
 
