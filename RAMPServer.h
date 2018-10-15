@@ -22,10 +22,12 @@ typedef struct _RAMP_MSG {
     uint16_t        type;           /* message type/class code     */
     uint16_t        opcode;         /* application defined op code */
     union {
+        int32_t     I;
         uint32_t    U;
         float       F;
     } param1;                       /* unsigned or float param1 */
     union {
+        int32_t     I;
         uint32_t    U;
         float       F;
     }  param2;                      /* unsigned or float param2 */

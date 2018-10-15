@@ -18,14 +18,18 @@
 
 #define MSG_TYPE_DISPLAY			10      /* display buffer message packet  */
 #define MSG_TYPE_SWITCH             11
-#define MSG_TYPE_LED                12
+#define MSG_TYPE_JOGWHEEL           13
 
 /* IPC_TYPE_DISPLAY Operation Codes */
 #define OP_DISPLAY_REFRESH          100
 
 /* IPC_TYPE_SWITCH Operation Codes */
-#define OP_SWITCH_TRANSPORT         200     /* transport button switch press */
-#define OP_SWITCH_REMOTE            201     /* all other remote switch press */
+#define OP_SWITCH_TRANSPORT         200     /* transport button switch press  */
+#define OP_SWITCH_REMOTE            201     /* DRC remote button switch press */
+#define OP_SWITCH_JOGWHEEL          202     /* jog wheel push switch pressed  */
+
+/* IPC_TYPE_JOGWHEEL Operation Codes */
+#define OP_JOGWHEEL_MOTION          220     /* jog wheel motion notification */
 
 /* ============================================================================
  * DRC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)

@@ -38,7 +38,7 @@ typedef struct _SYSDATA
     uint32_t    ledMaskTransport;           /* current transport LED mask */
     uint32_t    transportMode;              /* Current transport mode     */
     /* These items  are internal to STC */
-    int32_t     tapeSpeed;                  /* tape speed (1=hi, 0=low)   */
+    uint32_t    tapeSpeed;                  /* tape speed (15 or 30)      */
     int32_t     tapeDirection;              /* direction 1=fwd, 0=rew     */
     uint32_t    tapePositionAbs;            /* absolute tape position     */
     int32_t 	tapePosition;				/* signed relative position   */

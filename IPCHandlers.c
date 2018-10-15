@@ -89,6 +89,40 @@ extern SYSDATA g_sysData;
 static uint32_t dtc_to_drc_lamp_mask(uint32_t bits);
 
 //*****************************************************************************
+// This handler processes an incoming transaction request from a peer
+// message received. It executes the command requested and returns the
+// results in a MSG+ACK reply to indicate completion with results.
+//*****************************************************************************
+
+Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
+{
+    RAMP_FCB fcbReply;
+    IPCMSG msgReply;
+
+    /* Copy incoming message to outgoing reply for default values */
+    memcpy(&msgReply, msg, sizeof(IPCMSG));
+
+    /* Execute the transaction type request */
+
+    switch(msg->type)
+    {
+        /* The STC doesn't support any incoming transactions
+         * from the DTC. In general, the DTC acts as a slave
+         * to the STC.
+         */
+    }
+
+    /* Send the response MSG+ACK with command results returned */
+
+    fcbReply.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ACK);
+    fcbReply.acknak  = fcb->seqnum;
+    fcbReply.address = fcb->address;
+    fcbReply.seqnum  = IPC_GetTxSeqNum();
+
+    return IPC_Message_post(&msgReply, &fcbReply, timeout);
+}
+
+//*****************************************************************************
 // This handler processes application specific datagram messages received
 // from the peer DTC. No response is required for datagrams.
 //*****************************************************************************
@@ -141,6 +175,10 @@ Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
     return TRUE;
 }
 
+//*****************************************************************************
+// Convert lamp bits from DRC format to DTC format
+//*****************************************************************************
+
 /* DTC Lamp Driver Bits */
 #define L_DTC_REC      0x01             // record indicator lamp
 #define L_DTC_PLAY     0x02             // play indicator lamp
@@ -166,40 +204,6 @@ uint32_t dtc_to_drc_lamp_mask(uint32_t bits)
     bits = (bits & 0xFFF0) | mask;
 
     return mask;
-}
-
-//*****************************************************************************
-// This handler processes an incoming transaction request from a peer
-// message received. It executes the command requested and returns the
-// results in a MSG+ACK reply to indicate completion with results.
-//*****************************************************************************
-
-Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
-{
-    RAMP_FCB fcbReply;
-    IPCMSG msgReply;
-
-    /* Copy incoming message to outgoing reply for default values */
-    memcpy(&msgReply, msg, sizeof(IPCMSG));
-
-    /* Execute the transaction type request */
-
-    switch(msg->type)
-    {
-        /* The STC doesn't support any incoming transactions
-         * from the DTC. In general, the DTC acts as a slave
-         * to the STC.
-         */
-    }
-
-    /* Send the response MSG+ACK with command results returned */
-
-    fcbReply.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ACK);
-    fcbReply.acknak  = fcb->seqnum;
-    fcbReply.address = fcb->address;
-    fcbReply.seqnum  = IPC_GetTxSeqNum();
-
-    return IPC_Message_post(&msgReply, &fcbReply, timeout);
 }
 
 // End-Of-File

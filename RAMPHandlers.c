@@ -106,6 +106,10 @@ void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg)
         Mailbox_post(g_mailboxRemote, msg, 0);
         break;
 
+    case MSG_TYPE_JOGWHEEL:
+        Mailbox_post(g_mailboxRemote, msg, 0);
+        break;
+
     default:
         break;
     }

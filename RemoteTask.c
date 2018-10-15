@@ -87,6 +87,7 @@
 #include "STC1200.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
+#include "CLITask.h"
 
 /* Various Local Constants */
 #define LAST_SCREEN     1
@@ -112,6 +113,7 @@ static void DrawTapeTime(void);
 static void DrawWelcome(void);
 static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
 static void HandleSwitchPress(uint32_t bits);
+static void HandleJogwheel(uint32_t bits);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void HandleSetSearchMemory(size_t index);
 static void HandleSetSearchMode(uint32_t mode);
@@ -214,6 +216,18 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             else if (msg.opcode == OP_SWITCH_REMOTE)
             {
                 HandleSwitchPress(msg.param1.U);
+            }
+            else if (msg.opcode == OP_SWITCH_JOGWHEEL)
+            {
+                CLI_printf("jog press\n");
+            }
+            break;
+
+        case MSG_TYPE_JOGWHEEL:
+            if (msg.opcode == OP_JOGWHEEL_MOTION)
+            {
+                //HandleJogwheelNotify();
+                CLI_printf("jog %u, %d\n", msg.param1.U, msg.param2.I);
             }
             break;
 
@@ -452,15 +466,24 @@ void DrawTapeTime(void)
             break;
 
         case MODE_PLAY:
-            len = sprintf(buf, "PLAY");
+            if (g_sysData.transportMode & M_RECORD)
+                len = sprintf(buf, "PLAY(REC)");
+            else
+                len = sprintf(buf, "PLAY");
             break;
 
         case MODE_FWD:
-            len = sprintf(buf, "FWD");
+            if (g_sysData.transportMode & M_LIBWIND)
+                len = sprintf(buf, "FWD(LIB)");
+            else
+                len = sprintf(buf, "FWD");
             break;
 
         case MODE_REW:
-            len = sprintf(buf, "REW");
+            if (g_sysData.transportMode & M_LIBWIND)
+                len = sprintf(buf, "REW(LIB)");
+            else
+                len = sprintf(buf, "REW");
             break;
 
         default:

@@ -230,7 +230,7 @@ Bool RAMP_Server_init(void)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 700;
-    taskParams.priority  = 6;
+    taskParams.priority  = 8;
     taskParams.arg0      = (UArg)&g_svr;
     taskParams.arg1      = 0;
     Task_create((Task_FuncPtr)RAMPWriterTaskFxn, &taskParams, &eb);
@@ -238,7 +238,7 @@ Bool RAMP_Server_init(void)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 700;
-    taskParams.priority  = 6;
+    taskParams.priority  = 8;
     taskParams.arg0      = (UArg)&g_svr;
     taskParams.arg1      = 0;
     Task_create((Task_FuncPtr)RAMPReaderTaskFxn, &taskParams, &eb);
@@ -630,7 +630,7 @@ Bool RAMP_Send_Display(UInt32 timeout)
 {
     RAMP_FCB fcb;
 
-    fcb.type    = MAKETYPE(F_PRIORITY, TYPE_MSG_USER);
+    fcb.type    = MAKETYPE(0, TYPE_MSG_USER);
     fcb.acknak  = 0;
     fcb.seqnum  = RAMP_GetTxSeqNum();
     fcb.address = 0;

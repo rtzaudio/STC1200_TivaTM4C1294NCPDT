@@ -104,7 +104,7 @@
 #define DIV_CLOCK_ENABLED	0
 
 /* Debounce time for transport locator buttons */
-#define DEBOUNCE_TIME   30
+#define DEBOUNCE_TIME       30
 
 /* Global STC-1200 System data */
 SYSDATA g_sysData;
@@ -179,7 +179,7 @@ int main(void)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
-    taskParams.priority  = 15;
+    taskParams.priority  = 5;
     Task_create((Task_FuncPtr)CommandTaskFxn, &taskParams, &eb);
 
     System_printf("Starting STC1200 execution.\n");
@@ -235,7 +235,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
-    taskParams.priority  = 12;
+    taskParams.priority  = 15;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
     /* Initialize the remote task if CFG2 switch is ON */

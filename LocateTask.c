@@ -90,6 +90,7 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "IPCServer.h"
+#include "IPCCommands.h"
 #include "RemoteTask.h"
 #include "CLITask.h"
 
@@ -108,14 +109,7 @@ extern Mailbox_Handle g_mailboxLocate;
 
 //static void GPIOPulseLow(uint32_t index, uint32_t duration);
 
-Bool Transport_Stop(void);
-Bool Transport_Play(void);
-Bool Transport_Fwd(uint32_t velocity);
-Bool Transport_Rew(uint32_t velocity);
-Bool Transport_GetMode(uint32_t* mode);
 bool IsTransportHaltMode(void);
-Bool Config_SetShuttleVelocity(uint32_t velocity);
-Bool Config_GetShuttleVelocity(uint32_t* velocity);
 
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
@@ -320,8 +314,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
     CLI_printf("\n\nSTC-1200 Starting...\n\n");
 
-    /* Get current transport mode from DTC */
-    Transport_GetMode(&g_sysData.transportMode);
+    /* Get current transport mode & speed from DTC */
+    Transport_GetMode(&g_sysData.transportMode, &g_sysData.tapeSpeed);
 
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -462,22 +456,22 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			    /* Determine the shuttle speed range based on distance out */
 
-			    if (abs_dist > 8000)
+			    if (abs_dist > 9000)
                 {
                     CLI_printf("FAR");
                     shuttle_vel = 500;
                     state = SEARCH_SHUTTLE_FAR;
                 }
-                else if (abs_dist > 2000)
+                else if (abs_dist > 2500)
                 {
                     CLI_printf("MID");
-                    shuttle_vel = 300;
+                    shuttle_vel = 320;
                     state = SEARCH_SHUTTLE_MID;
                 }
                 else
                 {
                     CLI_printf("NEAR");
-                    shuttle_vel = 100;
+                    shuttle_vel = 120;
                     state = SEARCH_SHUTTLE_NEAR;
                 }
 
@@ -494,11 +488,11 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             case SEARCH_SHUTTLE_FAR:
 
-                if (time < 130.0f)
+                if (time < 110.0f)
 			    {
                     state = SEARCH_BRAKE_VELOCITY;
 
-	                if (velocity > 40.0f)
+	                if (velocity > 35.0f)
 	                {
                         CLI_printf("SHUTTLE FAR BRAKE STATE d=%d\n", cue_dist);
 
@@ -524,7 +518,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             case SEARCH_SHUTTLE_NEAR:
 
-                if (time < 30.0f)
+                if (time < 28.0f)
                 {
                     CLI_printf("SHUTTLE NEAR STATE d=%d\n", cue_dist);
 
@@ -583,12 +577,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                 /* ZERO CROSS - check taking direction into account */
 
-                if (abs_dist <= 10)
+                //CLI_printf("d=%d, t=%u, v=%u\n", cue_dist, (uint32_t)time, (uint32_t)velocity);
+
+                if (time < 30.0f)
                 {
-                    //g_sysData.searchProgress = 100;
-                    cancel = TRUE;
+                    g_sysData.searchProgress = 100;
                     Transport_Stop();
-                    CLI_printf("ZERO CROSSED %d\n", cue_dist);
+                    cancel = TRUE;
+                    CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
                 }
                 break;
 
@@ -747,116 +743,5 @@ void GPIOPulseLow(uint32_t index, uint32_t duration)
     GPIO_write(index, PIN_HIGH);
 }
 #endif
-
-/*****************************************************************************
- * DTC-1200 TRANSPORT COMMANDS
- *****************************************************************************/
-
-//#define OP_MODE_FWD_LIB             303
-//#define OP_MODE_REW_LIB             305
-
-Bool Transport_Stop(void)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_TRANSPORT;
-    msg.opcode   = OP_MODE_STOP;
-    msg.param1.U = 0;
-    msg.param2.U = 0;
-
-    return IPC_Notify(&msg, IPC_TIMEOUT);
-}
-
-Bool Transport_Play(void)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_TRANSPORT;
-    msg.opcode   = OP_MODE_PLAY;
-    msg.param1.U = 0;
-    msg.param2.U = 0;
-
-    return IPC_Notify(&msg, IPC_TIMEOUT);
-}
-
-Bool Transport_Fwd(uint32_t velocity)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_TRANSPORT;
-    msg.opcode   = OP_MODE_FWD;
-    msg.param1.U = velocity;
-    msg.param2.U = 0;
-
-    return IPC_Notify(&msg, IPC_TIMEOUT);
-}
-
-Bool Transport_Rew(uint32_t velocity)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_TRANSPORT;
-    msg.opcode   = OP_MODE_REW;
-    msg.param1.U = velocity;
-    msg.param2.U = 0;
-
-    return IPC_Notify(&msg, IPC_TIMEOUT);
-}
-
-/*****************************************************************************
- * DTC-1200 TRANSPORT TRANSACTIONS
- *****************************************************************************/
-
-Bool Transport_GetMode(uint32_t* mode)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_TRANSPORT;
-    msg.opcode   = OP_TRANSPORT_GET_MODE;
-    msg.param1.U = 0;
-    msg.param2.U = 0;
-
-    if (!IPC_Transaction(&msg, IPC_TIMEOUT))
-        return FALSE;
-
-    /* return current transport mode */
-    *mode = msg.param1.U;
-
-    return TRUE;
-}
-
-/*****************************************************************************
- * DTC-1200 CONFIGURATION PARAMETERS
- *****************************************************************************/
-
-Bool Config_SetShuttleVelocity(uint32_t velocity)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_CONFIG;
-    msg.opcode   = OP_SET_SHUTTLE_VELOCITY;
-    msg.param1.U = velocity;
-    msg.param2.U = 0;
-
-    return IPC_Transaction(&msg, IPC_TIMEOUT);
-}
-
-Bool Config_GetShuttleVelocity(uint32_t* velocity)
-{
-    IPCMSG msg;
-
-    msg.type     = IPC_TYPE_CONFIG;
-    msg.opcode   = OP_GET_SHUTTLE_VELOCITY;
-    msg.param1.U = 0;
-    msg.param2.U = 0;
-
-    if (!IPC_Transaction(&msg, IPC_TIMEOUT))
-        return FALSE;
-
-    /* Return query results */
-    *velocity = msg.param1.U;
-
-    return TRUE;
-}
 
 /* End-Of-File */
