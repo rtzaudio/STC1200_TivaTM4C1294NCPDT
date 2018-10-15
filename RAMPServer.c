@@ -119,6 +119,9 @@ Bool RAMP_Server_init(void)
     UART_Params uartParams;
     Task_Params taskParams;
 
+    /* 400 kbps or 10 Mbps baud rate */
+    uint32_t baudRate = (GPIO_read(Board_DIPSW_CFG1) == 0) ? 400000 : 250000;
+
     /*
      * Open the UART for RS-422 communications
      */
@@ -135,7 +138,7 @@ Bool RAMP_Server_init(void)
     uartParams.writeDataMode  = UART_DATA_BINARY;
     uartParams.readDataMode   = UART_DATA_BINARY;
     uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 250000;
+    uartParams.baudRate       = baudRate;
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 

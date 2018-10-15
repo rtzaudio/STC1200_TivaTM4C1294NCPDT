@@ -219,9 +219,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Startup the IPC server tasks */
     IPC_Server_init();
 
-    /* Startup the IPC server threads */
-    IPC_Server_startup();
-
     /*
      * Create the various system tasks
      */
@@ -237,6 +234,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.stackSize = 2048;
     taskParams.priority  = 15;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
+
+    /* Startup the IPC server threads */
+    IPC_Server_startup();
 
     /* Initialize the remote task if CFG2 switch is ON */
     if (GPIO_read(Board_DIPSW_CFG2) == 0)
