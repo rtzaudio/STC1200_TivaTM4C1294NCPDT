@@ -10,4 +10,5 @@
 	<createSlaveProjects value=""/>
 	<templateProperties value="id=com_ti_rtsc_tirtostivac_example_123.projectspec.tcpEcho_TivaTM4C1294NCPDT,type=rtsc,products=com.ti.rtsc.TIRTOStivac,xdcToolsVersion=3.30.04.52_core,target=ti.targets.arm.elf.M4F,platform=ti.platforms.tiva:TM4C1294NCPDT,buildProfile=release,isHybrid=true,configuroOptions=--compileOptions &quot;${COMPILER_FLAGS} &quot; ,"/>
 	<isTargetManual value="true"/>
+	<origin value="C:/Users/bob/workspace_v7/STC1200_TivaTM4C1294NCPDT"/>
 </projectOptions>
