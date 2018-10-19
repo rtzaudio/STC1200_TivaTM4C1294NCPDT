@@ -159,19 +159,20 @@ Bool Transport_Rew(uint32_t velocity)
 
 Bool Transport_GetMode(uint32_t* mode, uint32_t* speed)
 {
-    IPCMSG msg;
+    IPCMSG msgTx;
+    IPCMSG msgRx;
 
-    msg.type     = IPC_TYPE_TRANSPORT;
-    msg.opcode   = OP_TRANSPORT_GET_MODE;
-    msg.param1.U = 0;
-    msg.param2.U = 0;
+    msgTx.type     = IPC_TYPE_TRANSPORT;
+    msgTx.opcode   = OP_TRANSPORT_GET_MODE;
+    msgTx.param1.U = 0;
+    msgTx.param2.U = 0;
 
-    if (!IPC_Transaction(&msg, IPC_TIMEOUT))
+    if (!IPC_Transaction(&msgTx, &msgRx, IPC_TIMEOUT))
         return FALSE;
 
     /* return current transport mode */
-    *mode  = msg.param1.U;
-    *speed = msg.param2.U;
+    *mode  = msgRx.param1.U;
+    *speed = msgRx.param2.U;
 
     return TRUE;
 }
@@ -182,30 +183,32 @@ Bool Transport_GetMode(uint32_t* mode, uint32_t* speed)
 
 Bool Config_SetShuttleVelocity(uint32_t velocity)
 {
-    IPCMSG msg;
+    IPCMSG msgTx;
+    IPCMSG msgRx;
 
-    msg.type     = IPC_TYPE_CONFIG;
-    msg.opcode   = OP_SET_SHUTTLE_VELOCITY;
-    msg.param1.U = velocity;
-    msg.param2.U = 0;
+    msgTx.type     = IPC_TYPE_CONFIG;
+    msgTx.opcode   = OP_SET_SHUTTLE_VELOCITY;
+    msgTx.param1.U = velocity;
+    msgTx.param2.U = 0;
 
-    return IPC_Transaction(&msg, IPC_TIMEOUT);
+    return IPC_Transaction(&msgTx, &msgRx, IPC_TIMEOUT);
 }
 
 Bool Config_GetShuttleVelocity(uint32_t* velocity)
 {
-    IPCMSG msg;
+    IPCMSG msgTx;
+    IPCMSG msgRx;
 
-    msg.type     = IPC_TYPE_CONFIG;
-    msg.opcode   = OP_GET_SHUTTLE_VELOCITY;
-    msg.param1.U = 0;
-    msg.param2.U = 0;
+    msgTx.type     = IPC_TYPE_CONFIG;
+    msgTx.opcode   = OP_GET_SHUTTLE_VELOCITY;
+    msgTx.param1.U = 0;
+    msgTx.param2.U = 0;
 
-    if (!IPC_Transaction(&msg, IPC_TIMEOUT))
+    if (!IPC_Transaction(&msgTx, &msgRx, IPC_TIMEOUT))
         return FALSE;
 
     /* Return query results */
-    *velocity = msg.param1.U;
+    *velocity = msgRx.param1.U;
 
     return TRUE;
 }

@@ -42,11 +42,6 @@
  *
  ***************************************************************************/
 
-/*
- *    ======== tcpEcho.c ========
- *    Contains BSD sockets code.
- */
-
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
@@ -117,6 +112,7 @@ static void HandleJogwheel(uint32_t bits);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void HandleSetSearchMemory(size_t index);
 static void HandleSetSearchMode(uint32_t mode);
+static void BlinkLocateButtonLED(size_t index);
 
 //*****************************************************************************
 // Initialize the remote display task

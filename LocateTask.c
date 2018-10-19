@@ -312,10 +312,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     uint32_t key;
     LocateMessage msg;
 
-    CLI_printf("\n\nSTC-1200 Starting...\n\n");
-
     /* Get current transport mode & speed from DTC */
     Transport_GetMode(&g_sysData.transportMode, &g_sysData.tapeSpeed);
+
+    CLI_printf("\n\nSTC-1200 Starting (mode %x)\n\n", g_sysData.transportMode);
 
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
