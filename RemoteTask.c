@@ -98,6 +98,9 @@ static uint32_t s_searchMode = MODE_UNDEFINED;
 /* External Global Data */
 extern tContext g_context;
 extern tFont *g_psFontWDseg7bold24pt;
+extern tFont *g_psFontWDseg7bold20pt;
+extern tFont *g_psFontWDseg7bold18pt;
+extern tFont *g_psFontWDseg7bold16pt;
 extern Mailbox_Handle g_mailboxRemote;
 extern SYSDATA g_sysData;
 
@@ -168,7 +171,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxRemote, &msg, 100))
+        if (!Mailbox_pend(g_mailboxRemote, &msg, 200))
         {
             DrawScreen(s_uScreenNum);
             continue;
@@ -519,23 +522,24 @@ void DrawTapeTime(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    GrContextFontSet(&g_context, g_psFontWDseg7bold24pt);
+    GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
     height = GrStringHeightGet(&g_context);
 
-    len = sprintf(buf, "%c%1u:%02u:%02u",
+    len = sprintf(buf, "%c%1u:%02u:%02u:%02u",
             (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
              g_sysData.tapeTime.hour,
              g_sysData.tapeTime.mins,
-             g_sysData.tapeTime.secs);
+             g_sysData.tapeTime.secs,
+             g_sysData.tapeTime.tens);
 
-    x = (SCREEN_WIDTH / 2) - 4;
+    x = (SCREEN_WIDTH / 2) - 3;
     y = SCREEN_HEIGHT / 2;
     GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 
     /* Draw the sign in a different font as 7-seg does not have these chars */
     GrContextFontSet(&g_context, g_psFontCmss14b);
     len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-    GrStringDrawCentered(&g_context, buf, len, 6, (SCREEN_HEIGHT/2)-3, FALSE);
+    GrStringDrawCentered(&g_context, buf, len, 4, (SCREEN_HEIGHT/2)-3, FALSE);
 
     /*
      *  Bottom line - show current locate memory time

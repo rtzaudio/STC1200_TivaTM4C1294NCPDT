@@ -219,6 +219,13 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Startup the IPC server tasks */
     IPC_Server_init();
 
+    /* Startup the IPC server threads */
+    IPC_Server_startup();
+
+    /* Initialize the remote task if CFG2 switch is ON */
+    if (GPIO_read(Board_DIPSW_CFG2) == 0)
+        Remote_Task_init();
+
     /*
      * Create the various system tasks
      */
@@ -235,19 +242,11 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.priority  = 15;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
-    /* Startup the IPC server threads */
-    IPC_Server_startup();
-
-    /* Initialize the remote task if CFG2 switch is ON */
-    if (GPIO_read(Board_DIPSW_CFG2) == 0)
-        Remote_Task_init();
-
     /* Setup the callback Hwi handler for each button */
 
     GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
     GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
     GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
-
     GPIO_setCallback(Board_STOP_DETECT_N, gpioButtonStopHwi);
 
     /* Enable keypad button interrupts */

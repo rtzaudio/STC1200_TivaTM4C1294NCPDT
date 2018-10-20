@@ -72,6 +72,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <math.h>
 #include <limits.h>
 
 #include <stdint.h>
@@ -221,7 +222,7 @@ void CuePointGetTime(size_t index, TAPETIME* tapeTime)
     if (index <= MAX_CUE_POINTS)
     {
         int cuePosition = g_sysData.cuePoint[index].ipos;
-        PositionGetTime(cuePosition, tapeTime);
+        PositionCalcTime(cuePosition, tapeTime);
         tapeTime->flags = (cuePosition < 0) ? 0 : F_PLUS;
     }
 }

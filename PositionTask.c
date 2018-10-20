@@ -70,6 +70,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <math.h>
 #include <limits.h>
 
 #include <stdint.h>
@@ -103,7 +104,7 @@ static Hwi_Struct qeiHwiStruct;
 /* Static Function Prototypes */
 
 void QEI_initialize(void);
-void btime(const uint32_t time, uint8_t flags, TAPETIME* p);
+void btime(const float time, TAPETIME* p);
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 
 static Void QEIHwi(UArg arg);
@@ -122,16 +123,16 @@ void PositionZeroReset(void)
  * Reset the QEI position to ZERO.
  *****************************************************************************/
 
-void PositionGetTime(int tapePosition, TAPETIME* tapeTime)
-{
-    float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
+#define INV_ROLLER_TICKS_PER_REV    (1.0f / ROLLER_TICKS_PER_REV_F);
 
+void PositionCalcTime(int tapePosition, TAPETIME* tapeTime)
+{
     /* Get the current encoder position */
     float position = fabsf((float)tapePosition);
 
     /* Calculate the number of revolutions from the position */
     //float revolutions = position / ROLLER_TICKS_PER_REV_F;
-    float revolutions = position * invRollerTicks;
+    float revolutions = position * INV_ROLLER_TICKS_PER_REV;
 
     /* Calculate the distance in inches based on the number of revolutions */
     float distance = revolutions * ROLLER_CIRCUMFERENCE_F;
@@ -139,13 +140,34 @@ void PositionGetTime(int tapePosition, TAPETIME* tapeTime)
     /* Get the current speed setting */
     float invspeed = GPIO_read(Board_SPEED_SELECT) ? (1.0f/30.0f) : (1.0f/15.0f);
 
-    /* Calculate the time in seconds from the distance and speed
-     * while avoiding any divisions.
+    /* Finally, calculate the time in seconds from the distance
+     * and speed while avoiding any divisions.
      */
-    uint32_t seconds = (uint32_t)(distance * invspeed);
+    float seconds = distance * invspeed;
 
     /* Convert the total seconds value into binary HH:MM:SS values */
-    btime(seconds, 0, tapeTime);
+    btime(seconds, tapeTime);
+}
+
+/****************************************************************************
+ * This function takes a 32-bit time value in total seconds and
+ * calculates the hours, minutes and seconds members.
+ ***************************************************************************/
+
+#define SECS_DAY    (24L * 60L * 60L)
+
+void btime(const float time, TAPETIME* p)
+{
+    uint32_t dayclock = (uint32_t)time % SECS_DAY;
+
+    p->secs  = (uint8_t)(dayclock % 60);
+    p->mins  = (uint8_t)((dayclock % 3600) / 60);
+    p->hour  = (uint8_t)(dayclock / 3600);
+
+    float intpart;
+    float fractpart = modff(time, &intpart);
+
+    p->tens  = (uint8_t)(fractpart * 100.0f);
 }
 
 //*****************************************************************************
@@ -157,13 +179,11 @@ void PositionGetTime(int tapePosition, TAPETIME* tapeTime)
 
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
-	uint8_t flags = 0;
+	uint8_t flags;
 	uint32_t rcount = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
     Error_Block eb;
-
-    float invRollerTicks = 1.0f / ROLLER_TICKS_PER_REV_F;
 
 	/* Create interrupt signal event */
     Error_init(&eb);
@@ -292,7 +312,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
     	if (++rcount >= 10)
     	{
-    		rcount = 0;
+    		flags = rcount = 0;
 
 			/* Set display flags to indicate proper direction sign */
 			if (g_sysData.tapePosition < 0)
@@ -309,6 +329,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
                     flags &= ~(F_BLINK);
 			}
 
+#if 0
 			/* Get the current encoder position */
 			float position = fabsf((float)g_sysData.tapePosition);
 
@@ -326,9 +347,14 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 			 * while avoiding any divisions.
 			 */
 			uint32_t seconds = (uint32_t)(distance * invspeed);
+#endif
+
+			/* Get the tape time member values */
+			PositionCalcTime(g_sysData.tapePosition, &g_sysData.tapeTime);
 
 			/* Convert the total seconds value into binary HH:MM:SS values */
-			btime(seconds, flags, &g_sysData.tapeTime);
+			//btime(seconds, flags, &g_sysData.tapeTime);
+			g_sysData.tapeTime.flags = flags;
 
 			/* Refresh the 7-segment display with the new values */
 			Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
@@ -427,23 +453,6 @@ void QEI_initialize(void)
 
     /* Enable the QEI interrupts */
 	QEIIntEnable(QEI_BASE_ROLLER, QEI_INTERROR|QEI_INTDIR|QEI_INTTIMER|QEI_INTINDEX);
-}
-
-/****************************************************************************
- * This function takes a 32-bit time value in total seconds and
- * calculates the hours, minutes and seconds members.
- ***************************************************************************/
-
-#define SECS_DAY    (24L * 60L * 60L)
-
-void btime(const uint32_t time, uint8_t flags, TAPETIME* p)
-{
-    uint32_t dayclock = time % SECS_DAY;
-
-    p->secs  = (uint8_t)(dayclock % 60);
-    p->mins  = (uint8_t)((dayclock % 3600) / 60);
-    p->hour  = (uint8_t)(dayclock / 3600);
-    p->flags = flags;
 }
 
 //*****************************************************************************

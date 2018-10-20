@@ -698,7 +698,9 @@ Bool RAMP_Transaction(RAMP_MSG* txmsg, RAMP_MSG* rxmsg, UInt32 timeout)
     if (events)
     {
         /* Return reply in the callers buffer */
-        memcpy(rxmsg, &(ack->msg), sizeof(RAMP_MSG));
+        if (rxmsg)
+            memcpy(rxmsg, &(ack->msg), sizeof(RAMP_MSG));
+
         /* ACK no longer pending */
         ack->flags = 0x00;
         return TRUE;

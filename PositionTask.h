@@ -43,6 +43,7 @@ typedef struct _TAPETIME {
     uint8_t hour;   /* hour    */
     uint8_t mins;   /* minutes */
     uint8_t secs;   /* seconds */
+    uint8_t tens;   /* 0.1 secs */
     uint8_t flags;	/* flags   */
 } TAPETIME;
 
@@ -54,7 +55,7 @@ typedef struct _TAPETIME {
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 void PositionZeroReset(void);
-void PositionGetTime(int tapePosition, TAPETIME* tapeTime);
+void PositionCalcTime(int tapePosition, TAPETIME* tapeTime);
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 
 /*** INLINE FUNCTIONS ******************************************************/

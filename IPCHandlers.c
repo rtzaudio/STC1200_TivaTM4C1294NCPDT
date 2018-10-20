@@ -201,8 +201,6 @@ uint32_t dtc_to_drc_lamp_mask(uint32_t bits)
     if (bits & L_DTC_REW)       /* DTC rew lamp bit */
         mask |= L_REW;
 
-    bits = (bits & 0xFF00) | mask;
-
     return mask;
 }
 
