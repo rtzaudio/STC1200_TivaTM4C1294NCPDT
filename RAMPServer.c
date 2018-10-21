@@ -233,7 +233,7 @@ Bool RAMP_Server_init(void)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 700;
-    taskParams.priority  = 8;
+    taskParams.priority  = 9;
     taskParams.arg0      = (UArg)&g_svr;
     taskParams.arg1      = 0;
     Task_create((Task_FuncPtr)RAMPWriterTaskFxn, &taskParams, &eb);
@@ -356,6 +356,7 @@ Bool RAMP_post(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout)
         if (elem == (RAMP_ELEM*)(g_svr.txFreeQue))
         {
             Hwi_restore(key);
+            System_abort("RAMP txFreeQue ptr invalid");
             return FALSE;
         }
 
@@ -407,11 +408,7 @@ Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a packet in the tx queue */
-        if (!Semaphore_pend(g_svr.txDataSem, 1000))
-        {
-            /* Timeout, nothing to send */
-            continue;
-        }
+        Semaphore_pend(g_svr.txDataSem, BIOS_WAIT_FOREVER);
 
         /* Get the message from txDataQue */
         elem = Queue_get(g_svr.txDataQue);
@@ -476,6 +473,8 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
             /* See if any packets have not been ACK'ed
              * and re-send if necessary.
              */
+            System_printf("RAMP rxFreeSem timeout\n");
+            System_flush();
             continue;
         }
 
@@ -489,6 +488,7 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
         if (elem == (RAMP_ELEM*)(g_svr.rxFreeQue))
         {
             Hwi_restore(key);
+            System_abort("RAMP rxFreeQue ptr invalid");
             continue;
         }
 
@@ -558,6 +558,9 @@ Void RAMPWorkerTaskFxn(UArg arg0, UArg arg1)
              * acknowledge yet. If so, then retransmit until
              * for max number of retries.
              */
+
+            //System_printf("RAMP_pend() timeout\n");
+            //System_flush();
             continue;
         }
 
