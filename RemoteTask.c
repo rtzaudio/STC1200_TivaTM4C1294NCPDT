@@ -450,7 +450,7 @@ void DrawTapeTime(void)
 
     if (LocateIsSearching())
     {
-        len = sprintf(buf, "SEARCH");
+        len = sprintf(buf, "SEARCH...");
     }
     else
     {
@@ -466,21 +466,21 @@ void DrawTapeTime(void)
 
         case MODE_PLAY:
             if (g_sysData.transportMode & M_RECORD)
-                len = sprintf(buf, "PLAY(REC)");
+                len = sprintf(buf, "PLAY (REC)");
             else
                 len = sprintf(buf, "PLAY");
             break;
 
         case MODE_FWD:
             if (g_sysData.transportMode & M_LIBWIND)
-                len = sprintf(buf, "FWD(LIB)");
+                len = sprintf(buf, "FWD (LIB)");
             else
                 len = sprintf(buf, "FWD");
             break;
 
         case MODE_REW:
             if (g_sysData.transportMode & M_LIBWIND)
-                len = sprintf(buf, "REW(LIB)");
+                len = sprintf(buf, "REW (LIB)");
             else
                 len = sprintf(buf, "REW");
             break;
@@ -493,14 +493,13 @@ void DrawTapeTime(void)
     x = 0;
     y = 2;
 
-    /* Top line fixed system font in inverse */
+    /* Top line fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
     /* Mono */
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
-
     //width = GrStringWidthGet(&g_context, buf, len);
     GrStringDraw(&g_context, buf, -1, x, y, 1);
 
@@ -533,13 +532,20 @@ void DrawTapeTime(void)
              g_sysData.tapeTime.tens);
 
     x = (SCREEN_WIDTH / 2) - 3;
-    y = SCREEN_HEIGHT / 2;
+    y = (SCREEN_HEIGHT / 2) - 5;
     GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 
     /* Draw the sign in a different font as 7-seg does not have these chars */
     GrContextFontSet(&g_context, g_psFontCmss14b);
     len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-    GrStringDrawCentered(&g_context, buf, len, 4, (SCREEN_HEIGHT/2)-3, FALSE);
+    GrStringDrawCentered(&g_context, buf, len, 4, y-3, FALSE);
+
+    y += height - 5;
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    GrStringDraw(&g_context, "HR", -1, 11, y, 0);
+    GrStringDraw(&g_context, "MIN", -1, 35, y, 0);
+    GrStringDraw(&g_context, "SEC", -1, 69, y, 0);
+    GrStringDraw(&g_context, "TEN", -1, 101, y, 0);
 
     /*
      *  Bottom line - show current locate memory time

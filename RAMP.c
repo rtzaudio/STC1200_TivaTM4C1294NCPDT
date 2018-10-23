@@ -66,10 +66,6 @@
 #include "Board.h"
 #include "RAMP.h"
 
-/* Static Function Prototypes */
-
-static uint16_t CRC16Update(uint16_t crc, uint8_t data);
-
 //*****************************************************************************
 // Initialize FCB structure to default values
 //*****************************************************************************
@@ -351,6 +347,8 @@ int RAMP_RxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
 
 		/* If it's a user defined message, then it's a display buffer frame
 		 * and we read the data directly into the display memory buffer.
+		 * Note we have two extra bytes after the video buffer with the
+		 * button LED bitmask and transport mode.
 		 */
 		if (type == TYPE_MSG_USER)
 		{
@@ -402,27 +400,6 @@ int RAMP_RxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
     	rc = ERR_CRC;
 
     return rc;
-}
-
-//*****************************************************************************
-// Update the CRC-16 sum value for a byte
-//*****************************************************************************
-
-uint16_t CRC16Update(uint16_t crc, uint8_t data)
-{
-    int i;
-
-    crc = crc ^ ((uint16_t)data << 8);
-
-    for (i=0; i < 8; i++)
-    {
-        if (crc & 0x8000)
-            crc = (crc << 1) ^ 0x1021;
-        else
-            crc <<= 1;
-    }
-
-    return crc;
 }
 
 // End-Of-File
