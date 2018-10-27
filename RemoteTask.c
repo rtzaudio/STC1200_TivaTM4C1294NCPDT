@@ -218,7 +218,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {
-                CLI_printf("jog press\n");
+                //CLI_printf("jog press\n");
             }
             break;
 
@@ -226,7 +226,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             if (msg.opcode == OP_JOGWHEEL_MOTION)
             {
                 //HandleJogwheelNotify();
-                CLI_printf("jog %u, %d\n", msg.param1.U, msg.param2.I);
+                //CLI_printf("jog %u, %d\n", msg.param1.U, msg.param2.I);
             }
             break;
 
@@ -450,7 +450,7 @@ void DrawTapeTime(void)
 
     if (LocateIsSearching())
     {
-        len = sprintf(buf, "SEARCH...");
+        len = sprintf(buf, "SEARCH");
     }
     else
     {
@@ -521,31 +521,65 @@ void DrawTapeTime(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
-    height = GrStringHeightGet(&g_context);
+    if (1)
+    {
+        /* Extended hour, mins, secs and tenth seconds display format */
 
-    len = sprintf(buf, "%c%1u:%02u:%02u:%02u",
-            (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
-             g_sysData.tapeTime.hour,
-             g_sysData.tapeTime.mins,
-             g_sysData.tapeTime.secs,
-             g_sysData.tapeTime.tens);
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        height = GrStringHeightGet(&g_context);
 
-    x = (SCREEN_WIDTH / 2) - 3;
-    y = (SCREEN_HEIGHT / 2) - 5;
-    GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+        len = sprintf(buf, "%c%1u:%02u:%02u:%02u",
+                (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
+                 g_sysData.tapeTime.hour,
+                 g_sysData.tapeTime.mins,
+                 g_sysData.tapeTime.secs,
+                 g_sysData.tapeTime.tens);
 
-    /* Draw the sign in a different font as 7-seg does not have these chars */
-    GrContextFontSet(&g_context, g_psFontCmss14b);
-    len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-    GrStringDrawCentered(&g_context, buf, len, 4, y-3, FALSE);
+        x = (SCREEN_WIDTH / 2) - 3;
+        y = (SCREEN_HEIGHT / 2) - 5;
+        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 
-    y += height - 5;
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
-    GrStringDraw(&g_context, "HR", -1, 11, y, 0);
-    GrStringDraw(&g_context, "MIN", -1, 35, y, 0);
-    GrStringDraw(&g_context, "SEC", -1, 69, y, 0);
-    GrStringDraw(&g_context, "TEN", -1, 101, y, 0);
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCmss14b);
+        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 4, y-3, FALSE);
+
+        y += height - 5;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, 11, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, 35, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, 69, y, 0);
+        GrStringDraw(&g_context, "TEN", -1, 101, y, 0);
+    }
+    else
+    {
+        /* Standard hour, mins, secs time display format */
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        height = GrStringHeightGet(&g_context);
+
+        len = sprintf(buf, "%c%1u:%02u:%02u",
+                (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
+                 g_sysData.tapeTime.hour,
+                 g_sysData.tapeTime.mins,
+                 g_sysData.tapeTime.secs);
+
+        x = (SCREEN_WIDTH / 2) - 3;
+        y = (SCREEN_HEIGHT / 2) - 5;
+        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCmss14b);
+        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 15, y-3, FALSE);
+
+        y += height - 5;
+        x = 27;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, x, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, x + 58, y, 0);
+    }
 
     /*
      *  Bottom line - show current locate memory time

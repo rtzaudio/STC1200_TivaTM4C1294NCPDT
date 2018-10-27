@@ -287,19 +287,19 @@ bool IsTransportHaltMode()
 // position is always being shown on the machine's display on the transport.
 //*****************************************************************************
 
-typedef enum SearchState {
-    SEARCH_START_STATE,
-    SEARCH_BEGIN_SHUTTLE,
-    SEARCH_SHUTTLE_FAR,
-    SEARCH_SHUTTLE_MID,
-    SEARCH_SHUTTLE_NEAR,
-    SEARCH_BRAKE_STATE,
-    SEARCH_BRAKE_VELOCITY,
-    SEARCH_PAST_ZERO,
-    SEARCH_ZERO_DIR,
-    SEARCH_ZERO_CROSS,
-    SEARCH_COMPLETE,
-} SearchState;
+typedef enum _LocateState {
+    LOCATE_START_STATE,
+    LOCATE_BEGIN_SHUTTLE,
+    LOCATE_SHUTTLE_FAR,
+    LOCATE_SHUTTLE_MID,
+    LOCATE_SHUTTLE_NEAR,
+    LOCATE_BRAKE_STATE,
+    LOCATE_BRAKE_VELOCITY,
+    LOCATE_PAST_ZERO,
+    LOCATE_ZERO_DIR,
+    LOCATE_ZERO_CROSS,
+    LOCATE_COMPLETE,
+} LocateState;
 
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
@@ -375,7 +375,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (!cue_from)
             cue_from = 1;
 
-        SearchState state = SEARCH_START_STATE;
+        LocateState state = LOCATE_START_STATE;
 
         cancel = FALSE;
 
@@ -417,7 +417,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             g_sysData.searchProgress = 100 - (int32_t)progress;
 
-            //if (state >= SEARCH_SHUTTLE_FAR)
+            //if (state >= LOCATE_SHUTTLE_FAR)
             //    CLI_printf("d=%d, t=%u, v=%u\n", cue_dist, (uint32_t)time, (uint32_t)velocity);
 
 			/*
@@ -426,7 +426,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			switch(state)
 			{
-			case SEARCH_START_STATE:
+			case LOCATE_START_STATE:
 
 			    /* Determine which direction we need to go initially */
 
@@ -434,12 +434,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			    if (g_sysData.cuePoint[cue_index].ipos > g_sysData.tapePosition)
 		        {
-                    CLI_printf("> ");
+                    CLI_printf("> FWD ");
 		            dir = DIR_FWD;
 		        }
 		        else if (g_sysData.cuePoint[cue_index].ipos < g_sysData.tapePosition)
 		        {
-                    CLI_printf("< ");
+                    CLI_printf("< REW ");
 		            dir = DIR_REW;
 		        }
 		        else
@@ -450,10 +450,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            break;
 		        }
 
-			    state = SEARCH_BEGIN_SHUTTLE;
-		        break;
+//			    state = LOCATE_BEGIN_SHUTTLE;
+//		        break;
 
-			case SEARCH_BEGIN_SHUTTLE:
+//			case LOCATE_BEGIN_SHUTTLE:
 
 			    /* Determine the shuttle speed range based on distance out */
 
@@ -461,19 +461,19 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     CLI_printf("FAR");
                     shuttle_vel = 500;
-                    state = SEARCH_SHUTTLE_FAR;
+                    state = LOCATE_SHUTTLE_FAR;
                 }
-                else if (abs_dist > 2500)
+                else if (abs_dist > 2000)
                 {
                     CLI_printf("MID");
                     shuttle_vel = 320;
-                    state = SEARCH_SHUTTLE_MID;
+                    state = LOCATE_SHUTTLE_MID;
                 }
                 else
                 {
                     CLI_printf("NEAR");
                     shuttle_vel = 120;
-                    state = SEARCH_SHUTTLE_NEAR;
+                    state = LOCATE_SHUTTLE_NEAR;
                 }
 
                 CLI_printf(" d=%d, t=%d\n", cue_dist, (int32_t)time);
@@ -487,47 +487,47 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            Transport_Rew(shuttle_vel);
 			    break;
 
-            case SEARCH_SHUTTLE_FAR:
+            case LOCATE_SHUTTLE_FAR:
 
                 if (time < 110.0f)
 			    {
-                    state = SEARCH_BRAKE_VELOCITY;
+                    state = LOCATE_BRAKE_VELOCITY;
 
 	                if (velocity > 35.0f)
 	                {
                         CLI_printf("SHUTTLE FAR BRAKE STATE d=%d\n", cue_dist);
 
-	                    state = SEARCH_BRAKE_STATE;
+	                    state = LOCATE_BRAKE_STATE;
 	                }
 			    }
 			    break;
 
-            case SEARCH_SHUTTLE_MID:
+            case LOCATE_SHUTTLE_MID:
 
                 if (time < 70.0f)
                 {
-                    state = SEARCH_BRAKE_VELOCITY;
+                    state = LOCATE_BRAKE_VELOCITY;
 
                     if (velocity > 40.0f)
                     {
                         CLI_printf("SHUTTLE MID BRAKE STATE d=%d\n", cue_dist);
 
-                        state = SEARCH_BRAKE_STATE;
+                        state = LOCATE_BRAKE_STATE;
                     }
                 }
                 break;
 
-            case SEARCH_SHUTTLE_NEAR:
+            case LOCATE_SHUTTLE_NEAR:
 
                 if (time < 28.0f)
                 {
                     CLI_printf("SHUTTLE NEAR STATE d=%d\n", cue_dist);
 
-                    state = SEARCH_BRAKE_VELOCITY;
+                    state = LOCATE_BRAKE_VELOCITY;
                 }
                 break;
 
-            case SEARCH_BRAKE_STATE:
+            case LOCATE_BRAKE_STATE:
 
                 CLI_printf("CHECK BRAKE STATE: d=%d, t=%d, v=%u\n", abs_dist, (int32_t)time, (uint32_t)velocity);
 
@@ -537,7 +537,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                     Transport_Stop();
 
-                    state = SEARCH_BRAKE_VELOCITY;
+                    state = LOCATE_BRAKE_VELOCITY;
                 }
                 else
                 {
@@ -549,12 +549,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     else
                         Transport_Rew(130);
 
-                    state = SEARCH_ZERO_CROSS;
+                    state = LOCATE_ZERO_CROSS;
                 }
 
                 /* Fall through to next velocity check state */
 
-			case SEARCH_BRAKE_VELOCITY:
+			case LOCATE_BRAKE_VELOCITY:
 
 			    /* Wait for velocity to drop to 15 or below */
 
@@ -570,17 +570,41 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     Transport_Rew(130);
 
                 /* Next look for zero cross */
-                state = SEARCH_ZERO_CROSS;
+                state = LOCATE_ZERO_CROSS;
 
                 /* Fall through... */
 
-            case SEARCH_ZERO_CROSS:
+            case LOCATE_ZERO_CROSS:
 
                 /* ZERO CROSS - check taking direction into account */
 
-                //CLI_printf("d=%d, t=%u, v=%u\n", cue_dist, (uint32_t)time, (uint32_t)velocity);
+                //CLI_printf("d=%d, f=%d, t=%u, v=%u\n", cue_dist, cue_from, (uint32_t)time, (uint32_t)velocity);
 
-                if (time < 30.0f)
+                /* Check for overshoot! */
+                if (dir == DIR_FWD)
+                {
+                    if (cue_from < cue_dist)
+                    {
+                        CLI_printf("OVERSHOOT FWD: %d, %d\n", cue_dist, cue_from);
+                        g_sysData.searchProgress = 100;
+                        Transport_Stop();
+                        cancel = TRUE;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (cue_from > cue_dist)
+                    {
+                        CLI_printf("OVERSHOOT REW: %d, %d\n", cue_dist, cue_from);
+                        g_sysData.searchProgress = 100;
+                        Transport_Stop();
+                        cancel = TRUE;
+                        break;
+                    }
+                }
+
+                if (time < 20.0f)
                 {
                     g_sysData.searchProgress = 100;
                     Transport_Stop();
@@ -647,7 +671,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     if (!cue_from)
                         cue_from = 1;
 
-                    state = SEARCH_START_STATE;
+                    state = LOCATE_START_STATE;
 	            }
 	        }
 
@@ -678,7 +702,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 }
 
 #if 0
-            case SEARCH_PAST_ZERO:
+            case LOCATE_PAST_ZERO:
 
                 /* ZERO CROSS - check taking direction into account */
 
@@ -690,7 +714,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                         last_dir = g_sysData.tapeDirection;
                         /* FORWARD overshoot, change direction */
                         Transport_Rew(250);
-                        state = SEARCH_ZERO_DIR;
+                        state = LOCATE_ZERO_DIR;
                     }
                 }
                 else
@@ -701,18 +725,18 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                         last_dir = g_sysData.tapeDirection;
                         /* REWIND overshoot, change direction */
                         Transport_Fwd(250);
-                        state = SEARCH_ZERO_DIR;
+                        state = LOCATE_ZERO_DIR;
                     }
                 }
                 break;
 
-            case SEARCH_ZERO_DIR:
+            case LOCATE_ZERO_DIR:
 
                 /* Wait for tape direction to change */
                 if (g_sysData.tapeDirection != last_dir)
                 {
                     CLI_printf("DIRECTION CHANGE EVENT\n");
-                    state = SEARCH_ZERO_CROSS;
+                    state = LOCATE_ZERO_CROSS;
                 }
                 break;
 #endif

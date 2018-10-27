@@ -99,7 +99,6 @@ Bool IPC_Server_init(void)
     IPC_ELEM* msg;
     Error_Block eb;
     UART_Params uartParams;
-    Task_Params taskParams;
 
     /* Open the UART for binary mode */
 
