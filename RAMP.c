@@ -358,6 +358,23 @@ int RAMP_RxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
 
 		/* Read text data associated with the frame */
 
+        if (rxtextlen > textlen)
+        {
+            rc = ERR_RX_OVERFLOW;
+        }
+        else
+        {
+            /* Read the entire text block */
+            if (UART_read(handle, textbuf, rxtextlen) != rxtextlen)
+                return ERR_SHORT_FRAME;
+
+            /* Continue sum the CRC for the text block */
+            for (i=0; i < rxtextlen; i++)
+                crc = CRC16Update(crc, *textbuf++);
+        }
+
+
+#if 0
 		for (i=0; i < rxtextlen; i++)
 		{
 			if (UART_read(handle, &b, 1) != 1)
@@ -378,6 +395,7 @@ int RAMP_RxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
 			if (textbuf)
 				*textbuf++ = b;
 		}
+#endif
     }
 
     /* Read the packet CRC MSB */

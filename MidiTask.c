@@ -75,6 +75,8 @@
 #include "Board.h"
 #include "STC1200.h"
 #include "MidiTask.h"
+#include "IPCCommands.h"
+#include "CLITask.h"
 
 #define MAX_PACKET_SIZE     48
 
@@ -100,7 +102,8 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
 	UART_Handle handle;
 	size_t	uNumBytesRead;
 	uint8_t byDeviceID;
-	uint8_t rxBuffer[MAX_PACKET_SIZE];
+
+	static uint8_t rxBuffer[MAX_PACKET_SIZE];
 
     /* Open the UART for MIDI communications. The MIDI data
      * frame (1 start bit, 8 data bits, 1 stop bit) is a subset
@@ -140,69 +143,79 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
 
     	rc = Midi_RxCommand(handle, &byDeviceID, rxBuffer, &uNumBytesRead);
 
-        if (rc < 0)
+        if (rc != 0)
         {
-            System_printf("MidiRxError %d\n", rc);
-            System_flush();
+            if (rc < -1)
+            {
+                CLI_printf("MidiRxError %d\n", rc);
+            }
         }
         else
     	{
+            CLI_printf("MMC(%d)-", uNumBytesRead);
+
     		switch(rxBuffer[0])
     		{
                 case MCC_STOP:
-                    System_printf("STOP\n");
+                    CLI_printf("STOP\n");
+                    Transport_Stop();
                     break;
 
                 case MCC_PLAY:
-                    System_printf("PLAY\n");
+                    CLI_printf("PLAY\n");
+                    Transport_Play();
                     break;
 
                 case MCC_DEFERRED_PLAY:
-                    System_printf("DEF-PLAY\n");
+                    CLI_printf("DEF-PLAY\n");
                     break;
 
                 case MCC_FAST_FORWARD:
-                    System_printf("FFWD\n");
+                    Transport_Fwd(0);
+                    CLI_printf("FFWD\n");
                     break;
 
                 case MCC_REWIND:
-                    System_printf("REW\n");
+                    Transport_Rew(0);
+                    CLI_printf("REW\n");
                     break;
 
                 case MCC_RECORD_STROBE:
-                    System_printf("REC-STROBE\n");
+                    CLI_printf("REC-STROBE\n");
                     break;
 
                 case MCC_RECORD_EXIT:
-                    System_printf("REC-EXIT\n");
+                    CLI_printf("REC-EXIT\n");
                     break;
 
                 case MCC_RECORD_PAUSE:
-                    System_printf("REC-PAUSE\n");
+                    CLI_printf("REC-PAUSE\n");
                     break;
 
                 case MCC_PAUSE:
-                    System_printf("PAUSE\n");
+                    CLI_printf("PAUSE\n");
                     break;
 
                 case MCC_EJECT:
-                    System_printf("EJECT\n");
+                    CLI_printf("EJECT\n");
                     break;
 
                 case MCC_CHASE:
-                    System_printf("CHASE\n");
+                    CLI_printf("CHASE\n");
                     break;
 
                 case MCC_COMMAND_ERROR_RESET:
-                    System_printf("CMD ERROR RESET\n");
+                    CLI_printf("CMD ERROR RESET\n");
                     break;
 
                 case MCC_MMC_RESET:
-                    System_printf("RESET\n");
+                    CLI_printf("RESET\n");
+                    break;
+
+                default:
+                    CLI_printf("UNKNOWN %02x\n", rxBuffer[0]);
                     break;
     		}
-
-            System_flush();
     	}
     }
 }
@@ -222,17 +235,18 @@ int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
     
     i = 0;
 
-    do
-    {
+    do {
+
         /* Read a byte looking for 0xF0 Preamble */
         if (UART_read(handle, &b, 1) != 1)
             return -1;  /* timeout */
 
-        if (i++ > MAX_PACKET_SIZE)
-            return -2;
+        CLI_printf("%02x ", b);
+
+        ++i;
 
     } while (b != 0xF0);
-    
+
     /* Read the 0x7F Preamble */
     if (UART_read(handle, &b, 1) != 1)
         return -1;
@@ -268,6 +282,8 @@ int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
         /* End of packet 0x7F indicator */
     	if (b == 0x7F)
         {
+    	    CLI_printf("\n");
+
             *puNumBytesRead = i;
             rc = 0;
     	    break;

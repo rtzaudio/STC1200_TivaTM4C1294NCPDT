@@ -171,7 +171,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxRemote, &msg, 200))
+        if (!Mailbox_pend(g_mailboxRemote, &msg, 1000))
         {
             DrawScreen(s_uScreenNum);
             continue;
@@ -183,8 +183,8 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             /* Refresh the OLED display with contents of display.
              * buffer.
              */
-            if (msg.opcode == OP_DISPLAY_REFRESH)
-                DrawScreen(s_uScreenNum);
+            //if (msg.opcode == OP_DISPLAY_REFRESH)
+            //    DrawScreen(s_uScreenNum);
             break;
 
         case MSG_TYPE_SWITCH:

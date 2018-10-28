@@ -120,7 +120,7 @@ Bool RAMP_Server_init(void)
     Task_Params taskParams;
 
     /* 400 kbps or 10 Mbps baud rate */
-    uint32_t baudRate = (GPIO_read(Board_DIPSW_CFG1) == 0) ? 400000 : 250000;
+    uint32_t baudRate = (GPIO_read(Board_DIPSW_CFG1) == 0) ? 1000000 : 400000;
 
     /*
      * Open the UART for RS-422 communications

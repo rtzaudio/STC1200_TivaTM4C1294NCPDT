@@ -92,6 +92,7 @@
 #include <IPCServer.h>
 #include <RAMPServer.h>
 #include <RemoteTask.h>
+#include <MidiTask.h>
 #include "drivers/offscrmono.h"
 
 /* STC1200 Board Header file */
@@ -241,6 +242,14 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.stackSize = 2048;
     taskParams.priority  = 15;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 800;
+    taskParams.priority  = 5;
+
+    if (!Task_create((Task_FuncPtr)MidiTaskFxn, &taskParams, &eb))
+        System_abort("Create MIDI task failed\n");
 
     /* Setup the callback Hwi handler for each button */
 
