@@ -29,10 +29,7 @@
 #define SCREEN_WIDTH    128
 #define SCREEN_HEIGHT   64
 
-#define OLED_BUFSIZE    (GrOffScreen1BPPSize(SCREEN_WIDTH, SCREEN_HEIGHT))
-#define LED_BUFSIZE     (sizeof(uint32_t) * 2)
-
-#define SCREEN_BUFSIZE  (OLED_BUFSIZE + LED_BUFSIZE)
+#define SCREEN_BUFSIZE  (GrOffScreen1BPPSize(SCREEN_WIDTH, SCREEN_HEIGHT))
 
 /* Display buffer context for grlib */
 extern tDisplay g_FEMA128x64;
@@ -48,6 +45,6 @@ extern tContext g_context;
 
 void GrOffScreenMonoInit(void);
 int GrGetScreenBufferSize(void);
-unsigned char* GrGetScreenBuffer(void);
+unsigned char* GrGetScreenBuffer(size_t offset);
 
 #endif // __FEMA128X64_H__

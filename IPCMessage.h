@@ -1,6 +1,5 @@
-/* ============================================================================
- *
- * STC-1200 Digital Transport Controller for Ampex MM-1200 Tape Machines
+/*
+  * STC-1200 Digital Transport Controller for Ampex MM-1200 Tape Machines
  *
  * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
  * All Rights Reserved
@@ -9,14 +8,12 @@
  *
  * InterProcess Communications (IPC) Services via serial link.
  *
- * ============================================================================ */
+ */
 
 #ifndef _IPCMESSAGE_H_
 #define _IPCMESSAGE_H_
 
-/* ============================================================================
- * Message class types for IPCMSG.type
- * ============================================================================ */
+/*** Message class types for IPC_MSG.type **********************************/
 
 #define IPC_TYPE_NOTIFY				10      /* Notifications from DTC to STC  */
 #define IPC_TYPE_CONFIG		        20      /* DTC config Get/Set transaction */
@@ -44,9 +41,7 @@
 #define OP_TRANSPORT_GET_VELOCITY   321
 #define OP_TRANSPORT_GET_TACH       322
 
-/* ============================================================================
- * DTC Constants and Notification Bit Flags
- * ============================================================================ */
+/*** DTC CONSTANTS AND FLAGS ***********************************************/
 
 /* Transport Mode Constants */
 #define MODE_HALT       0               /* all servo motion halted      */

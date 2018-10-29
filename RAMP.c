@@ -189,12 +189,20 @@ int RAMP_TxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
 
 		if (textbuf && textlen)
 		{
+#if 0
 			for (i=0; i < textlen; i++)
 			{
 				b = *textbuf++;
 				crc = CRC16Update(crc, b);
 				UART_write(handle, &b, 1);
 			}
+#else
+            UART_write(handle, textbuf, textlen);
+
+            /* Continue sum the CRC for the text block */
+            for (i=0; i < textlen; i++)
+                crc = CRC16Update(crc, *textbuf++);
+#endif
 		}
     }
 
@@ -352,12 +360,12 @@ int RAMP_RxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
 		 */
 		if (type == TYPE_MSG_USER)
 		{
-            textbuf = GrGetScreenBuffer();
-            textlen = GrGetScreenBufferSize();
+            textbuf = GrGetScreenBuffer(5);
+            textlen = 1024 + 8;
 		}
 
 		/* Read text data associated with the frame */
-
+#if 1
         if (rxtextlen > textlen)
         {
             rc = ERR_RX_OVERFLOW;
@@ -372,9 +380,7 @@ int RAMP_RxFrame(UART_Handle handle, RAMP_FCB* fcb, void* text, uint16_t textlen
             for (i=0; i < rxtextlen; i++)
                 crc = CRC16Update(crc, *textbuf++);
         }
-
-
-#if 0
+#else
 		for (i=0; i < rxtextlen; i++)
 		{
 			if (UART_read(handle, &b, 1) != 1)

@@ -77,7 +77,7 @@ tContext g_context;
 tDisplay g_FEMA128x64;
 
 /* Display buffer memory */
-unsigned char g_ucScreenBuffer[SCREEN_BUFSIZE];
+unsigned char g_ucScreenBuffer[SCREEN_BUFSIZE+16];
 
 //*****************************************************************************
 //
@@ -336,9 +336,9 @@ int GrGetScreenBufferSize(void)
 //
 //*****************************************************************************
 
-unsigned char* GrGetScreenBuffer(void)
+unsigned char* GrGetScreenBuffer(size_t offset)
 {
-    return &g_ucScreenBuffer[0];
+    return &g_ucScreenBuffer[offset];
 }
 
 //*****************************************************************************
@@ -363,7 +363,7 @@ GrOffScreenMonoFlush(void *pvDisplayData)
      * the LED/lamp state bits for all the button LED's and the
      * second word contains the current transport mode.
      */
-    uint32_t *p = (uint32_t*)&g_ucScreenBuffer[OLED_BUFSIZE];
+    uint32_t *p = (uint32_t*)(&g_ucScreenBuffer[5] + 1024);
 
     /* 24-bits of the led mask. The transport lamp bits came from the
      * DTC via LED status IPC notifications. We're just passing these

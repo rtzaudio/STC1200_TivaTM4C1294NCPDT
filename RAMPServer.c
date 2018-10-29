@@ -120,7 +120,7 @@ Bool RAMP_Server_init(void)
     Task_Params taskParams;
 
     /* 400 kbps or 10 Mbps baud rate */
-    uint32_t baudRate = (GPIO_read(Board_DIPSW_CFG1) == 0) ? 1000000 : 400000;
+    uint32_t baudRate = (GPIO_read(Board_DIPSW_CFG1) == 0) ? 1500000 : 400000;
 
     /*
      * Open the UART for RS-422 communications
@@ -233,7 +233,7 @@ Bool RAMP_Server_init(void)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 700;
-    taskParams.priority  = 9;
+    taskParams.priority  = 8;
     taskParams.arg0      = (UArg)&g_svr;
     taskParams.arg1      = 0;
     Task_create((Task_FuncPtr)RAMPWriterTaskFxn, &taskParams, &eb);
@@ -352,14 +352,6 @@ Bool RAMP_post(RAMP_FCB *fcb, RAMP_MSG* msg, UInt32 timeout)
         /* get a message from the free queue */
         elem = Queue_dequeue(g_svr.txFreeQue);
 
-        /* Make sure that a valid pointer was returned. */
-        if (elem == (RAMP_ELEM*)(g_svr.txFreeQue))
-        {
-            Hwi_restore(key);
-            System_abort("RAMP txFreeQue ptr invalid");
-            return FALSE;
-        }
-
         /* decrement the numFreeMsgs */
         g_svr.txNumFreeMsgs--;
 
@@ -416,8 +408,8 @@ Void RAMPWriterTaskFxn(UArg arg0, UArg arg1)
         /* Transmit the packet! */
         if ((elem->fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_USER)
         {
-            textbuf = GrGetScreenBuffer();
-            textlen = GrGetScreenBufferSize();
+            textbuf = GrGetScreenBuffer(5);
+            textlen = 1024 + 8;
         }
         else
         {
@@ -483,14 +475,6 @@ Void RAMPReaderTaskFxn(UArg arg0, UArg arg1)
 
         /* get a rx buffer from the free queue */
         elem = Queue_dequeue(g_svr.rxFreeQue);
-
-        /* Make sure that a valid pointer was returned. */
-        if (elem == (RAMP_ELEM*)(g_svr.rxFreeQue))
-        {
-            Hwi_restore(key);
-            System_abort("RAMP rxFreeQue ptr invalid");
-            continue;
-        }
 
         /* decrement the numFreeMsgs */
         g_svr.rxNumFreeMsgs--;

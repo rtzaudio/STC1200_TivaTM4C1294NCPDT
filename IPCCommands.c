@@ -99,7 +99,7 @@ extern Mailbox_Handle g_mailboxLocate;
 
 /* Static Function Prototypes */
 
-#define IPC_TIMEOUT         1000
+#define IPC_TIMEOUT         2000
 
 /*****************************************************************************
  * TRANSPORT COMMANDS TO DTC
@@ -107,7 +107,7 @@ extern Mailbox_Handle g_mailboxLocate;
 
 Bool Transport_Stop(void)
 {
-    IPCMSG msg;
+    IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_STOP;
@@ -119,7 +119,7 @@ Bool Transport_Stop(void)
 
 Bool Transport_Play(void)
 {
-    IPCMSG msg;
+    IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_PLAY;
@@ -131,7 +131,7 @@ Bool Transport_Play(void)
 
 Bool Transport_Fwd(uint32_t velocity)
 {
-    IPCMSG msg;
+    IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_FWD;
@@ -143,7 +143,7 @@ Bool Transport_Fwd(uint32_t velocity)
 
 Bool Transport_Rew(uint32_t velocity)
 {
-    IPCMSG msg;
+    IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_REW;
@@ -159,8 +159,8 @@ Bool Transport_Rew(uint32_t velocity)
 
 Bool Transport_GetMode(uint32_t* mode, uint32_t* speed)
 {
-    IPCMSG msgTx;
-    IPCMSG msgRx;
+    IPC_MSG msgTx;
+    IPC_MSG msgRx;
 
     msgTx.type     = IPC_TYPE_TRANSPORT;
     msgTx.opcode   = OP_TRANSPORT_GET_MODE;
@@ -183,8 +183,8 @@ Bool Transport_GetMode(uint32_t* mode, uint32_t* speed)
 
 Bool Config_SetShuttleVelocity(uint32_t velocity)
 {
-    IPCMSG msgTx;
-    IPCMSG msgRx;
+    IPC_MSG msgTx;
+    IPC_MSG msgRx;
 
     msgTx.type     = IPC_TYPE_CONFIG;
     msgTx.opcode   = OP_SET_SHUTTLE_VELOCITY;
@@ -196,8 +196,8 @@ Bool Config_SetShuttleVelocity(uint32_t velocity)
 
 Bool Config_GetShuttleVelocity(uint32_t* velocity)
 {
-    IPCMSG msgTx;
-    IPCMSG msgRx;
+    IPC_MSG msgTx;
+    IPC_MSG msgRx;
 
     msgTx.type     = IPC_TYPE_CONFIG;
     msgTx.opcode   = OP_GET_SHUTTLE_VELOCITY;

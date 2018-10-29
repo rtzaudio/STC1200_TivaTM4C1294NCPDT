@@ -73,10 +73,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include <IPCServer.h>
 #include <stdbool.h>
 
-/* Board Header file */
+#include "IPCServer.h"
 #include "Board.h"
 
 /* Global Data Items */
@@ -130,16 +129,16 @@ Bool IPC_Server_init(void)
     g_ipc.rxDataQue = Queue_create(NULL, NULL);
 
     /* Create semaphores needed */
-    g_ipc.txFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
+    g_ipc.txFreeSem = Semaphore_create(IPC_MAX_WINDOW, NULL, NULL);
     g_ipc.txDataSem = Semaphore_create(0, NULL, NULL);
-    g_ipc.rxFreeSem = Semaphore_create(MAX_WINDOW, NULL, NULL);
+    g_ipc.rxFreeSem = Semaphore_create(IPC_MAX_WINDOW, NULL, NULL);
     g_ipc.rxDataSem = Semaphore_create(0, NULL, NULL);
 
     Error_init(&eb);
     g_ipc.ackEvent  = Event_create(NULL, NULL);
 
-    g_ipc.datagramHandlerFxn    = NULL;
-    g_ipc.transactionHandlerFxn = NULL;
+    //g_ipc.datagramHandlerFxn    = NULL;
+    //g_ipc.transactionHandlerFxn = NULL;
 
     /*
      * Allocate and Initialize TRANSMIT Buffer Memory
@@ -147,7 +146,7 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.txBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
+    g_ipc.txBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * IPC_MAX_WINDOW, 0, &eb);
 
     if (g_ipc.txBuf == NULL)
         System_abort("TxBuf allocation failed");
@@ -155,7 +154,7 @@ Bool IPC_Server_init(void)
     msg = g_ipc.txBuf;
 
     /* Put all tx message buffers on the freeQueue */
-    for (i=0; i < MAX_WINDOW; i++, msg++) {
+    for (i=0; i < IPC_MAX_WINDOW; i++, msg++) {
         Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem*)msg);
     }
 
@@ -165,7 +164,7 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.rxBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * MAX_WINDOW, 0, &eb);
+    g_ipc.rxBuf = (IPC_ELEM*)Memory_alloc(NULL, sizeof(IPC_ELEM) * IPC_MAX_WINDOW, 0, &eb);
 
     if (g_ipc.rxBuf == NULL)
         System_abort("RxBuf allocation failed");
@@ -173,7 +172,7 @@ Bool IPC_Server_init(void)
     msg = g_ipc.rxBuf;
 
     /* Put all tx message buffers on the freeQueue */
-    for (i=0; i < MAX_WINDOW; i++, msg++) {
+    for (i=0; i < IPC_MAX_WINDOW; i++, msg++) {
         Queue_enqueue(g_ipc.rxFreeQue, (Queue_Elem*)msg);
     }
 
@@ -183,7 +182,7 @@ Bool IPC_Server_init(void)
 
     Error_init(&eb);
 
-    g_ipc.ackBuf = (IPC_ACK*)Memory_alloc(NULL, sizeof(IPC_ACK) * MAX_WINDOW, 0, &eb);
+    g_ipc.ackBuf = (IPC_ACK*)Memory_alloc(NULL, sizeof(IPC_ACK) * IPC_MAX_WINDOW, 0, &eb);
 
     if (g_ipc.ackBuf == NULL)
         System_abort("AckBuf allocation failed");
@@ -192,14 +191,14 @@ Bool IPC_Server_init(void)
 
     g_ipc.txErrors      = 0;
     g_ipc.txCount       = 0;
-    g_ipc.txNumFreeMsgs = MAX_WINDOW;
-    g_ipc.txNextSeq     = MIN_SEQ_NUM;      /* current tx sequence# */
+    g_ipc.txNumFreeMsgs = IPC_MAX_WINDOW;
+    g_ipc.txNextSeq     = IPC_MIN_SEQ;      /* current tx sequence# */
 
     g_ipc.rxErrors      = 0;
     g_ipc.rxCount       = 0;
-    g_ipc.rxNumFreeMsgs = MAX_WINDOW;
+    g_ipc.rxNumFreeMsgs = IPC_MAX_WINDOW;
     g_ipc.rxLastSeq     = 0;                /* last seq# accepted   */
-    g_ipc.rxExpectedSeq = MIN_SEQ_NUM;      /* expected recv seq#   */
+    g_ipc.rxExpectedSeq = IPC_MIN_SEQ;      /* expected recv seq#   */
 
     return TRUE;
 }
@@ -249,12 +248,324 @@ uint8_t IPC_GetTxSeqNum(void)
     uint8_t seqnum = g_ipc.txNextSeq;
 
     /* Increment the servers sequence number */
-    g_ipc.txNextSeq = INC_SEQ_NUM(seqnum);
+    g_ipc.txNextSeq = IPC_INC_SEQ(seqnum);
 
     /* re-enable ints */
     Hwi_restore(key);
 
     return seqnum;
+}
+
+//*****************************************************************************
+// Transmit an IPC frame of data out the serial port
+//*****************************************************************************
+
+int IPC_TxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen)
+{
+    uint8_t b;
+    uint8_t type;
+    uint16_t i;
+    uint16_t framelen;
+    uint16_t crc;
+
+    uint8_t *textbuf = (uint8_t*)txtbuf;
+    uint16_t textlen = (uint16_t)txtlen;
+
+    /* First check the text length is valid */
+    if (textlen > IPC_MAX_TEXT_LEN)
+        return IPC_ERR_TEXT_LEN;
+
+    /* Get the frame type less any flag bits */
+    type = (fcb->type & IPC_TYPE_MASK);
+
+    /* Are we sending a ACK or NAK only frame? */
+    if ((type == IPC_ACK_ONLY) || (type == IPC_NAK_ONLY))
+    {
+        textbuf = NULL;
+        textlen = 0;
+
+        framelen = IPC_ACK_FRAME_LEN;
+
+        /* Set the ACK/NAK flag bit */
+        fcb->type |= IPC_F_ACKNAK;
+    }
+    else
+    {
+        /* Build the frame length with text length given */
+        framelen = textlen + (IPC_FRAME_OVERHEAD - IPC_PREAMBLE_OVERHEAD);
+
+        /* If message is piggyback ACK/NAK, set flag bit also */
+        if ((type == IPC_MSG_ACK) || (type == IPC_MSG_NAK))
+            fcb->type |= IPC_F_ACKNAK;
+        else
+            fcb->type &= ~(IPC_F_ACKNAK);
+    }
+
+    /* Send the preamble MSB for the frame start */
+    b = IPC_PREAMBLE_MSB;
+    UART_write(handle, &b, 1);
+
+    /* Send the preamble LSB for the frame start */
+    b = IPC_PREAMBLE_LSB;
+    UART_write(handle, &b, 1);
+
+    /* CRC starts here, sum in the seed byte first */
+    crc = CRC16Update(0, IPC_CRC_SEED_BYTE);
+
+    /* Send the frame length (MSB) */
+    b = (uint8_t)((framelen >> 8) & 0xFF);
+    crc = CRC16Update(crc, b);
+    UART_write(handle, &b, 1);
+
+    /* Send the frame length (LSB) */
+    b = (uint8_t)(framelen & 0xFF);
+    crc = CRC16Update(crc, b);
+    UART_write(handle, &b, 1);
+
+    /* Send the frame type & flags byte */
+    b = (uint8_t)(fcb->type & 0xFF);
+    crc = CRC16Update(crc, b);
+    UART_write(handle, &b, 1);
+
+    /* Sending ACK or NAK only frame? */
+
+    if ((type == IPC_ACK_ONLY) || (type == IPC_NAK_ONLY))
+    {
+        /* Sending ACK/NAK frame only  */
+
+        b = (uint8_t)(fcb->acknak & 0xFF);
+        crc = CRC16Update(crc, b);
+        UART_write(handle, &b, 1);
+    }
+    else
+    {
+        /* Continue sending a full IPC frame */
+
+        /* Send the Frame Sequence Number */
+        b = (uint8_t)(fcb->seqnum & 0xFF);
+        crc = CRC16Update(crc, b);
+        UART_write(handle, &b, 1);
+
+        /* Send the ACK/NAK Sequence Number */
+        b = (uint8_t)(fcb->acknak & 0xFF);
+        crc = CRC16Update(crc, b);
+        UART_write(handle, &b, 1);
+
+        /* Send the Text length (MSB) */
+        b = (uint8_t)((textlen >> 8) & 0xFF);
+        crc = CRC16Update(crc, b);
+        UART_write(handle, &b, 1);
+
+        /* Send the Text length (LSB) */
+        b = (uint8_t)(textlen & 0xFF);
+        crc = CRC16Update(crc, b);
+        UART_write(handle, &b, 1);
+
+        /* Send any text data associated with the frame */
+
+        if (textbuf && textlen)
+        {
+            for (i=0; i < textlen; i++)
+            {
+                b = *textbuf++;
+                crc = CRC16Update(crc, b);
+                UART_write(handle, &b, 1);
+            }
+        }
+    }
+
+    /* Send the CRC MSB */
+    b = (uint8_t)(crc >> 8);
+    UART_write(handle, &b, 1);
+
+    /* Send the CRC LSB */
+    b = (uint8_t)(crc & 0xFF);
+    UART_write(handle, &b, 1);
+
+    return IPC_ERR_SUCCESS;
+}
+
+//*****************************************************************************
+// Receive an IPC frame from the serial port
+//*****************************************************************************
+
+int IPC_RxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen)
+{
+    int i;
+    int rc = IPC_ERR_SUCCESS;
+    uint8_t b;
+    uint8_t type;
+    uint16_t lsb;
+    uint16_t msb;
+    uint16_t framelen;
+    uint16_t rxcrc;
+    uint16_t crc = 0;
+
+    uint8_t *textbuf = (uint8_t*)txtbuf;
+    uint16_t textlen = (uint16_t)txtlen;
+
+    /* First, try to synchronize to 0x79 SOF byte */
+
+    i = 0;
+
+    do {
+
+        /* Read the preamble MSB for the frame start */
+        if (UART_read(handle, &b, 1) != 1)
+            return IPC_ERR_TIMEOUT;
+
+        /* Garbage flood check, synch lost?? */
+        if (i++ > (IPC_FRAME_OVERHEAD + IPC_PREAMBLE_OVERHEAD + IPC_MAX_TEXT_LEN))
+            return IPC_ERR_SYNC;
+
+    } while (b != IPC_PREAMBLE_MSB);
+
+    /* We found the first 0x79 sequence, next byte
+     * has to be 0xFC for a valid SOF sequence.
+     */
+
+    if (UART_read(handle, &b, 1) != 1)
+        return IPC_ERR_TIMEOUT;
+
+    if (b != IPC_PREAMBLE_LSB)
+        return IPC_ERR_SYNC;
+
+    /* Got the preamble word */
+
+    /* CRC starts here, sum in the seed byte first */
+    crc = CRC16Update(crc, IPC_CRC_SEED_BYTE);
+
+    /* Read the Frame length (MSB) */
+    if (UART_read(handle, &b, 1) != 1)
+        return IPC_ERR_SHORT_FRAME;
+
+    crc = CRC16Update(crc, b);
+    msb = (uint16_t)b;
+
+    /* Read the Frame length (LSB) */
+    if (UART_read(handle, &b, 1) != 1)
+        return IPC_ERR_SHORT_FRAME;
+
+    crc = CRC16Update(crc, b);
+    lsb = (uint16_t)b;
+
+    /* Build and validate maximum frame length */
+    framelen = (size_t)((msb << 8) | lsb) & 0xFFFF;
+
+    if (framelen > IPC_MAX_FRAME_LEN)
+        return IPC_ERR_FRAME_LEN;
+
+    /* Read the Frame Type Byte */
+    if (UART_read(handle, &b, 1) != 1)
+        return IPC_ERR_SHORT_FRAME;
+
+    crc = CRC16Update(crc, b);
+    fcb->type = b;
+
+    /* Check for ACK/NAK only frame (type always 11H or 12H) */
+
+    /* Get the frame type less any flag bits */
+    type = (fcb->type & IPC_TYPE_MASK);
+
+    if ((type == IPC_ACK_ONLY) || (type == IPC_NAK_ONLY))
+    {
+        /* If ACK/NAK only, length must be ACK_FRAME_LEN */
+        if (framelen != IPC_ACK_FRAME_LEN)
+            return IPC_ERR_ACK_LEN;
+
+        /* Read the ACK/NAK Sequence Number */
+        if (UART_read(handle, &b, 1) != 1)
+            return IPC_ERR_SHORT_FRAME;
+
+        crc = CRC16Update(crc, b);
+        fcb->acknak = b;
+    }
+    else
+    {
+        /* It's a full IPC frame, continue decoding the rest of the frame */
+
+        /* Read the Frame Sequence Number */
+        if (UART_read(handle, &b, 1) != 1)
+            return IPC_ERR_SHORT_FRAME;
+
+        crc = CRC16Update(crc, b);
+        fcb->seqnum = b;
+
+        /* Read the ACK/NAK Sequence Number */
+        if (UART_read(handle, &b, 1) != 1)
+            return IPC_ERR_SHORT_FRAME;
+
+        crc = CRC16Update(crc, b);
+        fcb->acknak = b;
+
+        /* Read the Text length (MSB) */
+        if (UART_read(handle, &b, 1) != 1)
+            return IPC_ERR_SHORT_FRAME;
+
+        crc = CRC16Update(crc, b);
+        msb = (uint16_t)b;
+
+        /* Read the Text length (LSB) */
+        if (UART_read(handle, &b, 1) != 1)
+            return IPC_ERR_SHORT_FRAME;
+
+        crc = CRC16Update(crc, b);
+        lsb = (uint16_t)b;
+
+        /* Get the frame length received and validate it */
+        uint16_t rxtextlen = (size_t)((msb << 8) | lsb) & 0xFFFF;
+
+        /* The text length should be the frame overhead minus the preamble overhead
+         * plus the text length specified in the received frame. If these don't match
+         * then we have either a packet data error or a malformed packet.
+         */
+        if (rxtextlen + (IPC_FRAME_OVERHEAD - IPC_PREAMBLE_OVERHEAD) != framelen)
+            return IPC_ERR_TEXT_LEN;
+
+        /* Read text data associated with the frame */
+
+        for (i=0; i < rxtextlen; i++)
+        {
+            if (UART_read(handle, &b, 1) != 1)
+                return IPC_ERR_SHORT_FRAME;
+
+            /* update the CRC */
+            crc = CRC16Update(crc, b);
+
+            /* If we overflow, continue reading the packet
+             * data, but don't store the data into the buffer.
+             */
+            if (i >= textlen)
+            {
+                rc = IPC_ERR_RX_OVERFLOW;
+                continue;
+            }
+
+            if (textbuf)
+                *textbuf++ = b;
+        }
+    }
+
+    /* Read the packet CRC MSB */
+    if (UART_read(handle, &b, 1) != 1)
+        return IPC_ERR_SHORT_FRAME;
+
+    msb = (uint16_t)b & 0xFF;
+
+    /* Read the packet CRC LSB */
+    if (UART_read(handle, &b, 1) != 1)
+        return IPC_ERR_SHORT_FRAME;
+
+    lsb = (uint16_t)b & 0xFF;
+
+    /* Build and validate the CRC */
+    rxcrc = (uint16_t)((msb << 8) | lsb) & 0xFFFF;
+
+    /* Validate the CRC values match */
+    if (rxcrc != crc)
+        rc = IPC_ERR_CRC;
+
+    return rc;
 }
 
 //*****************************************************************************
@@ -264,7 +575,7 @@ uint8_t IPC_GetTxSeqNum(void)
 // period specified.
 //*****************************************************************************
 
-Bool IPC_Message_pend(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
+Bool IPC_Message_pend(IPC_MSG* msg, IPC_FCB* fcb, UInt32 timeout)
 {
     UInt key;
     IPC_ELEM* elem;
@@ -287,8 +598,8 @@ Bool IPC_Message_pend(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
         Hwi_restore(key);
 
         /* return message and fcb data to caller */
-        memcpy(msg, &(elem->msg), sizeof(IPCMSG));
-        memcpy(fcb, &(elem->fcb), sizeof(RAMP_FCB));
+        memcpy(msg, &(elem->msg), sizeof(IPC_MSG));
+        memcpy(fcb, &(elem->fcb), sizeof(IPC_FCB));
 
         /* post the semaphore */
         Semaphore_post(g_ipc.rxFreeSem);
@@ -305,7 +616,7 @@ Bool IPC_Message_pend(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
 // transmission within the timeout period specified.
 //*****************************************************************************
 
-Bool IPC_Message_post(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
+Bool IPC_Message_post(IPC_MSG* msg, IPC_FCB* fcb, UInt32 timeout)
 {
     UInt key;
     IPC_ELEM* elem;
@@ -333,11 +644,11 @@ Bool IPC_Message_post(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
         Hwi_restore(key);
 
         /* copy msg to element */
-        memcpy(&(elem->msg), msg, sizeof(IPCMSG));
-        memcpy(&(elem->fcb), fcb, sizeof(RAMP_FCB));
+        memcpy(&(elem->msg), msg, sizeof(IPC_MSG));
+        memcpy(&(elem->fcb), fcb, sizeof(IPC_FCB));
 
         /* put message on txDataQueue */
-        if (fcb->type & F_PRIORITY)
+        if (fcb->type & IPC_F_PRIORITY)
             Queue_putHead(g_ipc.txDataQue, (Queue_Elem *)elem);
         else
             Queue_put(g_ipc.txDataQue, (Queue_Elem *)elem);
@@ -372,7 +683,7 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
         elem = Queue_get(g_ipc.txDataQue);
 
         /* Transmit the packet! */
-        RAMP_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+        IPC_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
 
         /* Perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();
@@ -395,7 +706,7 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 }
 
 //*****************************************************************************
-// The reader task reads RAMP packets and stores these in the receive
+// The reader task reads IPC packets and stores these in the receive
 // buffer queue for processing messages from the peer. The rxDataSem
 // semaphore is signaled to indicate data is available to the IPCServer
 // task that dispatches all the messages between the two peer nodes.
@@ -445,13 +756,13 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         {
             /* Attempt to read a frame from the peer */
 
-            rc = RAMP_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPCMSG));
+            rc = IPC_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
 
             /* Zero means packet received successfully */
             if (rc == 0)
                 break;
 
-            if (rc > ERR_TIMEOUT)
+            if (rc > IPC_ERR_TIMEOUT)
             {
                 g_ipc.rxErrors++;
 
@@ -467,7 +778,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         g_ipc.rxCount++;
 
         /*Put message on rxDataQueue */
-        if (elem->fcb.type & F_PRIORITY)
+        if (elem->fcb.type & IPC_F_PRIORITY)
             Queue_putHead(g_ipc.rxDataQue, (Queue_Elem*)elem);
         else
             Queue_put(g_ipc.rxDataQue, (Queue_Elem*)elem);
@@ -483,12 +794,12 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 
 Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
 {
-    RAMP_FCB fcb;
-    IPCMSG msg;
+    IPC_FCB fcb;
+    IPC_MSG msg;
 
     while (1)
     {
-        /* Wait for a RAMP message from peer */
+        /* Wait for a IPC message from peer */
 
         if (!IPC_Message_pend(&msg, &fcb, 1000))
         {
@@ -500,44 +811,44 @@ Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
             continue;
         }
 
-        /* We've received a valid RAMP message frame. Check the
+        /* We've received a valid IPC message frame. Check the
          * message type received as follows:
          *
-         *  TYPE_MSG_ONLY - This is a request for data that requires
-         *                  a response message with ACK to the peer.
-         *                  If the F_DATAGRAM type flag is set, the
-         *                  message does not require an ACK response
-         *                  and the message data can be processed.
+         *  IPC_MSG_ONLY - This is a request for data that requires
+         *                 a response message with ACK to the peer.
+         *                 If the F_DATAGRAM type flag is set, the
+         *                 message does not require an ACK response
+         *                 and the message data can be processed.
          *
-         *  TYPE_MSG_ACK  - This is a response to a request for data
-         *                  from peer. The ACK indicates the request
-         *                  was processed and data returned in msg.
+         *  IPC_MSG_ACK  - This is a response to a request for data
+         *                 from peer. The ACK indicates the request
+         *                 was processed and data returned in msg.
          */
 
-        if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ONLY)
+        if ((fcb.type & IPC_TYPE_MASK) == IPC_MSG_ONLY)
         {
-            if (fcb.type & F_DATAGRAM)
+            if (fcb.type & IPC_F_DATAGRAM)
                 IPC_Handle_datagram(&msg, &fcb);
             else
                 IPC_Handle_transaction(&msg, &fcb, 2000);
         }
-        else if ((fcb.type & FRAME_TYPE_MASK) == TYPE_MSG_ACK)
+        else if ((fcb.type & IPC_TYPE_MASK) == IPC_MSG_ACK)
         {
             /* Handle MSG+ACK response from peer */
 
             uint8_t acknak = fcb.acknak;
 
-            if ((acknak < MIN_SEQ_NUM) || (acknak > MAX_SEQ_NUM))
+            if ((acknak < IPC_MIN_SEQ) || (acknak > IPC_MAX_SEQ))
             {
                 System_printf("IPC invalid ACK seqnum\n");
                 System_flush();
                 continue;
             }
 
-            size_t index = (size_t)((acknak - 1) % MAX_WINDOW);
+            size_t index = (size_t)((acknak - 1) % IPC_MAX_WINDOW);
 
             /* Save the reply MSG+ACK in the ACK buffer */
-            memcpy(&g_ipc.ackBuf[index].msg, &msg, sizeof(IPCMSG));
+            memcpy(&g_ipc.ackBuf[index].msg, &msg, sizeof(IPC_MSG));
 
             /* Notify any pending transactions blocked that a MSG+ACK was received */
 
@@ -552,11 +863,11 @@ Void IPCWorkerTaskFxn(UArg arg0, UArg arg1)
 //
 //*****************************************************************************
 
-Bool IPC_Notify(IPCMSG* msg, UInt32 timeout)
+Bool IPC_Notify(IPC_MSG* msg, UInt32 timeout)
 {
-    RAMP_FCB fcb;
+    IPC_FCB fcb;
 
-    fcb.type    = MAKETYPE(F_DATAGRAM, TYPE_MSG_ONLY);
+    fcb.type    = IPC_MAKETYPE(IPC_F_DATAGRAM, IPC_MSG_ONLY);
     fcb.acknak  = 0;
     fcb.seqnum  = 0;
     fcb.address = 0;
@@ -568,18 +879,18 @@ Bool IPC_Notify(IPCMSG* msg, UInt32 timeout)
 //
 //*****************************************************************************
 
-Bool IPC_Transaction(IPCMSG* msgTx, IPCMSG* msgRx, UInt32 timeout)
+Bool IPC_Transaction(IPC_MSG* msgTx, IPC_MSG* msgRx, UInt32 timeout)
 {
-    RAMP_FCB fcb;
+    IPC_FCB fcb;
 
-    memset(msgRx, 0, sizeof(IPCMSG));
+    memset(msgRx, 0, sizeof(IPC_MSG));
 
-    fcb.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ONLY);
+    fcb.type    = IPC_MAKETYPE(IPC_F_ACKNAK, IPC_MSG_ONLY);
     fcb.acknak  = 0;
     fcb.seqnum  = IPC_GetTxSeqNum();
     fcb.address = 0;
 
-    size_t index = (fcb.seqnum - 1) % MAX_WINDOW;
+    size_t index = (fcb.seqnum - 1) % IPC_MAX_WINDOW;
 
     g_ipc.ackBuf[index].flags  = 0x01;          /* ACK pending flag */
     g_ipc.ackBuf[index].retry  = 5;

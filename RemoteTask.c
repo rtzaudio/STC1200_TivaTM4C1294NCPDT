@@ -153,7 +153,7 @@ Bool Remote_Task_init(void)
 
 Void RemoteTaskFxn(UArg arg0, UArg arg1)
 {
-    IPCMSG ipc;
+    IPC_MSG ipc;
     RAMP_MSG msg;
 
     g_sysData.currentCueIndex = 0;
@@ -171,7 +171,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxRemote, &msg, 1000))
+        if (!Mailbox_pend(g_mailboxRemote, &msg, 100))
         {
             DrawScreen(s_uScreenNum);
             continue;
@@ -392,6 +392,34 @@ uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask)
 }
 
 //*****************************************************************************
+// Format a data buffer into an ascii hex string.
+//*****************************************************************************
+
+int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len)
+{
+    char fmt[8];
+    uint32_t i;
+    int32_t l;
+
+    *pTextBuf = 0;
+    strcpy(fmt, "%02X");
+
+    for (i=0; i < len; i++)
+    {
+        l = sprintf(pTextBuf, fmt, *pDataBuf++);
+        pTextBuf += l;
+
+        if (((i % 2) == 1) && (i != (len-1)))
+        {
+            l = sprintf(pTextBuf, "-");
+            pTextBuf += l;
+        }
+    }
+
+    return strlen(pTextBuf);
+}
+
+//*****************************************************************************
 //
 //*****************************************************************************
 
@@ -401,7 +429,6 @@ void ClearDisplay()
     GrContextForegroundSetTranslated(&g_context, 0);
     GrContextBackgroundSetTranslated(&g_context, 0);
     GrRectFill(&g_context, &rect);
-    GrFlush(&g_context);
 }
 
 //*****************************************************************************
@@ -425,6 +452,56 @@ void DrawScreen(uint32_t uScreenNum)
     default:
         break;
    }
+
+    GrFlush(&g_context);
+}
+
+//*****************************************************************************
+// Draw the welome screen with version info
+//*****************************************************************************
+
+void DrawWelcome(void)
+{
+    int len;
+    char buf[64];
+
+    /* Set foreground pixel color on to 0x01 */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    //tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
+    //GrRectDraw(&g_context, &rect);
+
+    /* Setup font */
+    uint32_t y;
+    uint32_t height;
+    uint32_t spacing = 2;
+
+    /* Display the program version/revision */
+    GrContextFontSet(&g_context, g_psFontCm28b);
+    height = GrStringHeightGet(&g_context);
+    y = 12;
+    len = sprintf(buf, "STC-1200");
+    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
+    y += (height/2) + 4;
+
+    /* Switch to fixed system font */
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
+    GrStringDraw(&g_context, buf, -1, 25, y, 0);
+    y += height + spacing + 4;
+
+    /* Get the serial number string and display it */
+
+    GetHexStr(buf, &g_sysData.ui8SerialNumber[0], 8);
+    GrStringDraw(&g_context, buf, -1, 8, y, 0);
+    y += height + spacing;
+
+    GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
+    GrStringDraw(&g_context, buf, -1, 8, y, 0);
+    y += height + spacing;
 
     GrFlush(&g_context);
 }
@@ -537,12 +614,12 @@ void DrawTapeTime(void)
 
         x = (SCREEN_WIDTH / 2) - 3;
         y = (SCREEN_HEIGHT / 2) - 5;
-        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+        GrStringDrawCentered(&g_context, buf, len, x, y, 1);
 
         /* Draw the sign in a different font as 7-seg does not have these chars */
         GrContextFontSet(&g_context, g_psFontCmss14b);
         len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-        GrStringDrawCentered(&g_context, buf, len, 4, y-3, FALSE);
+        GrStringDrawCentered(&g_context, buf, len, 4, y-3, 1);
 
         y += height - 5;
         GrContextFontSet(&g_context, g_psFontFixed6x8);
@@ -711,84 +788,6 @@ void DrawTapeTime(void)
             GrRectFill(&g_context, &rect2);
         }
     }
-}
-
-//*****************************************************************************
-// Draw the welome screen with version info
-//*****************************************************************************
-
-void DrawWelcome(void)
-{
-    int len;
-    char buf[64];
-
-    /* Set foreground pixel color on to 0x01 */
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-
-    //tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
-    //GrRectDraw(&g_context, &rect);
-
-    /* Setup font */
-    uint32_t y;
-    uint32_t height;
-    uint32_t spacing = 2;
-
-    /* Display the program version/revision */
-    GrContextFontSet(&g_context, g_psFontCm28b);
-    height = GrStringHeightGet(&g_context);
-    y = 12;
-    len = sprintf(buf, "STC-1200");
-    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-    y += (height/2) + 4;
-
-    /* Switch to fixed system font */
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
-    height = GrStringHeightGet(&g_context);
-
-    sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
-    GrStringDraw(&g_context, buf, -1, 25, y, 0);
-    y += height + spacing + 4;
-
-    /* Get the serial number string and display it */
-
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[0], 8);
-    GrStringDraw(&g_context, buf, -1, 8, y, 0);
-    y += height + spacing;
-
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
-    GrStringDraw(&g_context, buf, -1, 8, y, 0);
-    y += height + spacing;
-
-    GrFlush(&g_context);
-}
-
-//*****************************************************************************
-// Format a data buffer into an ascii hex string.
-//*****************************************************************************
-
-int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len)
-{
-    char fmt[8];
-    uint32_t i;
-    int32_t l;
-
-    *pTextBuf = 0;
-    strcpy(fmt, "%02X");
-
-    for (i=0; i < len; i++)
-    {
-        l = sprintf(pTextBuf, fmt, *pDataBuf++);
-        pTextBuf += l;
-
-        if (((i % 2) == 1) && (i != (len-1)))
-        {
-            l = sprintf(pTextBuf, "-");
-            pTextBuf += l;
-        }
-    }
-
-    return strlen(pTextBuf);
 }
 
 // End-Of-File

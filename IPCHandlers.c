@@ -94,13 +94,13 @@ static uint32_t dtc_to_drc_lamp_mask(uint32_t bits);
 // results in a MSG+ACK reply to indicate completion with results.
 //*****************************************************************************
 
-Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
+Bool IPC_Handle_transaction(IPC_MSG* msg, IPC_FCB* fcb, UInt32 timeout)
 {
-    RAMP_FCB fcbReply;
-    IPCMSG msgReply;
+    IPC_FCB fcbReply;
+    IPC_MSG msgReply;
 
     /* Copy incoming message to outgoing reply for default values */
-    memcpy(&msgReply, msg, sizeof(IPCMSG));
+    memcpy(&msgReply, msg, sizeof(IPC_MSG));
 
     /* Execute the transaction type request */
 
@@ -114,7 +114,7 @@ Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
 
     /* Send the response MSG+ACK with command results returned */
 
-    fcbReply.type    = MAKETYPE(F_ACKNAK, TYPE_MSG_ACK);
+    fcbReply.type    = MAKETYPE(IPC_F_ACKNAK, IPC_MSG_ACK);
     fcbReply.acknak  = fcb->seqnum;
     fcbReply.address = fcb->address;
     fcbReply.seqnum  = IPC_GetTxSeqNum();
@@ -127,7 +127,7 @@ Bool IPC_Handle_transaction(IPCMSG* msg, RAMP_FCB* fcb, UInt32 timeout)
 // from the peer DTC. No response is required for datagrams.
 //*****************************************************************************
 
-Bool IPC_Handle_datagram(IPCMSG* msg, RAMP_FCB* fcb)
+Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
 {
     uint32_t param1;
 
