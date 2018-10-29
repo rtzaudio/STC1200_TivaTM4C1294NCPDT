@@ -64,6 +64,7 @@ typedef struct _SYSPARMS
     uint32_t	version;
     /*** GLOBAL PARAMETERS ***/
     bool        searchBlink;                /* blink 7-seg during search */
+    bool        showLongTime;
     uint32_t	debug;                     	/* debug level */
 } SYSPARMS;
 

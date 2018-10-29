@@ -97,30 +97,6 @@ Bool IPC_Server_init(void)
     Int i;
     IPC_ELEM* msg;
     Error_Block eb;
-    UART_Params uartParams;
-
-    /* Open the UART for binary mode */
-
-    UART_Params_init(&uartParams);
-
-    uartParams.readMode       = UART_MODE_BLOCKING;
-    uartParams.writeMode      = UART_MODE_BLOCKING;
-    uartParams.readTimeout    = 2000;                   // 1 second read timeout
-    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
-    uartParams.readCallback   = NULL;
-    uartParams.writeCallback  = NULL;
-    uartParams.readReturnMode = UART_RETURN_FULL;
-    uartParams.writeDataMode  = UART_DATA_BINARY;
-    uartParams.readDataMode   = UART_DATA_BINARY;
-    uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 250000;
-    uartParams.stopBits       = UART_STOP_ONE;
-    uartParams.parityType     = UART_PAR_NONE;
-
-    g_ipc.uartHandle = UART_open(Board_UART_IPC, &uartParams);
-
-    if (g_ipc.uartHandle == NULL)
-        System_abort("Error initializing UART\n");
 
     /* Create the queues needed */
     g_ipc.txFreeQue = Queue_create(NULL, NULL);
@@ -209,6 +185,31 @@ Bool IPC_Server_startup(void)
     Error_Block eb;
     Task_Params taskParams;
 
+    UART_Params uartParams;
+
+    /* Open the UART for binary mode */
+
+    UART_Params_init(&uartParams);
+
+    uartParams.readMode       = UART_MODE_BLOCKING;
+    uartParams.writeMode      = UART_MODE_BLOCKING;
+    uartParams.readTimeout    = 2000;                   // 1 second read timeout
+    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
+    uartParams.readCallback   = NULL;
+    uartParams.writeCallback  = NULL;
+    uartParams.readReturnMode = UART_RETURN_FULL;
+    uartParams.writeDataMode  = UART_DATA_BINARY;
+    uartParams.readDataMode   = UART_DATA_BINARY;
+    uartParams.readEcho       = UART_ECHO_OFF;
+    uartParams.baudRate       = 250000;
+    uartParams.stopBits       = UART_STOP_ONE;
+    uartParams.parityType     = UART_PAR_NONE;
+
+    g_ipc.uartHandle = UART_open(Board_UART_IPC, &uartParams);
+
+    if (g_ipc.uartHandle == NULL)
+        System_abort("Error initializing UART\n");
+
     /*
      * Finally, create the reader, writer and worker tasks
      */
@@ -217,19 +218,25 @@ Bool IPC_Server_startup(void)
     Task_Params_init(&taskParams);
     taskParams.stackSize = 800;
     taskParams.priority  = 6;
-    Task_create((Task_FuncPtr)IPCWriterTaskFxn, &taskParams, &eb);
+
+    if (!Task_create((Task_FuncPtr)IPCWriterTaskFxn, &taskParams, &eb))
+        System_abort("IPC Task create failed\n");
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 800;
     taskParams.priority  = 6;
-    Task_create((Task_FuncPtr)IPCReaderTaskFxn, &taskParams, &eb);
+
+    if (!Task_create((Task_FuncPtr)IPCReaderTaskFxn, &taskParams, &eb))
+        System_abort("IPC Task create failed\n");
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 800;
     taskParams.priority  = 10;
-    Task_create((Task_FuncPtr)IPCWorkerTaskFxn, &taskParams, &eb);
+
+    if (!Task_create((Task_FuncPtr)IPCWorkerTaskFxn, &taskParams, &eb))
+        System_abort("IPC Task create failed\n");
 
     return TRUE;
 }

@@ -78,32 +78,90 @@
 #include "IPCCommands.h"
 #include "CLITask.h"
 
-#define MAX_PACKET_SIZE     48
-
 /* External Data Items */
 
-//extern SYSDATA g_sysData;
+extern SYSDATA g_sysData;
 
 /* Static Data Items */
 
+static MIDI_SERVICE g_midi;
+
+static Mailbox_Handle g_mailboxMidi = NULL;
+
 /* Static Function Prototypes */
 
-int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead);
-int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite);
+static Void MidiWriteTaskFxn(UArg arg0, UArg arg1);
+static Void MidiReaderTaskFxn(UArg arg0, UArg arg1);
+static int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead);
+static int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite);
+
+//*****************************************************************************
+// MIDI Task Initialize
+//*****************************************************************************
+
+Bool Midi_Server_init(void)
+{
+    Error_Block eb;
+    Mailbox_Params mboxParams;
+
+    Error_init(&eb);
+    Mailbox_Params_init(&mboxParams);
+    g_mailboxMidi = Mailbox_create(sizeof(MidiMessage), 16, &mboxParams, &eb);
+
+    if (g_mailboxMidi == NULL) {
+        System_abort("MIDI Mailbox create failed\n");
+    }
+
+    return TRUE;
+}
+
+//*****************************************************************************
+// MIDI Task Startup
+//*****************************************************************************
+
+Bool Midi_Server_startup(void)
+{
+    Error_Block eb;
+    Task_Params taskParams;
+
+    /* Startup the MIDI server tasks */
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = 800;
+    taskParams.priority  = 5;
+    taskParams.arg0      = 0;
+    taskParams.arg1      = 0;
+
+    if (!Task_create((Task_FuncPtr)MidiReaderTaskFxn, &taskParams, &eb))
+        System_abort("MidiReaderTaskFxn create failed\n");
+
+    return TRUE;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+Void MidiWriterTaskFxn(UArg arg0, UArg arg1)
+{
+
+}
 
 //*****************************************************************************
 // MIDI MCC Task
 //*****************************************************************************
 
-Void MidiTaskFxn(UArg arg0, UArg arg1)
+Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
 {
-    int rc;
+    int rc = 0;
 	UART_Params uartParams;
 	UART_Handle handle;
 	size_t	uNumBytesRead;
 	uint8_t byDeviceID;
 
-	static uint8_t rxBuffer[MAX_PACKET_SIZE];
+	static uint8_t rxBuffer[MIDI_MAX_PACKET_SIZE];
 
     /* Open the UART for MIDI communications. The MIDI data
      * frame (1 start bit, 8 data bits, 1 stop bit) is a subset
@@ -137,6 +195,25 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
 
     while (true)
     {
+#if 0
+        uint8_t b;
+
+        /* Read a byte looking for 0xF0 Preamble */
+        if (UART_read(handle, &b, 1) == 1)
+        {
+            CLI_printf("%02x ", b);
+
+            if (b == 0xF7)
+            {
+                CLI_printf("\n");
+                rc = 0;
+            }
+
+            if ((rc++ % 16) == 15)
+                CLI_printf("\n");
+        }
+
+#else
     	/* Attempt to read a MIDI MCC command */
 
     	memset(&rxBuffer, 0, sizeof(rxBuffer));
@@ -152,7 +229,7 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
         }
         else
     	{
-            CLI_printf("MMC(%d)-", uNumBytesRead);
+            CLI_printf("MMC(%d)-", byDeviceID);
 
     		switch(rxBuffer[0])
     		{
@@ -217,6 +294,7 @@ Void MidiTaskFxn(UArg arg0, UArg arg1)
                     break;
     		}
     	}
+#endif
     }
 }
 
@@ -239,9 +317,7 @@ int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
 
         /* Read a byte looking for 0xF0 Preamble */
         if (UART_read(handle, &b, 1) != 1)
-            return -1;  /* timeout */
-
-        CLI_printf("%02x ", b);
+            return MIDI_ERR_TIMEOUT;
 
         ++i;
 
@@ -249,41 +325,41 @@ int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
 
     /* Read the 0x7F Preamble */
     if (UART_read(handle, &b, 1) != 1)
-        return -1;
+        return MIDI_ERR_TIMEOUT;
 
-    /* If not the second preamble 0x7F byte, then out of sync */
+    /* If not preamble 0x7F byte, then out of sync */
     if (b != 0x7F)
-        return -3;
-    
+        return MIDI_ERR_FRAME_BEGIN;
+
     /* Read the device ID */
     if (UART_read(handle, &b, 1) != 1)
-        return -1;
+        return MIDI_ERR_TIMEOUT;
 
     *pbyDeviceID = b;
-        
+
     /* Read the MCC (motion control command) type byte */
     if (UART_read(handle, &b, 1) != 1)
-        return -1;
+        return MIDI_ERR_TIMEOUT;
 
     if (b != MIDI_MCC)
-        return -4;
-        
+        return MIDI_ERR_MMC_INVALID;
+
     /* Read the MIDI packet data up to the 0x7F end of packet marker */
     
-    for (i=0; i < MAX_PACKET_SIZE; i++)
+    rc = MIDI_ERR_RX_OVERFLOW;
+
+    for (i=0; i < MIDI_MAX_PACKET_SIZE; i++)
     {
         /* Read a command byte */
         if (UART_read(handle, &b, 1) != 1)
         {
-            rc = -1;
+            rc = MIDI_ERR_TIMEOUT;
             break;
         }
 
-        /* End of packet 0x7F indicator */
-    	if (b == 0x7F)
+        /* End of packet 0xF7 indicator */
+    	if (b == 0xF7)
         {
-    	    CLI_printf("\n");
-
             *puNumBytesRead = i;
             rc = 0;
     	    break;
@@ -322,10 +398,10 @@ int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, si
 
     /* Write the user response data */
    	if (UART_write(handle, &b, uNumBytesToWrite) != uNumBytesToWrite)
-   		return -1;
+   		return MIDI_ERR_TIMEOUT;
 
    	/* Write the response packet termination indicator byte */
-    b = 0x7F;
+    b = 0xF7;
     UART_write(handle, &b, 1);
 
     return uNumBytesToWrite;

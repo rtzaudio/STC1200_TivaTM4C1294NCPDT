@@ -114,7 +114,7 @@ SYSPARMS g_sysParms;
 /* Handles created dynamically */
 
 Mailbox_Handle g_mailboxLocate  = NULL;
-Mailbox_Handle g_mailboxRemote = NULL;
+Mailbox_Handle g_mailboxRemote  = NULL;
 Mailbox_Handle g_mailboxCommand = NULL;
 
 Event_Handle g_eventQEI;
@@ -157,7 +157,7 @@ int main(void)
     Mailbox_Params_init(&mboxParams);
     g_mailboxCommand = Mailbox_create(sizeof(CommandMessage), 8, &mboxParams, &eb);
     if (g_mailboxCommand == NULL) {
-        System_abort("Mailbox create failed\nAborting...");
+        System_abort("Mailbox create failed\n");
     }
 
     /* Create locater task mailbox */
@@ -165,7 +165,7 @@ int main(void)
     Mailbox_Params_init(&mboxParams);
     g_mailboxLocate = Mailbox_create(sizeof(LocateMessage), 8, &mboxParams, &eb);
     if (g_mailboxLocate == NULL) {
-        System_abort("Mailbox create failed\nAborting...");
+        System_abort("Mailbox create failed\n");
     }
 
     /* Create display task mailbox */
@@ -173,10 +173,17 @@ int main(void)
     Mailbox_Params_init(&mboxParams);
     g_mailboxRemote = Mailbox_create(sizeof(RAMP_MSG), 16, &mboxParams, &eb);
     if (g_mailboxRemote == NULL) {
-        System_abort("Mailbox create failed\nAborting...");
+        System_abort("Mailbox create failed\n");
     }
 
+    /* Allocate IPC server resources */
+    IPC_Server_init();
+
+    /* Allocate MIDI server resources */
+    Midi_Server_init();
+
     /* Create task with priority 15 */
+
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
@@ -217,15 +224,12 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize the command line serial debug console port */
     CLI_init();
 
-    /* Startup the IPC server tasks */
-    IPC_Server_init();
-
     /* Startup the IPC server threads */
     IPC_Server_startup();
 
     /* Initialize the remote task if CFG2 switch is ON */
     if (GPIO_read(Board_DIPSW_CFG2) == 0)
-        Remote_Task_init();
+        Remote_Task_startup();
 
     /*
      * Create the various system tasks
@@ -243,13 +247,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     taskParams.priority  = 15;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
-    Error_init(&eb);
-    Task_Params_init(&taskParams);
-    taskParams.stackSize = 800;
-    taskParams.priority  = 5;
-
-    if (!Task_create((Task_FuncPtr)MidiTaskFxn, &taskParams, &eb))
-        System_abort("Create MIDI task failed\n");
+    /* Startup the MIDI services tasks */
+    Midi_Server_startup();
 
     /* Setup the callback Hwi handler for each button */
 
@@ -549,7 +548,7 @@ void InitSysDefaults(SYSPARMS* p)
     p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     p->debug        = 0;        /* debug mode 0=off                 */
     p->searchBlink  = TRUE;
-
+    p->showLongTime = TRUE;
 }
 
 //*****************************************************************************

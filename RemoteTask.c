@@ -103,6 +103,7 @@ extern tFont *g_psFontWDseg7bold18pt;
 extern tFont *g_psFontWDseg7bold16pt;
 extern Mailbox_Handle g_mailboxRemote;
 extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
 
 /* Static Function Prototypes */
 static void ClearDisplay(void);
@@ -121,7 +122,7 @@ static void BlinkLocateButtonLED(size_t index);
 // Initialize the remote display task
 //*****************************************************************************
 
-Bool Remote_Task_init(void)
+Bool Remote_Task_startup(void)
 {
     Error_Block eb;
     Task_Params taskParams;
@@ -270,8 +271,14 @@ void HandleSwitchPress(uint32_t bits)
 
     } else if (bits & SW_MENU) {
 
-    } else if (bits & SW_NEXT) {
+        if (g_sysParms.showLongTime)
+            g_sysParms.showLongTime = FALSE;
+        else
+            g_sysParms.showLongTime = TRUE;
 
+    } else if (bits & SW_NEXT) {
+        if (++s_uScreenNum > 1)
+            s_uScreenNum = 0;
     } else if (bits & SW_EDIT) {
 
     }
@@ -502,8 +509,6 @@ void DrawWelcome(void)
     GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
     GrStringDraw(&g_context, buf, -1, 8, y, 0);
     y += height + spacing;
-
-    GrFlush(&g_context);
 }
 
 //*****************************************************************************
@@ -598,7 +603,7 @@ void DrawTapeTime(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    if (1)
+    if (g_sysParms.showLongTime)
     {
         /* Extended hour, mins, secs and tenth seconds display format */
 

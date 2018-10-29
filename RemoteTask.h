@@ -15,7 +15,7 @@
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-Bool Remote_Task_init();
+Bool Remote_Task_startup();
 
 void SetLocateButtonLED(size_t index);
 

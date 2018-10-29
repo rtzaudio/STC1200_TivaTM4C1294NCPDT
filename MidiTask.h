@@ -9,8 +9,8 @@
  * WRITTEN CONSENT OF THE AUTHOR.
  */
 
-#ifndef __MIDITASK_H
-#define __MIDITASK_H
+#ifndef _MIDITASK_H_
+#define _MIDITASK_H_
 
 /*** MIDI MACHNE CONTROL (MMC) *********************************************/
 
@@ -109,8 +109,39 @@
 #define MCR_WAIT                        	0x7C
 #define MCR_RESUME                      	0x7F
 
+/*** MIDI FUNCTION ERROR CODES *********************************************/
+
+#define MIDI_ERR_TIMEOUT            (-1)
+#define MIDI_ERR_RX_OVERFLOW        (-2)
+#define MIDI_ERR_FRAME_BEGIN        (-3)
+#define MIDI_ERR_FRAME_END          (-4)
+#define MIDI_ERR_MMC_INVALID        (-5)
+
+/*** MIDI SERVICE OBJECT ***************************************************/
+
+#define MIDI_MAX_PACKET_SIZE        48
+
+typedef struct _MIDI_SERVICE {
+    UART_Handle uartHandle;
+    uint8_t     deviceID;
+} MIDI_SERVICE;
+
+typedef struct _MIDI_BUF {
+    uint8_t     length;
+    uint8_t     rxBuffer[MIDI_MAX_PACKET_SIZE];
+} MIDI_BUF;
+
+
+typedef struct MidiMessage {
+    uint8_t         type;
+    uint8_t         command;
+    uint8_t         length;
+    uint8_t         data[8];
+} MidiMessage;
+
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-Void MidiTaskFxn(UArg arg0, UArg arg1);
+Bool Midi_Server_init(void);
+Bool Midi_Server_startup(void);
 
-#endif /* __MIDITASK_H */
+#endif /* _MIDITASK_H_ */
