@@ -84,13 +84,13 @@ extern SYSDATA g_sysData;
 
 /* Static Data Items */
 
-static MIDI_SERVICE g_midi;
-
+static UART_Handle g_handleMidi;
 static Mailbox_Handle g_mailboxMidi = NULL;
+static MIDI_SERVICE g_midi;
 
 /* Static Function Prototypes */
 
-static Void MidiWriteTaskFxn(UArg arg0, UArg arg1);
+static Void MidiWriterTaskFxn(UArg arg0, UArg arg1);
 static Void MidiReaderTaskFxn(UArg arg0, UArg arg1);
 static int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead);
 static int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, size_t uNumBytesToWrite);
@@ -123,6 +123,36 @@ Bool Midi_Server_startup(void)
 {
     Error_Block eb;
     Task_Params taskParams;
+    UART_Params uartParams;
+
+
+    /* Open the UART for MIDI communications. The MIDI data
+     * frame (1 start bit, 8 data bits, 1 stop bit) is a subset
+     * of the data frames allowed by RS-232 both define a positive
+     * voltage/current to be a 'logical 0'. A negative voltage is
+     * a 'logical 1' for RS-232 (note 1). A zero current is a
+     * 'logical 1'. MIDI has a single baud rate 31250 baud.
+     */
+    UART_Params_init(&uartParams);
+
+    uartParams.readMode       = UART_MODE_BLOCKING;
+    uartParams.writeMode      = UART_MODE_BLOCKING;
+    uartParams.readTimeout    = 2000;                   // 2 second read timeout
+    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
+    uartParams.readCallback   = NULL;
+    uartParams.writeCallback  = NULL;
+    uartParams.readReturnMode = UART_RETURN_FULL;
+    uartParams.writeDataMode  = UART_DATA_BINARY;
+    uartParams.readDataMode   = UART_DATA_BINARY;
+    uartParams.readEcho       = UART_ECHO_OFF;
+    uartParams.baudRate       = 31250;
+    uartParams.stopBits       = UART_STOP_ONE;
+    uartParams.parityType     = UART_PAR_NONE;
+
+    g_handleMidi = UART_open(Board_UART_MIDI, &uartParams);
+
+    if (g_handleMidi == NULL)
+        System_abort("Error opening MIDI UART\n");
 
     /* Startup the MIDI server tasks */
 
@@ -137,6 +167,17 @@ Bool Midi_Server_startup(void)
     if (!Task_create((Task_FuncPtr)MidiReaderTaskFxn, &taskParams, &eb))
         System_abort("MidiReaderTaskFxn create failed\n");
 
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = 800;
+    taskParams.priority  = 5;
+    taskParams.arg0      = 0;
+    taskParams.arg1      = 0;
+
+    if (!Task_create((Task_FuncPtr)MidiWriterTaskFxn, &taskParams, &eb))
+        System_abort("MidiWriterTaskFxn create failed\n");
+
     return TRUE;
 }
 
@@ -146,7 +187,14 @@ Bool Midi_Server_startup(void)
 
 Void MidiWriterTaskFxn(UArg arg0, UArg arg1)
 {
+    MidiMessage msgMidi;
 
+    while (TRUE)
+    {
+        Mailbox_pend(g_mailboxMidi, &msgMidi, BIOS_WAIT_FOREVER);
+
+        Midi_TxResponse(g_handleMidi, g_midi.deviceID, msgMidi.data, msgMidi.length);
+    }
 }
 
 //*****************************************************************************
@@ -156,42 +204,10 @@ Void MidiWriterTaskFxn(UArg arg0, UArg arg1)
 Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
 {
     int rc = 0;
-	UART_Params uartParams;
-	UART_Handle handle;
 	size_t	uNumBytesRead;
-	uint8_t byDeviceID;
 
 	static uint8_t rxBuffer[MIDI_MAX_PACKET_SIZE];
 
-    /* Open the UART for MIDI communications. The MIDI data
-     * frame (1 start bit, 8 data bits, 1 stop bit) is a subset
-     * of the data frames allowed by RS-232 both define a positive
-     * voltage/current to be a 'logical 0'. A negative voltage is 
-     * a 'logical 1' for RS-232 (note 1). A zero current is a
-     * 'logical 1'. MIDI has a single baud rate 31250 baud.
-     */
-	UART_Params_init(&uartParams);
-
-	uartParams.readMode       = UART_MODE_BLOCKING;
-	uartParams.writeMode      = UART_MODE_BLOCKING;
-	uartParams.readTimeout    = 2000;					// 2 second read timeout
-	uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
-	uartParams.readCallback   = NULL;
-	uartParams.writeCallback  = NULL;
-	uartParams.readReturnMode = UART_RETURN_FULL;
-	uartParams.writeDataMode  = UART_DATA_BINARY;
-	uartParams.readDataMode   = UART_DATA_BINARY;
-	uartParams.readEcho       = UART_ECHO_OFF;
-	uartParams.baudRate       = 31250;
-	uartParams.stopBits       = UART_STOP_ONE;
-	uartParams.parityType     = UART_PAR_NONE;
-
-	handle = UART_open(Board_UART_MIDI, &uartParams);
-
-	if (handle == NULL)
-	    System_abort("Error opening MIDI UART\n");
-
-	byDeviceID = 0x00;
 
     while (true)
     {
@@ -199,7 +215,7 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
         uint8_t b;
 
         /* Read a byte looking for 0xF0 Preamble */
-        if (UART_read(handle, &b, 1) == 1)
+        if (UART_read(g_handleMidi, &b, 1) == 1)
         {
             CLI_printf("%02x ", b);
 
@@ -218,7 +234,7 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
 
     	memset(&rxBuffer, 0, sizeof(rxBuffer));
 
-    	rc = Midi_RxCommand(handle, &byDeviceID, rxBuffer, &uNumBytesRead);
+    	rc = Midi_RxCommand(g_handleMidi, &g_midi.deviceID, rxBuffer, &uNumBytesRead);
 
         if (rc != 0)
         {
@@ -229,7 +245,7 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
         }
         else
     	{
-            CLI_printf("MMC(%d)-", byDeviceID);
+            CLI_printf("MMC(%d)-", g_midi.deviceID);
 
     		switch(rxBuffer[0])
     		{
