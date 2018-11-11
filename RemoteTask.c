@@ -91,6 +91,10 @@
 #define MODE_CUE        1
 #define MODE_STORE      2
 
+#define SCREEN_TIME     0
+#define SCREEN_MENU     1
+#define SCREEN_ABOUT    2
+
 /* Static Module Globals */
 static uint32_t s_uScreenNum = 0;
 static uint32_t s_searchMode = MODE_UNDEFINED;
@@ -109,7 +113,8 @@ extern SYSPARMS g_sysParms;
 static void ClearDisplay(void);
 static void DrawScreen(uint32_t uScreenNum);
 static void DrawTapeTime(void);
-static void DrawWelcome(void);
+static void DrawAbout(void);
+static void DrawMenu(void);
 static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
 static void HandleSwitchPress(uint32_t bits);
 static void HandleJogwheel(uint32_t bits);
@@ -196,7 +201,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
              */
             if (msg.opcode == OP_SWITCH_TRANSPORT)
             {
-                /* Convert DRC switch bits to STC/DTC bit mask form */
+                /* Convert DRC switch bits to DTC bit mask form */
                 uint32_t mask = xlate_to_dtc_transport_switch_mask(msg.param1.U);
 
                 /* Cancel any search in progress */
@@ -448,12 +453,16 @@ void DrawScreen(uint32_t uScreenNum)
 
     switch(uScreenNum)
     {
-    case 0:
+    case SCREEN_TIME:
         DrawTapeTime();
         break;
 
-    case 1:
-        DrawWelcome();
+    case SCREEN_ABOUT:
+        DrawAbout();
+        break;
+
+    case SCREEN_MENU:
+        DrawMenu();
         break;
 
     default:
@@ -464,10 +473,58 @@ void DrawScreen(uint32_t uScreenNum)
 }
 
 //*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawMenu(void)
+{
+    int len;
+    char buf[64];
+
+    /* Set foreground pixel color on to 0x01 */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    //tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
+    //GrRectDraw(&g_context, &rect);
+
+    /* Setup font */
+    uint32_t y;
+    uint32_t height;
+    uint32_t spacing = 2;
+
+    /* Display the program version/revision */
+    GrContextFontSet(&g_context, g_psFontCm28b);
+    height = GrStringHeightGet(&g_context);
+    y = 12;
+    len = sprintf(buf, "STC-1200");
+    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
+    y += (height/2) + 4;
+
+    /* Switch to fixed system font */
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
+    GrStringDraw(&g_context, buf, -1, 25, y, 0);
+    y += height + spacing + 4;
+
+    /* Get the serial number string and display it */
+
+    GetHexStr(buf, &g_sysData.ui8SerialNumber[0], 8);
+    GrStringDraw(&g_context, buf, -1, 8, y, 0);
+    y += height + spacing;
+
+    GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
+    GrStringDraw(&g_context, buf, -1, 8, y, 0);
+    y += height + spacing;
+}
+
+//*****************************************************************************
 // Draw the welome screen with version info
 //*****************************************************************************
 
-void DrawWelcome(void)
+void DrawAbout(void)
 {
     int len;
     char buf[64];
