@@ -271,19 +271,26 @@ void HandleSwitchPress(uint32_t bits)
     } else if (bits & SW_SET)  {
 
     } else if (bits & SW_ESC)  {
-
-    } else if (bits & SW_PREV) {
-
-    } else if (bits & SW_MENU) {
-
         if (g_sysParms.showLongTime)
             g_sysParms.showLongTime = FALSE;
         else
             g_sysParms.showLongTime = TRUE;
 
+    } else if (bits & SW_PREV) {
+
     } else if (bits & SW_NEXT) {
-        if (++s_uScreenNum > 1)
-            s_uScreenNum = 0;
+
+    } else if (bits & SW_MENU) {
+        if (s_uScreenNum == SCREEN_MENU)
+        {
+            s_uScreenNum = SCREEN_TIME;
+            SetButtonLedMask(0, L_MENU);
+        }
+        else
+        {
+            s_uScreenNum = SCREEN_MENU;
+            SetButtonLedMask(L_MENU, 0);
+        }
     } else if (bits & SW_EDIT) {
 
     }
@@ -485,39 +492,17 @@ void DrawMenu(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    //tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
-    //GrRectDraw(&g_context, &rect);
-
     /* Setup font */
-    uint32_t y;
+    uint32_t y = 4;
     uint32_t height;
-    uint32_t spacing = 2;
 
-    /* Display the program version/revision */
-    GrContextFontSet(&g_context, g_psFontCm28b);
-    height = GrStringHeightGet(&g_context);
-    y = 12;
-    len = sprintf(buf, "STC-1200");
-    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-    y += (height/2) + 4;
-
-    /* Switch to fixed system font */
+    /* Use fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
-    sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
-    GrStringDraw(&g_context, buf, -1, 25, y, 0);
-    y += height + spacing + 4;
-
-    /* Get the serial number string and display it */
-
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[0], 8);
-    GrStringDraw(&g_context, buf, -1, 8, y, 0);
-    y += height + spacing;
-
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
-    GrStringDraw(&g_context, buf, -1, 8, y, 0);
-    y += height + spacing;
+    len = sprintf(buf, "MENU");
+    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
+    y += (height/2) + 4;
 }
 
 //*****************************************************************************
