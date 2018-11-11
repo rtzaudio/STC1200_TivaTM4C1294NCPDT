@@ -90,6 +90,7 @@
 #define MODE_UNDEFINED  0
 #define MODE_CUE        1
 #define MODE_STORE      2
+#define MODE_EDIT       3
 
 #define SCREEN_TIME     0
 #define SCREEN_MENU     1
@@ -98,6 +99,7 @@
 /* Static Module Globals */
 static uint32_t s_uScreenNum = 0;
 static uint32_t s_searchMode = MODE_UNDEFINED;
+static bool s_editMode = FALSE;
 
 /* External Global Data */
 extern tContext g_context;
@@ -167,6 +169,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize LOC-1 memory as RTZ and select CUE mode */
     s_searchMode = MODE_UNDEFINED;
+    s_editMode   = FALSE;
     HandleSetSearchMode(MODE_CUE);
     HandleSetSearchMemory(0);
 
@@ -270,17 +273,25 @@ void HandleSwitchPress(uint32_t bits)
         HandleSetSearchMode(MODE_CUE);
     } else if (bits & SW_SET)  {
 
-    } else if (bits & SW_ESC)  {
+    }
+    else if (bits & SW_ESC)
+    {
         if (g_sysParms.showLongTime)
             g_sysParms.showLongTime = FALSE;
         else
             g_sysParms.showLongTime = TRUE;
 
-    } else if (bits & SW_PREV) {
+    }
+    else if (bits & SW_PREV)
+    {
 
-    } else if (bits & SW_NEXT) {
+    }
+    else if (bits & SW_NEXT)
+    {
 
-    } else if (bits & SW_MENU) {
+    }
+    else if (bits & SW_MENU)
+    {
         if (s_uScreenNum == SCREEN_MENU)
         {
             s_uScreenNum = SCREEN_TIME;
@@ -291,8 +302,19 @@ void HandleSwitchPress(uint32_t bits)
             s_uScreenNum = SCREEN_MENU;
             SetButtonLedMask(L_MENU, 0);
         }
-    } else if (bits & SW_EDIT) {
-
+    }
+    else if (bits & SW_EDIT)
+    {
+        if (!s_editMode)
+        {
+            s_editMode = TRUE;
+            SetButtonLedMask(L_EDIT, 0);
+        }
+        else
+        {
+            s_editMode = FALSE;
+            SetButtonLedMask(0, L_EDIT);
+        }
     }
 }
 
