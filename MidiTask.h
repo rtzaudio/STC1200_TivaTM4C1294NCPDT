@@ -126,22 +126,16 @@ typedef struct _MIDI_SERVICE {
     uint8_t     deviceID;
 } MIDI_SERVICE;
 
-typedef struct _MIDI_BUF {
-    uint8_t     length;
-    uint8_t     rxBuffer[MIDI_MAX_PACKET_SIZE];
-} MIDI_BUF;
-
-
 typedef struct MidiMessage {
-    uint8_t         type;
-    uint8_t         command;
-    uint8_t         length;
-    uint8_t         data[8];
+    uint8_t     length;
+    uint8_t     data[8];
 } MidiMessage;
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 Bool Midi_Server_init(void);
 Bool Midi_Server_startup(void);
+
+Bool MidiQueueResponse(MidiMessage* msg);
 
 #endif /* _MIDITASK_H_ */

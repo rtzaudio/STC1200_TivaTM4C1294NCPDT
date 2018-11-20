@@ -182,6 +182,15 @@ Bool Midi_Server_startup(void)
 }
 
 //*****************************************************************************
+// Set the next or immediate transport mode requested.
+//*****************************************************************************
+
+Bool MidiQueueResponse(MidiMessage* msg)
+{
+    return Mailbox_post(g_mailboxMidi, msg, BIOS_WAIT_FOREVER);
+}
+
+//*****************************************************************************
 //
 //*****************************************************************************
 
@@ -330,13 +339,10 @@ int Midi_RxCommand(UART_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
     i = 0;
 
     do {
-
         /* Read a byte looking for 0xF0 Preamble */
         if (UART_read(handle, &b, 1) != 1)
             return MIDI_ERR_TIMEOUT;
-
         ++i;
-
     } while (b != 0xF0);
 
     /* Read the 0x7F Preamble */
