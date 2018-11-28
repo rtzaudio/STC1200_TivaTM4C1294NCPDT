@@ -419,7 +419,7 @@ int Midi_TxResponse(UART_Handle handle, uint8_t byDeviceID, uint8_t* pBuffer, si
     UART_write(handle, &b, 1);
 
     /* Write the user response data */
-   	if (UART_write(handle, &b, uNumBytesToWrite) != uNumBytesToWrite)
+   	if (UART_write(handle, pBuffer, uNumBytesToWrite) != uNumBytesToWrite)
    		return MIDI_ERR_TIMEOUT;
 
    	/* Write the response packet termination indicator byte */
