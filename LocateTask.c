@@ -301,6 +301,12 @@ typedef enum _LocateState {
     LOCATE_COMPLETE,
 } LocateState;
 
+#define JOG_SLOW_VEL    260
+
+#define JOG_VEL_FAR     1000
+#define JOG_VEL_MID     640
+#define JOG_VEL_NEAR    240
+
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
     bool     cancel;
@@ -450,29 +456,24 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            break;
 		        }
 
-//			    state = LOCATE_BEGIN_SHUTTLE;
-//		        break;
-
-//			case LOCATE_BEGIN_SHUTTLE:
-
 			    /* Determine the shuttle speed range based on distance out */
 
 			    if (abs_dist > 9000)
                 {
                     CLI_printf("FAR");
-                    shuttle_vel = 500;
+                    shuttle_vel = JOG_VEL_FAR;
                     state = LOCATE_SHUTTLE_FAR;
                 }
                 else if (abs_dist > 2000)
                 {
                     CLI_printf("MID");
-                    shuttle_vel = 320;
+                    shuttle_vel = JOG_VEL_MID;
                     state = LOCATE_SHUTTLE_MID;
                 }
                 else
                 {
                     CLI_printf("NEAR");
-                    shuttle_vel = 120;
+                    shuttle_vel = JOG_VEL_NEAR;
                     state = LOCATE_SHUTTLE_NEAR;
                 }
 
@@ -545,9 +546,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                     /* Begin low speed shuttle */
                     if (dir == DIR_FWD)
-                        Transport_Fwd(130);
+                        Transport_Fwd(JOG_SLOW_VEL);
                     else
-                        Transport_Rew(130);
+                        Transport_Rew(JOG_SLOW_VEL);
 
                     state = LOCATE_ZERO_CROSS;
                 }
@@ -565,9 +566,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                 /* Begin low speed shuttle */
                 if (dir == DIR_FWD)
-                    Transport_Fwd(130);
+                    Transport_Fwd(JOG_SLOW_VEL);
                 else
-                    Transport_Rew(130);
+                    Transport_Rew(JOG_SLOW_VEL);
 
                 /* Next look for zero cross */
                 state = LOCATE_ZERO_CROSS;
