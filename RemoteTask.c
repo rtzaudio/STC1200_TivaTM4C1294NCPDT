@@ -107,6 +107,7 @@ extern tFont *g_psFontWDseg7bold24pt;
 extern tFont *g_psFontWDseg7bold20pt;
 extern tFont *g_psFontWDseg7bold18pt;
 extern tFont *g_psFontWDseg7bold16pt;
+extern tFont *g_psFontWDseg7bold14pt;
 extern Mailbox_Handle g_mailboxRemote;
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
@@ -669,7 +670,10 @@ void DrawTapeTime(void)
 
     if (g_sysParms.showLongTime)
     {
-        /* Extended hour, mins, secs and tenth seconds display format */
+#if 0
+        /*
+         * Extended hour, mins, secs and tenth seconds display format
+         */
 
         GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
         height = GrStringHeightGet(&g_context);
@@ -696,10 +700,43 @@ void DrawTapeTime(void)
         GrStringDraw(&g_context, "MIN", -1, 35, y, 0);
         GrStringDraw(&g_context, "SEC", -1, 69, y, 0);
         GrStringDraw(&g_context, "TEN", -1, 101, y, 0);
+#endif
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        height = GrStringHeightGet(&g_context);
+
+        len = sprintf(buf, "%1u:%02u:%02u:",
+                 g_sysData.tapeTime.hour,
+                 g_sysData.tapeTime.mins,
+                 g_sysData.tapeTime.secs);
+
+        width = GrStringWidthGet(&g_context, buf, len);
+
+        x = 11;
+        y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
+        GrStringDraw(&g_context, buf, len, x, y, 0);
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold14pt);
+        len = sprintf(buf, "%02u", g_sysData.tapeTime.tens);
+        GrStringDraw(&g_context, buf, len, x+width, y, 0);
+
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCmss14b);
+        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 4, y+6, 1);
+
+        y += height + 5;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, 11, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, 35, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, 69, y, 0);
+        GrStringDraw(&g_context, "TEN", -1, 99, y, 0);
     }
     else
     {
-        /* Standard hour, mins, secs time display format */
+        /*
+         * Standard hour, mins, secs time display format
+         */
 
         GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
         height = GrStringHeightGet(&g_context);
