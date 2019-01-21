@@ -117,13 +117,13 @@ Bool Transport_Stop(void)
     return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
-Bool Transport_Play(void)
+Bool Transport_Play(uint32_t flags)
 {
     IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_PLAY;
-    msg.param1.U = 0;
+    msg.param1.U = flags;
     msg.param2.U = 0;
 
     return IPC_Notify(&msg, IPC_TIMEOUT);

@@ -46,13 +46,20 @@ typedef struct _SYSDATA
     int32_t     searchProgress;             /* progress to cue (0-100%)   */
     uint32_t	qei_error_cnt;				/* QEI phase error count      */
     float		tapeTach;					/* tape speed from roller     */
-	bool		searchCancel;
+	bool		searchCancel;               /* true if search canceling   */
 	bool        searching;                  /* true if search in progress */
+    /* Remote control edit data */
+    bool        editMode;                   /* edit mode active flag      */
+    bool        autoMode;                   /* auto mode active flag      */
+    bool        shiftRecButton;
+    bool        shiftAltButton;
+    /* Locate and Position data */
     TAPETIME	tapeTime;					/* current tape time position */
     size_t      currentCueIndex;            /* currend cue table index    */
     size_t      currentCueBank;             /* current cue bank (1-8)     */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
+
 
 //*****************************************************************************
 // SYSTEM RUN-TIME CONFIG PARAMETERS STORED IN EPROM

@@ -265,7 +265,7 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
 
                 case MCC_PLAY:
                     CLI_printf("PLAY\n");
-                    Transport_Play();
+                    Transport_Play(0);
                     break;
 
                 case MCC_DEFERRED_PLAY:

@@ -16,7 +16,7 @@
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 Bool Transport_Stop(void);
-Bool Transport_Play(void);
+Bool Transport_Play(uint32_t flags);
 Bool Transport_Fwd(uint32_t velocity);
 Bool Transport_Rew(uint32_t velocity);
 Bool Transport_GetMode(uint32_t* mode, uint32_t* speed);

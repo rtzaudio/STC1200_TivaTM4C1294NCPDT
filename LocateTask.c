@@ -232,7 +232,7 @@ void CuePointGetTime(size_t index, TAPETIME* tapeTime)
 // in param1. Cue point 65 is single point for cue/search buttons on machine.
 //*****************************************************************************
 
-Bool LocateSearch(size_t cuePointIndex)
+Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags)
 {
     LocateMessage msgLocate;
 
@@ -245,7 +245,7 @@ Bool LocateSearch(size_t cuePointIndex)
 
     msgLocate.command = LOCATE_SEARCH;
     msgLocate.param1  = (uint32_t)cuePointIndex;
-    msgLocate.param2  = 0;
+    msgLocate.param2  = cue_flags;
 
     return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
 }
@@ -315,6 +315,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	int32_t  cue_dist;
 	int32_t  abs_dist;
     size_t   cue_index;
+    uint32_t cue_flags;
 	uint32_t shuttle_vel;
     uint32_t key;
     LocateMessage msg;
@@ -351,6 +352,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
          * for the single point cue/search buttons on the machine timer/roller.
          */
         cue_index = (size_t)msg.param1;
+        cue_flags = msg.param2;
 
         if (cue_index > MAX_CUE_POINTS)
         	continue;
@@ -642,6 +644,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     /* New search requested! */
 
                     cue_index = (size_t)msg.param1;
+                    cue_flags = msg.param2;
 
                     if (cue_index > MAX_CUE_POINTS)
                         break;
@@ -685,20 +688,36 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 break;
 	    }
 
-	    /* Send STOP button pulse to stop transport */
+	    CLI_printf("SEARCH END\n");
+
+        /* Set SEARCHING_OUT status i/o pin */
+        GPIO_write(Board_SEARCHING, PIN_HIGH);
+
+        /* Clear the search in progress flag */
+        key = Hwi_disable();
+        g_sysData.searching = FALSE;
+        g_sysData.searchCancel = FALSE;
+        Hwi_restore(key);
+
+        /* Send STOP button pulse to stop transport */
 	    if (!g_sysData.searchCancel)
+	    {
 	        Transport_Stop();
 
-	    /* Set SEARCHING_OUT status i/o pin */
-	    GPIO_write(Board_SEARCHING, PIN_HIGH);
-
-	    /* Clear the search in progress flag */
-	    key = Hwi_disable();
-	    g_sysData.searching = FALSE;
-	    g_sysData.searchCancel = FALSE;
-	    Hwi_restore(key);
-
-        CLI_printf("SEARCH END\n");
+            if (g_sysData.autoMode)
+	        {
+                if (cue_flags & CF_REC)
+                {
+                    CLI_printf("AUTO-RECORD\n");
+                    Transport_Play(M_RECORD);
+                }
+                else
+                {
+                    CLI_printf("AUTO-PLAY\n");
+                    Transport_Play(0);
+                }
+	        }
+	    }
     }
 }
 

@@ -323,7 +323,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				/* Begin locate to last cue point memory. This is the
 				 * memory used by the cue/search buttons on the transport.
 				 */
-			    LocateSearch(LAST_CUE_POINT);
+			    LocateSearch(LAST_CUE_POINT, 0);
 
 			    /* Debounce button delay */
                 Task_sleep(DEBOUNCE_TIME);

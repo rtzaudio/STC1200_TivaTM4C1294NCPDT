@@ -99,7 +99,6 @@
 /* Static Module Globals */
 static uint32_t s_uScreenNum = 0;
 static uint32_t s_searchMode = MODE_UNDEFINED;
-static bool s_editMode = FALSE;
 
 /* External Global Data */
 extern tContext g_context;
@@ -170,7 +169,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize LOC-1 memory as RTZ and select CUE mode */
     s_searchMode = MODE_UNDEFINED;
-    s_editMode   = FALSE;
+    g_sysData.editMode = FALSE;
     HandleSetSearchMode(MODE_CUE);
     HandleSetSearchMemory(0);
 
@@ -224,6 +223,9 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             }
             else if (msg.opcode == OP_SWITCH_REMOTE)
             {
+                g_sysData.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
+                g_sysData.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
+
                 HandleSwitchPress(msg.param1.U);
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
@@ -268,28 +270,27 @@ void HandleSwitchPress(uint32_t bits)
         HandleSetSearchMemory(6);
     } else if (bits & SW_LOC8) {
         HandleSetSearchMemory(7);
+    } else if (bits & SW_LOC9) {
+        HandleSetSearchMemory(8);
+    } else if (bits & SW_LOC0) {
+        HandleSetSearchMemory(9);
     } else if (bits & SW_STORE) {
         HandleSetSearchMode(MODE_STORE);
     } else if (bits & SW_CUE)  {
         HandleSetSearchMode(MODE_CUE);
-    } else if (bits & SW_SET)  {
-
     }
-    else if (bits & SW_ESC)
+    else if (bits & SW_AUTO)
     {
-        if (g_sysParms.showLongTime)
-            g_sysParms.showLongTime = FALSE;
+        if (!g_sysData.autoMode)
+        {
+            g_sysData.autoMode = TRUE;
+            SetButtonLedMask(L_AUTO, 0);
+        }
         else
-            g_sysParms.showLongTime = TRUE;
-
-    }
-    else if (bits & SW_PREV)
-    {
-
-    }
-    else if (bits & SW_NEXT)
-    {
-
+        {
+            g_sysData.autoMode = FALSE;
+            SetButtonLedMask(0, L_AUTO);
+        }
     }
     else if (bits & SW_MENU)
     {
@@ -306,14 +307,14 @@ void HandleSwitchPress(uint32_t bits)
     }
     else if (bits & SW_EDIT)
     {
-        if (!s_editMode)
+        if (g_sysData.editMode)
         {
-            s_editMode = TRUE;
+            g_sysData.editMode = TRUE;
             SetButtonLedMask(L_EDIT, 0);
         }
         else
         {
-            s_editMode = FALSE;
+            g_sysData.editMode = FALSE;
             SetButtonLedMask(0, L_EDIT);
         }
     }
@@ -359,8 +360,16 @@ void HandleSetSearchMemory(size_t index)
 
     if (s_searchMode == MODE_CUE)
     {
+        uint32_t flags = 0;
+
+        if (g_sysData.autoMode)
+            flags |= CF_PLAY;
+
+        if (g_sysData.shiftRecButton)
+            flags |= CF_REC;
+
         /* Begin locate search */
-        LocateSearch(index);
+        LocateSearch(index, flags);
     }
     else if (s_searchMode == MODE_STORE)
     {
@@ -378,16 +387,19 @@ void SetLocateButtonLED(size_t index)
 {
     uint32_t mask = 0;
 
-    size_t shift = index % 8;
+    static uint32_t tab[10] = {
+        L_LOC1, L_LOC2, L_LOC3, L_LOC4, L_LOC5,
+        L_LOC6, L_LOC7, L_LOC8, L_LOC9, L_LOC0
+    };
 
-    mask = L_LOC1 << shift;
+    mask = tab[index % 10];
 
     if (s_searchMode == MODE_CUE)
         mask |= L_CUE;
     else if (s_searchMode == MODE_STORE)
         mask |= L_STORE;
 
-    SetButtonLedMask(mask, 0x00FF);
+    SetButtonLedMask(mask, L_LOC_MASK);
 }
 
 /*****************************************************************************
@@ -774,7 +786,7 @@ void DrawTapeTime(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "LOC-%u", g_sysData.currentCueIndex+1);
+    len = sprintf(buf, "LOC-%02u", g_sysData.currentCueIndex+1);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -854,7 +866,7 @@ void DrawTapeTime(void)
         {
             /* Draw progress bar */
 
-            x = 40;
+            x = 35;
             height -= 2;
 
             rect.i16XMin = SCREEN_WIDTH - x;
