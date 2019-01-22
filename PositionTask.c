@@ -170,6 +170,15 @@ void btime(const float time, TAPETIME* p)
     p->tens  = (uint8_t)(fractpart * 100.0f);
 }
 
+float stime(const TAPETIME* p)
+{
+    float secs;
+
+    secs = p->secs + (p->mins * 60.0f) + (p->hour * 3600.0f);
+
+    return secs;
+}
+
 //*****************************************************************************
 // Position reader/display task. This function reads the tape roller
 // quadrature encoder and stores the current position data. The 7-segement

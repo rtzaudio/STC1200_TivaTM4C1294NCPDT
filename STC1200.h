@@ -49,7 +49,7 @@ typedef struct _SYSDATA
 	bool		searchCancel;               /* true if search canceling   */
 	bool        searching;                  /* true if search in progress */
     /* Remote control edit data */
-    bool        editMode;                   /* edit mode active flag      */
+    int32_t     editMode;                   /* edit mode active flag      */
     bool        autoMode;                   /* auto mode active flag      */
     bool        shiftRecButton;
     bool        shiftAltButton;

@@ -715,6 +715,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     CLI_printf("AUTO-PLAY\n");
                     Transport_Play(0);
+
                 }
 	        }
 	    }
