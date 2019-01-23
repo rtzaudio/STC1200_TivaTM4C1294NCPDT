@@ -94,6 +94,7 @@ extern tFont *g_psFontWDseg7bold18pt;
 extern tFont *g_psFontWDseg7bold16pt;
 extern tFont *g_psFontWDseg7bold14pt;
 extern tFont *g_psFontWDseg7bold12pt;
+extern tFont *g_psFontWDseg7bold10pt;
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
@@ -334,13 +335,14 @@ void DrawTapeTime(void)
 
     if (g_sysParms.showLongTime)
     {
-        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        GrContextFontSet(&g_context, g_psFontWDseg7bold16pt);
         height = GrStringHeightGet(&g_context);
 
-        len = sprintf(buf, "%1u:%02u:%02u:",
+        len = sprintf(buf, "%1u:%02u:%02u:%1u:",
                  g_sysData.tapeTime.hour,
                  g_sysData.tapeTime.mins,
-                 g_sysData.tapeTime.secs);
+                 g_sysData.tapeTime.secs,
+                 g_sysData.tapeTime.tens);
 
         width = GrStringWidthGet(&g_context, buf, len);
 
@@ -348,8 +350,8 @@ void DrawTapeTime(void)
         y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
         GrStringDraw(&g_context, buf, len, x, y, 0);
 
-        GrContextFontSet(&g_context, g_psFontWDseg7bold12pt);
-        len = sprintf(buf, "%02u", g_sysData.tapeTime.tens);
+        GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
+        len = sprintf(buf, "%02u", g_sysData.tapeTime.frame);
         GrStringDraw(&g_context, buf, len, x+width, y, 0);
 
         /* Draw the sign in a different font as 7-seg does not have these chars */
@@ -359,10 +361,10 @@ void DrawTapeTime(void)
 
         y += height + 5;
         GrContextFontSet(&g_context, g_psFontFixed6x8);
-        GrStringDraw(&g_context, "HR", -1, 11, y, 0);
-        GrStringDraw(&g_context, "MIN", -1, 35, y, 0);
-        GrStringDraw(&g_context, "SEC", -1, 69, y, 0);
-        GrStringDraw(&g_context, "TEN", -1, 99, y, 0);
+        GrStringDraw(&g_context, "HR", -1, 12, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, 33, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, 63, y, 0);
+        GrStringDraw(&g_context, "TEN", -1, 88, y, 0);
     }
     else
     {

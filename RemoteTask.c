@@ -313,6 +313,13 @@ void HandleSwitchPress(uint32_t bits)
             SetButtonLedMask(L_MENU, 0);
         }
     }
+    else if (bits & SW_ALT)
+    {
+        if (g_sysParms.showLongTime)
+            g_sysParms.showLongTime = false;
+        else
+            g_sysParms.showLongTime = true;
+    }
 }
 
 //*****************************************************************************

@@ -44,6 +44,7 @@ typedef struct _TAPETIME {
     uint8_t mins;   /* minutes */
     uint8_t secs;   /* seconds */
     uint8_t tens;   /* 0.1 secs */
+    uint8_t frame;  /* smpte frame# */
     uint8_t flags;	/* flags   */
 } TAPETIME;
 

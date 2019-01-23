@@ -104,8 +104,10 @@ static Hwi_Struct qeiHwiStruct;
 /* Static Function Prototypes */
 
 void QEI_initialize(void);
-void secsToTime(const float time, TAPETIME* p);
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
+
+void secsToTapeTime(float time, TAPETIME* p);
+float secsFromTapeTime(TAPETIME* p);
 
 static Void QEIHwi(UArg arg);
 
@@ -146,7 +148,7 @@ void PositionCalcTime(int tapePosition, TAPETIME* tapeTime)
     float seconds = distance * invspeed;
 
     /* Convert the total seconds value into binary HH:MM:SS values */
-    secsToTime(seconds, tapeTime);
+    secsToTapeTime(seconds, tapeTime);
 }
 
 /****************************************************************************
@@ -156,7 +158,7 @@ void PositionCalcTime(int tapePosition, TAPETIME* tapeTime)
 
 #define SECS_DAY    (24L * 60L * 60L)
 
-void secsToTime(const float time, TAPETIME* p)
+void secsToTapeTime(float time, TAPETIME* p)
 {
     uint32_t dayclock = (uint32_t)time % SECS_DAY;
 
@@ -167,17 +169,19 @@ void secsToTime(const float time, TAPETIME* p)
     float intpart;
     float fractpart = modff(time, &intpart);
 
-    p->tens  = (uint8_t)(fractpart * 100.0f);
+    p->tens  = (uint8_t)(fractpart * 10.0f);
+
+    p->frame = (uint8_t)(fractpart * 30.0f);
 }
 
-float secsFromTime(const TAPETIME* p)
+float secsFromTapeTime(TAPETIME* p)
 {
     float secs;
 
     secs  = (float)(p->secs % 60);
     secs += (float)(p->mins % 3600) * 60.0f;
     secs += (float)(p->hour * 3600);
-    secs += (float)(p->tens % 100) * 0.01f;
+    secs += (float)(p->tens % 10) * 0.1f;
 
     return secs;
 }
