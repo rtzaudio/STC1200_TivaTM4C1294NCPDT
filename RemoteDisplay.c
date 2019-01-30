@@ -357,7 +357,7 @@ void DrawTapeTime(void)
         /* Draw the sign in a different font as 7-seg does not have these chars */
         GrContextFontSet(&g_context, g_psFontCmss14b);
         len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-        GrStringDrawCentered(&g_context, buf, len, 4, y+6, 1);
+        GrStringDrawCentered(&g_context, buf, len, 5, y+6, 1);
 
         y += height + 5;
         GrContextFontSet(&g_context, g_psFontFixed6x8);
@@ -375,8 +375,7 @@ void DrawTapeTime(void)
         GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
         height = GrStringHeightGet(&g_context);
 
-        len = sprintf(buf, "%c%1u:%02u:%02u",
-                (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-',
+        len = sprintf(buf, "%1u:%02u:%02u",
                  g_sysData.tapeTime.hour,
                  g_sysData.tapeTime.mins,
                  g_sysData.tapeTime.secs);
