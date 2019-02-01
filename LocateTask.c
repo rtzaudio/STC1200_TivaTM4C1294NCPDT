@@ -332,7 +332,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     CuePointSet(LAST_CUE_POINT, 0);
 
     /* Initialize LOC-1 to zero */
-    CuePointSet(g_sysData.currentCueIndex, 0);
+    CuePointSet(g_sysData.currentMemIndex, 0);
 
     while(TRUE)
     {

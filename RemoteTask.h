@@ -15,16 +15,16 @@
 
 /*** CONSTANTS *************************************************************/
 
-#define LAST_SCREEN     1
+#define REMOTE_MODE_UNDEFINED   0
+#define REMOTE_MODE_CUE         1
+#define REMOTE_MODE_STORE       2
+#define REMOTE_MODE_EDIT        3
 
-#define MODE_UNDEFINED  0
-#define MODE_CUE        1
-#define MODE_STORE      2
-#define MODE_EDIT       3
+#define SCREEN_TIME             0
+#define SCREEN_MENU             1
+#define SCREEN_ABOUT            2
 
-#define SCREEN_TIME     0
-#define SCREEN_MENU     1
-#define SCREEN_ABOUT    2
+#define LAST_SCREEN             1
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 

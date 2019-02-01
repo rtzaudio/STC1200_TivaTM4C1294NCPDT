@@ -94,7 +94,7 @@ extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
 /* Static Function Prototypes */
-static void HandleSwitchPress(uint32_t bits);
+static void HandleButtonPress(uint32_t bits);
 static void HandleJogwheel(uint32_t bits);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void HandleDigitPress(size_t index);
@@ -164,12 +164,11 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     IPC_MSG ipc;
     RAMP_MSG msg;
 
-    g_sysData.currentCueIndex = 0;
-    g_sysData.currentCueBank  = 0;
+    g_sysData.currentMemIndex = 0;
 
     /* Initialize LOC-1 memory as RTZ and select CUE mode */
-    g_sysData.editMode = MODE_UNDEFINED;
-    HandleSetMode(MODE_CUE);
+    g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+    HandleSetMode(REMOTE_MODE_CUE);
     HandleDigitPress(0);
 
     if (!RAMP_Server_init()) {
@@ -225,7 +224,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 g_sysData.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
                 g_sysData.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
 
-                HandleSwitchPress(msg.param1.U);
+                HandleButtonPress(msg.param1.U);
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {
@@ -251,7 +250,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 // Handle button press events from DRC remote
 //*****************************************************************************
 
-void HandleSwitchPress(uint32_t bits)
+void HandleButtonPress(uint32_t bits)
 {
     if (bits & SW_LOC1) {
         HandleDigitPress(0);
@@ -276,15 +275,28 @@ void HandleSwitchPress(uint32_t bits)
     }
     else if (bits & SW_CUE)
     {
-        HandleSetMode(MODE_CUE);
+        HandleSetMode(REMOTE_MODE_CUE);
     }
     else if (bits & SW_STORE)
     {
-        HandleSetMode(MODE_STORE);
+        HandleSetMode(REMOTE_MODE_STORE);
     }
     else if (bits & SW_EDIT)
     {
-        HandleSetMode(MODE_EDIT);
+        HandleSetMode(REMOTE_MODE_EDIT);
+    }
+    else if (bits & SW_MENU)
+    {
+        if (s_uScreenNum == SCREEN_MENU)
+        {
+            s_uScreenNum = SCREEN_TIME;
+            SetButtonLedMask(0, L_MENU);
+        }
+        else
+        {
+            s_uScreenNum = SCREEN_MENU;
+            SetButtonLedMask(L_MENU, 0);
+        }
     }
     else if (bits & SW_AUTO)
     {
@@ -298,19 +310,6 @@ void HandleSwitchPress(uint32_t bits)
         {
             g_sysData.autoMode = FALSE;
             SetButtonLedMask(0, L_AUTO);
-        }
-    }
-    else if (bits & SW_MENU)
-    {
-        if (s_uScreenNum == SCREEN_MENU)
-        {
-            s_uScreenNum = SCREEN_TIME;
-            SetButtonLedMask(0, L_MENU);
-        }
-        else
-        {
-            s_uScreenNum = SCREEN_MENU;
-            SetButtonLedMask(L_MENU, 0);
         }
     }
     else if (bits & SW_ALT)
@@ -328,42 +327,58 @@ void HandleSwitchPress(uint32_t bits)
 
 void HandleSetMode(uint32_t mode)
 {
-    if (g_sysData.editMode == mode)
+    if (mode == REMOTE_MODE_UNDEFINED)
+    {
+        /* No mode active */
+        SetButtonLedMask(0, L_CUE | L_STORE | L_EDIT);
+
+        g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+    }
+    else if (g_sysData.remoteMode == mode)
     {
         /* Same mode requested, cancel current mode */
+
+        /* Update previous mode with mode canceled */
+        g_sysData.remoteModePrev = g_sysData.remoteMode;
+
+        /* Set mode to undefined */
+        g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+
+        /* Update the button LEDs */
         switch(mode)
         {
-        case MODE_CUE:
+        case REMOTE_MODE_CUE:
             SetButtonLedMask(0, L_CUE);
             break;
 
-        case MODE_STORE:
+        case REMOTE_MODE_STORE:
             SetButtonLedMask(0, L_STORE);
             break;
 
-        case MODE_EDIT:
+        case REMOTE_MODE_EDIT:
             SetButtonLedMask(0, L_EDIT);
             break;
         }
 
-        g_sysData.editMode = MODE_UNDEFINED;
+        SetLocateButtonLED(g_sysData.currentMemIndex);
     }
     else
     {
-        g_sysData.editMode = mode;
+        /* Save the new mode */
+        g_sysData.remoteMode = mode;
 
-        /* New mode requested, set it up */
+        /* Setup new mode requested */
         switch(mode)
         {
-        case MODE_CUE:
+        case REMOTE_MODE_CUE:
             SetButtonLedMask(L_CUE, L_CUE | L_STORE | L_EDIT);
             break;
 
-        case MODE_STORE:
+        case REMOTE_MODE_STORE:
             SetButtonLedMask(L_STORE, L_CUE | L_STORE | L_EDIT);
             break;
 
-        case MODE_EDIT:
+        case REMOTE_MODE_EDIT:
             SetButtonLedMask(L_EDIT, L_CUE | L_STORE | L_EDIT);
             break;
 
@@ -371,6 +386,8 @@ void HandleSetMode(uint32_t mode)
             SetButtonLedMask(0, L_CUE | L_STORE | L_EDIT);
             break;
         }
+
+        SetLocateButtonLED(g_sysData.currentMemIndex);
     }
 }
 
@@ -384,11 +401,11 @@ void HandleDigitPress(size_t index)
         '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'
     };
 
-    if (g_sysData.editMode == MODE_CUE)
+    if (g_sysData.remoteMode == REMOTE_MODE_CUE)
     {
         uint32_t flags = 0;
 
-        g_sysData.currentCueIndex = index;
+        g_sysData.currentMemIndex = index;
 
         SetLocateButtonLED(index);
 
@@ -401,22 +418,22 @@ void HandleDigitPress(size_t index)
         /* Begin locate search */
         LocateSearch(index, flags);
     }
-    else if (g_sysData.editMode == MODE_STORE)
+    else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
     {
-        g_sysData.currentCueIndex = index;
+        g_sysData.currentMemIndex = index;
 
         SetLocateButtonLED(index);
 
         /* Store the current locate point */
         CuePointSet(index, g_sysData.tapePosition);
     }
-    else if (g_sysData.editMode == MODE_EDIT)
+    else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
     {
 
     }
     else
     {
-        g_sysData.currentCueIndex = index;
+        g_sysData.currentMemIndex = index;
 
         SetLocateButtonLED(index);
     }
@@ -438,10 +455,12 @@ void SetLocateButtonLED(size_t index)
 
     mask = tab[index % 10];
 
-    if (g_sysData.editMode == MODE_CUE)
+    if (g_sysData.remoteMode == REMOTE_MODE_CUE)
         mask |= L_CUE;
-    else if (g_sysData.editMode == MODE_STORE)
+    else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
         mask |= L_STORE;
+    else
+        mask = 0;
 
     SetButtonLedMask(mask, L_LOC_MASK);
 }

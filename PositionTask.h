@@ -59,6 +59,10 @@ void PositionZeroReset(void);
 void PositionCalcTime(int tapePosition, TAPETIME* tapeTime);
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 
+/* Tape time helper functions */
+void SecondsToTapeTime(float time, TAPETIME* p);
+void TapeTimeToSeconds(TAPETIME* p, float* time);
+
 /*** INLINE FUNCTIONS ******************************************************/
 
 /* Converts encoder absolute position to relative signed position */

@@ -49,14 +49,14 @@ typedef struct _SYSDATA
 	bool		searchCancel;               /* true if search canceling   */
 	bool        searching;                  /* true if search in progress */
     /* Remote control edit data */
-    int32_t     editMode;                   /* edit mode active flag      */
+    int32_t     remoteMode;                 /* current operation mode     */
+    int32_t     remoteModePrev;
     bool        autoMode;                   /* auto mode active flag      */
     bool        shiftRecButton;
     bool        shiftAltButton;
     /* Locate and Position data */
     TAPETIME	tapeTime;					/* current tape time position */
-    size_t      currentCueIndex;            /* currend cue table index    */
-    size_t      currentCueBank;             /* current cue bank (1-8)     */
+    size_t      currentMemIndex;            /* currend cue table index    */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
 

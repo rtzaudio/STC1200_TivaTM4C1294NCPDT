@@ -84,6 +84,9 @@
 #include "RAMPServer.h"
 
 /* Static Function Prototypes */
+static void DrawTimeTop(void);
+static void DrawTimeMiddle(void);
+static void DrawTimeBottom(void);
 static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
 
 /* External Global Data */
@@ -97,18 +100,6 @@ extern tFont *g_psFontWDseg7bold12pt;
 extern tFont *g_psFontWDseg7bold10pt;
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-void ClearDisplay()
-{
-    tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
-    GrContextForegroundSetTranslated(&g_context, 0);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-    GrRectFill(&g_context, &rect);
-}
 
 //*****************************************************************************
 // Format a data buffer into an ascii hex string.
@@ -136,6 +127,18 @@ int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len)
     }
 
     return strlen(pTextBuf);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void ClearDisplay()
+{
+    tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
+    GrContextForegroundSetTranslated(&g_context, 0);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+    GrRectFill(&g_context, &rect);
 }
 
 //*****************************************************************************
@@ -248,13 +251,24 @@ void DrawAbout(void)
 
 void DrawTapeTime(void)
 {
+    /* Draw the top line showing current mode/speed */
+    DrawTimeTop();
+
+    /* Draw the current tape position time in the middle */
+    if (g_sysData.remoteMode != REMOTE_MODE_EDIT)
+        DrawTimeMiddle();
+
+    /* Draw bottom line with current locate point time */
+    DrawTimeBottom();
+}
+
+
+void DrawTimeTop(void)
+{
     char buf[64];
     int32_t x, y;
     int32_t len;
     int32_t width;
-    int32_t height;
-    tRectangle rect, rect2;
-    TAPETIME tapeTime;
 
     /*
      * Draw the current transport mode text on top line
@@ -307,23 +321,27 @@ void DrawTapeTime(void)
 
     /* Top line fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
-    height = GrStringHeightGet(&g_context);
 
     /* Mono */
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
-    //width = GrStringWidthGet(&g_context, buf, len);
     GrStringDraw(&g_context, buf, -1, x, y, 1);
 
-    /*
-     * Draw current tape speed active
-     */
-
+    /* Draw current tape speed active */
     len = sprintf(buf, "%s IPS", (g_sysData.tapeSpeed == 30) ? "30" : "15");
     width = GrStringWidthGet(&g_context, buf, len);
     x = (SCREEN_WIDTH - 1) - width;
     GrStringDraw(&g_context, buf, -1, x, y, 1);
-    y += height;
+}
+
+
+void DrawTimeMiddle(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    int32_t width;
+    int32_t height;
 
     /*
      * Draw the big time digits centered
@@ -396,6 +414,17 @@ void DrawTapeTime(void)
         GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
         GrStringDraw(&g_context, "SEC", -1, x + 58, y, 0);
     }
+}
+
+void DrawTimeBottom(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    int32_t width;
+    int32_t height;
+    tRectangle rect, rect2;
+    TAPETIME tapeTime;
 
     /*
      *  Bottom line - show current locate memory time
@@ -407,7 +436,7 @@ void DrawTapeTime(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "LOC-%02u", g_sysData.currentCueIndex+1);
+    len = sprintf(buf, "LOC-%02u", g_sysData.currentMemIndex+1);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -431,9 +460,9 @@ void DrawTapeTime(void)
     x = width + 6;
     y = y + 1;
 
-    if (CuePointGet(g_sysData.currentCueIndex, NULL) & CF_SET)
+    if (CuePointGet(g_sysData.currentMemIndex, NULL) & CF_SET)
     {
-        CuePointGetTime(g_sysData.currentCueIndex, &tapeTime);
+        CuePointGetTime(g_sysData.currentMemIndex, &tapeTime);
         int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';
         sprintf(buf, "%c%u:%02u:%02u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
