@@ -30,6 +30,8 @@
 // GLOBAL SHARED MEMORY & REAL-TIME DATA
 //*****************************************************************************
 
+#define MAX_DIGITS_BUF      8
+
 typedef struct _SYSDATA
 {
     uint8_t		ui8SerialNumber[16];		/* unique serial number       */
@@ -49,17 +51,20 @@ typedef struct _SYSDATA
 	bool		searchCancel;               /* true if search canceling   */
 	bool        searching;                  /* true if search in progress */
     /* Remote control edit data */
-    int32_t     remoteMode;                 /* current operation mode     */
-    int32_t     remoteModePrev;
+    int32_t     remoteMode;                 /* current remote mode        */
+    int32_t     remoteModeLast;             /* last mode before edit      */
+    int32_t     editState;                  /* current edit time state    */
+    TAPETIME    editTime;                   /* edit tape time conversion  */
+    int32_t     digitCount;
+    char        digitBuf[MAX_DIGITS_BUF+1]; /* input digits buffer        */
     bool        autoMode;                   /* auto mode active flag      */
-    bool        shiftRecButton;
-    bool        shiftAltButton;
+    bool        shiftRecButton;             /* true if shifted REC button */
+    bool        shiftAltButton;             /* true if shifted ALT button */
     /* Locate and Position data */
-    TAPETIME	tapeTime;					/* current tape time position */
+    TAPETIME    tapeTime;                   /* current tape time position */
     size_t      currentMemIndex;            /* currend cue table index    */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
-
 
 //*****************************************************************************
 // SYSTEM RUN-TIME CONFIG PARAMETERS STORED IN EPROM

@@ -222,7 +222,7 @@ void CuePointGetTime(size_t index, TAPETIME* tapeTime)
     if (index <= MAX_CUE_POINTS)
     {
         int cuePosition = g_sysData.cuePoint[index].ipos;
-        PositionCalcTime(cuePosition, tapeTime);
+        PositionToTapeTime(cuePosition, tapeTime);
         tapeTime->flags = (cuePosition < 0) ? 0 : F_PLUS;
     }
 }

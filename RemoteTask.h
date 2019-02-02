@@ -26,6 +26,14 @@
 
 #define LAST_SCREEN             1
 
+typedef enum EditStateType {
+    EDIT_BEGIN,
+    EDIT_HOUR,
+    EDIT_MINUTES,
+    EDIT_SECONDS,
+    EDIT_TENTHS,
+} EditStateType;
+
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 Bool Remote_Task_startup();

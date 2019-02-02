@@ -119,12 +119,12 @@ void PositionZeroReset(void)
 }
 
 /*****************************************************************************
- * Reset the QEI position to ZERO.
+ * Convert absolute encoder position to tape time units.
  *****************************************************************************/
 
 #define INV_ROLLER_TICKS_PER_REV    (1.0f / ROLLER_TICKS_PER_REV_F);
 
-void PositionCalcTime(int tapePosition, TAPETIME* tapeTime)
+void PositionToTapeTime(int tapePosition, TAPETIME* tapeTime)
 {
     /* Get the current encoder position */
     float position = fabsf((float)tapePosition);
@@ -144,8 +144,30 @@ void PositionCalcTime(int tapePosition, TAPETIME* tapeTime)
      */
     float seconds = distance * invspeed;
 
-    /* Convert the total seconds value into binary HH:MM:SS values */
+    /* Convert the total seconds value into binary H:MM:SS:T values */
     SecondsToTapeTime(seconds, tapeTime);
+}
+
+/*****************************************************************************
+ * Convert tape time to absolute encoder position units.
+ *****************************************************************************/
+
+void TapeTimeToPosition(TAPETIME* tapeTime, int* tapePosition)
+{
+    float time;
+
+    /* Convert tape to total seconds */
+    TapeTimeToSeconds(tapeTime, &time);
+
+    /* Get the current speed setting */
+    float speed = GPIO_read(Board_SPEED_SELECT) ? 30.0f : 15.0f;
+
+    /* Calculate the distance in inches */
+    float distance = speed * time;
+
+    float position = (distance / ROLLER_CIRCUMFERENCE_F) * ROLLER_TICKS_PER_REV_F;
+
+    *tapePosition = (int)(position + 0.5f);
 }
 
 /****************************************************************************
@@ -159,15 +181,13 @@ void SecondsToTapeTime(float time, TAPETIME* p)
 {
     uint32_t dayclock = (uint32_t)time % SECS_DAY;
 
-    p->secs  = (uint8_t)(dayclock % 60);
-    p->mins  = (uint8_t)((dayclock % 3600) / 60);
-    p->hour  = (uint8_t)(dayclock / 3600);
-
     float intpart;
     float fractpart = modff(time, &intpart);
 
+    p->secs  = (uint8_t)(dayclock % 60);
+    p->mins  = (uint8_t)((dayclock % 3600) / 60);
+    p->hour  = (uint8_t)(dayclock / 3600);
     p->tens  = (uint8_t)(fractpart * 10.0f);
-
     p->frame = (uint8_t)(fractpart * 30.0f);
 }
 
@@ -363,7 +383,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 #endif
 
 			/* Get the tape time member values */
-			PositionCalcTime(g_sysData.tapePosition, &g_sysData.tapeTime);
+			PositionToTapeTime(g_sysData.tapePosition, &g_sysData.tapeTime);
 
 			/* Convert the total seconds value into binary HH:MM:SS values */
 			//btime(seconds, flags, &g_sysData.tapeTime);

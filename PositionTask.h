@@ -56,12 +56,14 @@ typedef struct _TAPETIME {
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 void PositionZeroReset(void);
-void PositionCalcTime(int tapePosition, TAPETIME* tapeTime);
 Void PositionTaskFxn(UArg arg0, UArg arg1);
 
 /* Tape time helper functions */
 void SecondsToTapeTime(float time, TAPETIME* p);
 void TapeTimeToSeconds(TAPETIME* p, float* time);
+
+void TapeTimeToPosition(TAPETIME* tapeTime, int* tapePosition);
+void PositionToTapeTime(int tapePosition, TAPETIME* tapeTime);
 
 /*** INLINE FUNCTIONS ******************************************************/
 
@@ -81,6 +83,11 @@ static inline int POSITION_TO_INT(uint32_t upos)
 static inline float POSITION_TO_INCHES(float pos)
 {
 	return ((pos / ROLLER_TICKS_PER_REV_F) * ROLLER_CIRCUMFERENCE_F);
+}
+
+static inline float INCHES_TO_POSITION(float inches)
+{
+    return ((inches / ROLLER_CIRCUMFERENCE_F) * ROLLER_TICKS_PER_REV_F);
 }
 
 #endif /* __POSITIONTASK_H */

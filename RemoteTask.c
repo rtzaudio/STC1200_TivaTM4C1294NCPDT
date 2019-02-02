@@ -99,7 +99,8 @@ static void HandleJogwheel(uint32_t bits);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void HandleDigitPress(size_t index);
 static void HandleSetMode(uint32_t mode);
-static void BlinkLocateButtonLED(size_t index);
+//static void BlinkLocateButtonLED(size_t index);
+void ResetDigitBuf(void);
 
 //*****************************************************************************
 // Initialize the remote display task
@@ -148,6 +149,13 @@ uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask)
     return bits;
 }
 
+void ResetDigitBuf(void)
+{
+    g_sysData.digitCount = 0;
+
+    memset(&g_sysData.digitBuf, 0, sizeof(g_sysData.digitBuf));
+}
+
 //*****************************************************************************
 // DRC-1200 Wired Remote Controller Task
 //
@@ -166,10 +174,13 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     g_sysData.currentMemIndex = 0;
 
-    /* Initialize LOC-1 memory as RTZ and select CUE mode */
     g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+
+    /* Initialize LOC-1 memory as return to zero at CUE point 1 */
     HandleSetMode(REMOTE_MODE_CUE);
     HandleDigitPress(0);
+
+    ResetDigitBuf();
 
     if (!RAMP_Server_init()) {
         System_abort("RAMP server init failed");
@@ -329,6 +340,12 @@ void HandleSetMode(uint32_t mode)
 {
     if (mode == REMOTE_MODE_UNDEFINED)
     {
+        /*
+         * No mode active, reset everything
+         */
+
+        ResetDigitBuf();
+
         /* No mode active */
         SetButtonLedMask(0, L_CUE | L_STORE | L_EDIT);
 
@@ -336,10 +353,11 @@ void HandleSetMode(uint32_t mode)
     }
     else if (g_sysData.remoteMode == mode)
     {
-        /* Same mode requested, cancel current mode */
+        /*
+         * Same mode requested, cancel the current mode
+         */
 
-        /* Update previous mode with mode canceled */
-        g_sysData.remoteModePrev = g_sysData.remoteMode;
+        g_sysData.editState = EDIT_BEGIN;
 
         /* Set mode to undefined */
         g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
@@ -348,14 +366,17 @@ void HandleSetMode(uint32_t mode)
         switch(mode)
         {
         case REMOTE_MODE_CUE:
+            g_sysData.remoteModeLast = REMOTE_MODE_UNDEFINED;
             SetButtonLedMask(0, L_CUE);
             break;
 
         case REMOTE_MODE_STORE:
+            g_sysData.remoteModeLast = REMOTE_MODE_UNDEFINED;
             SetButtonLedMask(0, L_STORE);
             break;
 
         case REMOTE_MODE_EDIT:
+            g_sysData.remoteMode = g_sysData.remoteModeLast;
             SetButtonLedMask(0, L_EDIT);
             break;
         }
@@ -364,6 +385,10 @@ void HandleSetMode(uint32_t mode)
     }
     else
     {
+        /*
+         * New mode requested, set LED's accordingly
+         */
+
         /* Save the new mode */
         g_sysData.remoteMode = mode;
 
@@ -371,14 +396,27 @@ void HandleSetMode(uint32_t mode)
         switch(mode)
         {
         case REMOTE_MODE_CUE:
+            g_sysData.remoteModeLast = mode;
             SetButtonLedMask(L_CUE, L_CUE | L_STORE | L_EDIT);
             break;
 
         case REMOTE_MODE_STORE:
+            g_sysData.remoteModeLast = mode;
             SetButtonLedMask(L_STORE, L_CUE | L_STORE | L_EDIT);
             break;
 
         case REMOTE_MODE_EDIT:
+            /* Reset digit input buffer */
+            ResetDigitBuf();
+            /* Reset the edit time structure */
+            g_sysData.editTime.hour  = 0;
+            g_sysData.editTime.mins  = 0;
+            g_sysData.editTime.secs  = 0;
+            g_sysData.editTime.frame = 0;
+            g_sysData.editTime.flags = F_PLUS;
+            /* Begin at hour entry state */
+            g_sysData.editState = EDIT_BEGIN;
+            /* Set new button LED state */
             SetButtonLedMask(L_EDIT, L_CUE | L_STORE | L_EDIT);
             break;
 
@@ -397,12 +435,15 @@ void HandleSetMode(uint32_t mode)
 
 void HandleDigitPress(size_t index)
 {
-    static char digits[] = {
-        '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'
-    };
+    int n;
+    char digit;
+    static char digits[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
 
     if (g_sysData.remoteMode == REMOTE_MODE_CUE)
     {
+        /*
+         * Remote is in CUE mode and a LOC-# button was pressed
+         */
         uint32_t flags = 0;
 
         g_sysData.currentMemIndex = index;
@@ -420,6 +461,9 @@ void HandleDigitPress(size_t index)
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
     {
+        /*
+         * Remote is in STORE mode and a LOC-# button was pressed
+         */
         g_sysData.currentMemIndex = index;
 
         SetLocateButtonLED(index);
@@ -429,7 +473,74 @@ void HandleDigitPress(size_t index)
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
     {
+        /*
+         * Remote is in EDIT mode and a digit 0-9 was pressed.
+         */
 
+        digit = digits[index];
+
+        if (g_sysData.digitCount >= MAX_DIGITS_BUF)
+            g_sysData.digitCount = 0;
+
+        g_sysData.digitBuf[g_sysData.digitCount++] = digit;
+        g_sysData.digitBuf[g_sysData.digitCount] = 0;
+
+        switch(g_sysData.editState)
+        {
+        case EDIT_BEGIN:
+            g_sysData.digitCount = 0;
+            g_sysData.editState = EDIT_MINUTES;
+            g_sysData.editTime.hour = (digit == '1') ? 1 : 0;
+            break;
+
+        case EDIT_MINUTES:
+            n = atoi(g_sysData.digitBuf);
+
+            /* validate mins value */
+            if (n > 59)
+                n = 59;
+
+            g_sysData.editTime.mins = n;
+
+            if (g_sysData.digitCount > 1)
+            {
+                g_sysData.digitCount = 0;
+                g_sysData.editState = EDIT_SECONDS;
+            }
+            break;
+
+        case EDIT_SECONDS:
+            n = atoi(g_sysData.digitBuf);
+
+            /* validate secs value */
+            if (n > 59)
+                n = 59;
+
+            g_sysData.editTime.secs = n;
+
+            if (g_sysData.digitCount > 1)
+            {
+                g_sysData.digitCount = 0;
+                g_sysData.editState = EDIT_TENTHS;
+            }
+            break;
+
+        case EDIT_TENTHS:
+            g_sysData.editTime.tens = atoi(g_sysData.digitBuf);
+            g_sysData.digitCount = 0;
+            g_sysData.editState = EDIT_BEGIN;
+            /* Exit EDIT mode back to previous state */
+            HandleSetMode(REMOTE_MODE_EDIT);
+            /* Convert H:MM:SS time to total seconds */
+            int ipos;
+            TapeTimeToPosition(&g_sysData.editTime, &ipos);
+            /* Store the position at current memory index */
+            CuePointSet(g_sysData.currentMemIndex, ipos);
+            break;
+
+        default:
+            break;
+        }
     }
     else
     {

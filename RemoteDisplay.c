@@ -86,6 +86,7 @@
 /* Static Function Prototypes */
 static void DrawTimeTop(void);
 static void DrawTimeMiddle(void);
+static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
 
@@ -255,7 +256,9 @@ void DrawTapeTime(void)
     DrawTimeTop();
 
     /* Draw the current tape position time in the middle */
-    if (g_sysData.remoteMode != REMOTE_MODE_EDIT)
+    if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
+        DrawTimeEdit();
+    else
         DrawTimeMiddle();
 
     /* Draw bottom line with current locate point time */
@@ -335,87 +338,6 @@ void DrawTimeTop(void)
 }
 
 
-void DrawTimeMiddle(void)
-{
-    char buf[64];
-    int32_t x, y;
-    int32_t len;
-    int32_t width;
-    int32_t height;
-
-    /*
-     * Draw the big time digits centered
-     */
-
-    /* Normal Mono */
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-
-    if (g_sysParms.showLongTime)
-    {
-        GrContextFontSet(&g_context, g_psFontWDseg7bold16pt);
-        height = GrStringHeightGet(&g_context);
-
-        len = sprintf(buf, "%1u:%02u:%02u:%1u:",
-                 g_sysData.tapeTime.hour,
-                 g_sysData.tapeTime.mins,
-                 g_sysData.tapeTime.secs,
-                 g_sysData.tapeTime.tens);
-
-        width = GrStringWidthGet(&g_context, buf, len);
-
-        x = 11;
-        y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
-        GrStringDraw(&g_context, buf, len, x, y, 0);
-
-        GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
-        len = sprintf(buf, "%02u", g_sysData.tapeTime.frame);
-        GrStringDraw(&g_context, buf, len, x+width, y, 0);
-
-        /* Draw the sign in a different font as 7-seg does not have these chars */
-        GrContextFontSet(&g_context, g_psFontCmss14b);
-        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-        GrStringDrawCentered(&g_context, buf, len, 5, y+6, 1);
-
-        y += height + 5;
-        GrContextFontSet(&g_context, g_psFontFixed6x8);
-        GrStringDraw(&g_context, "HR", -1, 12, y, 0);
-        GrStringDraw(&g_context, "MIN", -1, 33, y, 0);
-        GrStringDraw(&g_context, "SEC", -1, 63, y, 0);
-        GrStringDraw(&g_context, "TEN", -1, 88, y, 0);
-    }
-    else
-    {
-        /*
-         * Standard hour, mins, secs time display format
-         */
-
-        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
-        height = GrStringHeightGet(&g_context);
-
-        len = sprintf(buf, "%1u:%02u:%02u",
-                 g_sysData.tapeTime.hour,
-                 g_sysData.tapeTime.mins,
-                 g_sysData.tapeTime.secs);
-
-        x = (SCREEN_WIDTH / 2) - 3;
-        y = (SCREEN_HEIGHT / 2) - 5;
-        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
-
-        /* Draw the sign in a different font as 7-seg does not have these chars */
-        GrContextFontSet(&g_context, g_psFontCmss14b);
-        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
-        GrStringDrawCentered(&g_context, buf, len, 15, y-3, FALSE);
-
-        y += height - 5;
-        x = 27;
-        GrContextFontSet(&g_context, g_psFontFixed6x8);
-        GrStringDraw(&g_context, "HR", -1, x, y, 0);
-        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
-        GrStringDraw(&g_context, "SEC", -1, x + 58, y, 0);
-    }
-}
-
 void DrawTimeBottom(void)
 {
     char buf[64];
@@ -436,7 +358,7 @@ void DrawTimeBottom(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "LOC-%02u", g_sysData.currentMemIndex+1);
+    len = sprintf(buf, "L:%02u", g_sysData.currentMemIndex+1);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -464,12 +386,12 @@ void DrawTimeBottom(void)
     {
         CuePointGetTime(g_sysData.currentMemIndex, &tapeTime);
         int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';
-        sprintf(buf, "%c%u:%02u:%02u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs);
+        sprintf(buf, "%c%1u:%02u:%02u:%1u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs, tapeTime.tens);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
     }
     else
     {
-        GrStringDraw(&g_context, " -:--:--", -1, x, y, 0);
+        GrStringDraw(&g_context, " -:--:--:-", -1, x, y, 0);
     }
 
     /* Display locate progress bar */
@@ -556,6 +478,203 @@ void DrawTimeBottom(void)
             GrRectFill(&g_context, &rect2);
         }
     }
+}
+
+
+void DrawTimeMiddle(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    int32_t width;
+    int32_t height;
+
+    /*
+     * Draw the big time digits centered
+     */
+
+    /* Normal Mono */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    if (g_sysParms.showLongTime)
+    {
+        GrContextFontSet(&g_context, g_psFontWDseg7bold16pt);
+        height = GrStringHeightGet(&g_context);
+
+        len = sprintf(buf, "%1u:%02u:%02u:%1u:",
+                 g_sysData.tapeTime.hour,
+                 g_sysData.tapeTime.mins,
+                 g_sysData.tapeTime.secs,
+                 g_sysData.tapeTime.tens);
+
+        width = GrStringWidthGet(&g_context, buf, len);
+
+        x = 11;
+        y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
+        GrStringDraw(&g_context, buf, len, x, y, 0);
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
+        len = sprintf(buf, "%02u", g_sysData.tapeTime.frame);
+        GrStringDraw(&g_context, buf, len, x+width, y, 0);
+
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCm12); //g_psFontCmss12);
+        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 6, y+6, 1);
+
+        y += height + 5;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, 12, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, 33, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, 63, y, 0);
+        GrStringDraw(&g_context, "TEN", -1, 88, y, 0);
+    }
+    else
+    {
+        /*
+         * Standard hour, mins, secs time display format
+         */
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        height = GrStringHeightGet(&g_context);
+
+        len = sprintf(buf, "%1u:%02u:%02u:%1u",
+                 g_sysData.tapeTime.hour,
+                 g_sysData.tapeTime.mins,
+                 g_sysData.tapeTime.secs,
+                 g_sysData.tapeTime.tens);
+
+        x = (SCREEN_WIDTH / 2) - 3;
+        y = (SCREEN_HEIGHT / 2) - 5;
+        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCm14);
+        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 6, y-3, FALSE);
+
+        y += height - 5;
+        x = 13;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, x, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
+        GrStringDraw(&g_context, "TEN", -1, x + 85, y, 0);
+    }
+}
+
+
+void DrawTimeEdit(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    //int32_t width;
+    int32_t height;
+
+    /*
+     * Draw the big time digits centered
+     */
+
+    /* Normal Mono */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    /*
+     * Standard hour, mins, secs time display format
+     */
+
+    //GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    len = sprintf(buf, "ENTER TIME");
+    x = (SCREEN_WIDTH / 2) - 3;
+    y = (SCREEN_HEIGHT / 2) - 13;
+    GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+
+    char sign = (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-';
+
+    switch(g_sysData.editState)
+    {
+    case EDIT_BEGIN:
+    case EDIT_HOUR:
+        if (g_sysData.digitCount)
+        {
+            len = sprintf(buf, "%c %1u:--:--:-",
+                     sign,
+                     g_sysData.editTime.hour);
+        }
+        else
+        {
+            len = sprintf(buf, "%c -:--:--:-", sign);
+        }
+        break;
+
+    case EDIT_MINUTES:
+        if (g_sysData.digitCount)
+        {
+            len = sprintf(buf, "%c %1u:%02u:--:-",
+                          sign,
+                          g_sysData.editTime.hour,
+                          g_sysData.editTime.mins);
+        }
+        else
+        {
+            len = sprintf(buf, "%c %1u:--:--:-",
+                          sign,
+                          g_sysData.editTime.hour);
+        }
+        break;
+
+    case EDIT_SECONDS:
+        if (g_sysData.digitCount)
+        {
+            len = sprintf(buf, "%c %1u:%02u:%02u:-",
+                          sign,
+                          g_sysData.editTime.hour,
+                          g_sysData.editTime.mins,
+                          g_sysData.editTime.secs);
+        }
+        else
+        {
+            len = sprintf(buf, "%c %1u:%02u:--:-",
+                          sign,
+                          g_sysData.editTime.hour,
+                          g_sysData.editTime.mins);
+        }
+        break;
+
+    case EDIT_TENTHS:
+        if (g_sysData.digitCount)
+        {
+            len = sprintf(buf, "%c %1u:%02u:%02u:%1u",
+                          sign,
+                          g_sysData.editTime.hour,
+                          g_sysData.editTime.mins,
+                          g_sysData.editTime.secs,
+                          g_sysData.editTime.tens);
+        }
+        else
+        {
+            len = sprintf(buf, "%c %1u:%02u:%02u:-",
+                          sign,
+                          g_sysData.editTime.hour,
+                          g_sysData.editTime.mins,
+                          g_sysData.editTime.secs);
+        }
+        break;
+    }
+
+    x = (SCREEN_WIDTH / 2) - 3;
+    y = (SCREEN_HEIGHT / 2);
+    GrStringDrawCentered(&g_context, buf, len, x-5, y, FALSE);
+
+    y += height + 3;
+
+    len = sprintf(buf, "  H MM SS T");
+    GrStringDrawCentered(&g_context, buf, len, x-5, y, FALSE);
 }
 
 // End-Of-File
