@@ -94,8 +94,10 @@ extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
 /* Static Function Prototypes */
-static void HandleButtonPress(uint32_t bits);
-static void HandleJogwheel(uint32_t bits);
+static void HandleButtonPress(uint32_t flags);
+static void HandleJogwheelPress(uint32_t flags);
+static void HandleJogwheelMotion(uint32_t flags);
+
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void HandleDigitPress(size_t index);
 static void HandleSetMode(uint32_t mode);
@@ -239,15 +241,14 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {
-                //CLI_printf("jog press\n");
+                HandleJogwheelPress(msg.param1.U);
             }
             break;
 
         case MSG_TYPE_JOGWHEEL:
             if (msg.opcode == OP_JOGWHEEL_MOTION)
             {
-                //HandleJogwheelNotify();
-                //CLI_printf("jog %u, %d\n", msg.param1.U, msg.param2.I);
+                HandleJogwheelMotion(msg.param1.U);
             }
             break;
 
@@ -261,42 +262,42 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 // Handle button press events from DRC remote
 //*****************************************************************************
 
-void HandleButtonPress(uint32_t bits)
+void HandleButtonPress(uint32_t flags)
 {
-    if (bits & SW_LOC1) {
+    if (flags & SW_LOC1) {
         HandleDigitPress(0);
-    } else if (bits & SW_LOC2) {
+    } else if (flags & SW_LOC2) {
         HandleDigitPress(1);
-    } else if (bits & SW_LOC3) {
+    } else if (flags & SW_LOC3) {
         HandleDigitPress(2);
-    } else if (bits & SW_LOC4) {
+    } else if (flags & SW_LOC4) {
         HandleDigitPress(3);
-    } else if (bits & SW_LOC5) {
+    } else if (flags & SW_LOC5) {
         HandleDigitPress(4);
-    } else if (bits & SW_LOC6) {
+    } else if (flags & SW_LOC6) {
         HandleDigitPress(5);
-    } else if (bits & SW_LOC7) {
+    } else if (flags & SW_LOC7) {
         HandleDigitPress(6);
-    } else if (bits & SW_LOC8) {
+    } else if (flags & SW_LOC8) {
         HandleDigitPress(7);
-    } else if (bits & SW_LOC9) {
+    } else if (flags & SW_LOC9) {
         HandleDigitPress(8);
-    } else if (bits & SW_LOC0) {
+    } else if (flags & SW_LOC0) {
         HandleDigitPress(9);
     }
-    else if (bits & SW_CUE)
+    else if (flags & SW_CUE)
     {
         HandleSetMode(REMOTE_MODE_CUE);
     }
-    else if (bits & SW_STORE)
+    else if (flags & SW_STORE)
     {
         HandleSetMode(REMOTE_MODE_STORE);
     }
-    else if (bits & SW_EDIT)
+    else if (flags & SW_EDIT)
     {
         HandleSetMode(REMOTE_MODE_EDIT);
     }
-    else if (bits & SW_MENU)
+    else if (flags & SW_MENU)
     {
         if (s_uScreenNum == SCREEN_MENU)
         {
@@ -309,7 +310,7 @@ void HandleButtonPress(uint32_t bits)
             SetButtonLedMask(L_MENU, 0);
         }
     }
-    else if (bits & SW_AUTO)
+    else if (flags & SW_AUTO)
     {
         /* toggle auto play mode */
         if (!g_sysData.autoMode)
@@ -323,13 +324,47 @@ void HandleButtonPress(uint32_t bits)
             SetButtonLedMask(0, L_AUTO);
         }
     }
-    else if (bits & SW_ALT)
+    else if (flags & SW_ALT)
     {
         if (g_sysParms.showLongTime)
             g_sysParms.showLongTime = false;
         else
             g_sysParms.showLongTime = true;
     }
+}
+
+
+void HandleJogwheelPress(uint32_t flags)
+{
+    uint32_t cue_flags = 0;
+
+    size_t index = g_sysData.currentMemIndex;
+
+    switch (g_sysData.remoteMode)
+    {
+    case REMOTE_MODE_CUE:
+
+        SetLocateButtonLED(index);
+
+        if (g_sysData.autoMode)
+            cue_flags |= CF_PLAY;
+
+        if (g_sysData.shiftRecButton)
+            cue_flags |= CF_REC;
+
+        /* Begin locate search */
+        LocateSearch(index, cue_flags);
+        break;
+
+    case REMOTE_MODE_STORE:
+        break;
+    }
+}
+
+
+void HandleJogwheelMotion(uint32_t flags)
+{
+
 }
 
 //*****************************************************************************
@@ -489,8 +524,9 @@ void HandleDigitPress(size_t index)
         {
         case EDIT_BEGIN:
             g_sysData.digitCount = 0;
-            g_sysData.editState = EDIT_MINUTES;
-            g_sysData.editTime.hour = (digit == '1') ? 1 : 0;
+            g_sysData.editState  = EDIT_MINUTES;
+            g_sysData.editTime.flags = F_PLUS;
+            g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
             break;
 
         case EDIT_MINUTES:
@@ -500,12 +536,12 @@ void HandleDigitPress(size_t index)
             if (n > 59)
                 n = 59;
 
-            g_sysData.editTime.mins = n;
+            g_sysData.editTime.mins = (uint8_t)n;
 
             if (g_sysData.digitCount > 1)
             {
                 g_sysData.digitCount = 0;
-                g_sysData.editState = EDIT_SECONDS;
+                g_sysData.editState  = EDIT_SECONDS;
             }
             break;
 
@@ -516,29 +552,34 @@ void HandleDigitPress(size_t index)
             if (n > 59)
                 n = 59;
 
-            g_sysData.editTime.secs = n;
+            g_sysData.editTime.secs = (uint8_t)n;
 
             if (g_sysData.digitCount > 1)
             {
                 g_sysData.digitCount = 0;
-                g_sysData.editState = EDIT_TENTHS;
+                g_sysData.editState  = EDIT_TENTHS;
             }
             break;
 
         case EDIT_TENTHS:
-            g_sysData.editTime.tens = atoi(g_sysData.digitBuf);
+            g_sysData.editTime.tens = (uint8_t)atoi(g_sysData.digitBuf);
             g_sysData.digitCount = 0;
-            g_sysData.editState = EDIT_BEGIN;
+            g_sysData.editState  = EDIT_BEGIN;
+
             /* Exit EDIT mode back to previous state */
             HandleSetMode(REMOTE_MODE_EDIT);
+
             /* Convert H:MM:SS time to total seconds */
             int ipos;
             TapeTimeToPosition(&g_sysData.editTime, &ipos);
+
             /* Store the position at current memory index */
             CuePointSet(g_sysData.currentMemIndex, ipos);
             break;
 
         default:
+            g_sysData.digitCount = 0;
+            g_sysData.editState  = EDIT_BEGIN;
             break;
         }
     }

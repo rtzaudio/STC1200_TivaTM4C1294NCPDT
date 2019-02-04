@@ -615,10 +615,20 @@ void DrawTimeEdit(void)
     case EDIT_MINUTES:
         if (g_sysData.digitCount)
         {
-            len = sprintf(buf, "%c %1u:%02u:--:-",
-                          sign,
-                          g_sysData.editTime.hour,
-                          g_sysData.editTime.mins);
+            if (g_sysData.digitCount == 1)
+            {
+                len = sprintf(buf, "%c %1u:-%1u:--:-",
+                              sign,
+                              g_sysData.editTime.hour,
+                              g_sysData.editTime.mins);
+            }
+            else
+            {
+                len = sprintf(buf, "%c %1u:%02u:--:-",
+                              sign,
+                              g_sysData.editTime.hour,
+                              g_sysData.editTime.mins);
+            }
         }
         else
         {
@@ -631,11 +641,22 @@ void DrawTimeEdit(void)
     case EDIT_SECONDS:
         if (g_sysData.digitCount)
         {
-            len = sprintf(buf, "%c %1u:%02u:%02u:-",
-                          sign,
-                          g_sysData.editTime.hour,
-                          g_sysData.editTime.mins,
-                          g_sysData.editTime.secs);
+            if (g_sysData.digitCount == 1)
+            {
+                len = sprintf(buf, "%c %1u:%02u:-%1u:-",
+                              sign,
+                              g_sysData.editTime.hour,
+                              g_sysData.editTime.mins,
+                              g_sysData.editTime.secs);
+            }
+            else
+            {
+                len = sprintf(buf, "%c %1u:%02u:%02u:-",
+                              sign,
+                              g_sysData.editTime.hour,
+                              g_sysData.editTime.mins,
+                              g_sysData.editTime.secs);
+            }
         }
         else
         {

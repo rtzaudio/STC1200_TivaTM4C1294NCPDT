@@ -167,7 +167,7 @@ void TapeTimeToPosition(TAPETIME* tapeTime, int* tapePosition)
 
     float position = (distance / ROLLER_CIRCUMFERENCE_F) * ROLLER_TICKS_PER_REV_F;
 
-    *tapePosition = (int)(position + 0.5f);
+    *tapePosition = (int)position;
 }
 
 /****************************************************************************
@@ -189,6 +189,7 @@ void SecondsToTapeTime(float time, TAPETIME* p)
     p->hour  = (uint8_t)(dayclock / 3600);
     p->tens  = (uint8_t)(fractpart * 10.0f);
     p->frame = (uint8_t)(fractpart * 30.0f);
+    p->flags = (time < 0.0f) ? 0 : F_PLUS;
 }
 
 void TapeTimeToSeconds(TAPETIME* p, float* time)
@@ -200,7 +201,7 @@ void TapeTimeToSeconds(TAPETIME* p, float* time)
     secs += (float)(p->hour * 3600);
     secs += (float)(p->tens % 10) * 0.1f;
 
-    *time = secs;
+    *time = secs + 0.1f;
 }
 
 //*****************************************************************************
