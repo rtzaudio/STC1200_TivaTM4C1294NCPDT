@@ -184,9 +184,9 @@ void SecondsToTapeTime(float time, TAPETIME* p)
     float intpart;
     float fractpart = modff(time, &intpart);
 
-    p->secs  = (uint8_t)(dayclock % 60);
-    p->mins  = (uint8_t)((dayclock % 3600) / 60);
     p->hour  = (uint8_t)(dayclock / 3600);
+    p->mins  = (uint8_t)((dayclock % 3600) / 60);
+    p->secs  = (uint8_t)(dayclock % 60);
     p->tens  = (uint8_t)(fractpart * 10.0f);
     p->frame = (uint8_t)(fractpart * 30.0f);
     p->flags = (time < 0.0f) ? 0 : F_PLUS;
@@ -196,10 +196,11 @@ void TapeTimeToSeconds(TAPETIME* p, float* time)
 {
     float secs;
 
-    secs  = (float)(p->secs % 60);
+    secs  = (float)(p->hour * 3600);
     secs += (float)(p->mins % 3600) * 60.0f;
-    secs += (float)(p->hour * 3600);
-    secs += (float)(p->tens % 10) * 0.1f;
+    secs += (float)(p->secs % 60);
+    secs += (float)(p->tens % 10) * 0.10f;
+  //secs += (float)(p->frame % 30) * (1.0f/30.0f);
 
     *time = secs + 0.1f;
 }
