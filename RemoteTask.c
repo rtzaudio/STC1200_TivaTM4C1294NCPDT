@@ -179,6 +179,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
 
     /* Initialize LOC-1 memory as return to zero at CUE point 1 */
+    g_sysData.remoteModePrev = REMOTE_MODE_CUE;
     HandleSetMode(REMOTE_MODE_CUE);
     HandleDigitPress(0);
 
@@ -234,6 +235,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             }
             else if (msg.opcode == OP_SWITCH_REMOTE)
             {
+                /* A locate or other mode button was pressed */
                 g_sysData.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
                 g_sysData.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
 
@@ -241,6 +243,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {
+                /* Jog wheel switch button was pressed */
                 HandleJogwheelPress(msg.param1.U);
             }
             break;
@@ -248,6 +251,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
         case MSG_TYPE_JOGWHEEL:
             if (msg.opcode == OP_JOGWHEEL_MOTION)
             {
+                /* Jog wheel was turned */
                 HandleJogwheelMotion(msg.param1.U);
             }
             break;
@@ -264,6 +268,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
 void HandleButtonPress(uint32_t flags)
 {
+    /* Handle numeric digit/locate buttons */
     if (flags & SW_LOC1) {
         HandleDigitPress(0);
     } else if (flags & SW_LOC2) {
@@ -287,27 +292,39 @@ void HandleButtonPress(uint32_t flags)
     }
     else if (flags & SW_CUE)
     {
+        /* Switch to CUE mode */
         HandleSetMode(REMOTE_MODE_CUE);
     }
     else if (flags & SW_STORE)
     {
+        /* Switch to STORE mode */
         HandleSetMode(REMOTE_MODE_STORE);
     }
     else if (flags & SW_EDIT)
     {
+        /* Switch to EDIT mode */
         HandleSetMode(REMOTE_MODE_EDIT);
     }
     else if (flags & SW_MENU)
     {
-        if (s_uScreenNum == SCREEN_MENU)
+        /* ALT+MENU to zero reset system position */
+        if (g_sysData.shiftAltButton)
         {
-            s_uScreenNum = SCREEN_TIME;
-            SetButtonLedMask(0, L_MENU);
+            /* Reset system position to zero */
+            PositionZeroReset();
         }
         else
         {
-            s_uScreenNum = SCREEN_MENU;
-            SetButtonLedMask(L_MENU, 0);
+            if (s_uScreenNum == SCREEN_MENU)
+            {
+                s_uScreenNum = SCREEN_TIME;
+                SetButtonLedMask(0, L_MENU);
+            }
+            else
+            {
+                s_uScreenNum = SCREEN_MENU;
+                SetButtonLedMask(L_MENU, 0);
+            }
         }
     }
     else if (flags & SW_AUTO)
@@ -384,6 +401,8 @@ void HandleSetMode(uint32_t mode)
         /* No mode active */
         SetButtonLedMask(0, L_CUE | L_STORE | L_EDIT);
 
+        g_sysData.remoteModePrev = g_sysData.remoteMode;
+
         g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
     }
     else if (g_sysData.remoteMode == mode)
@@ -406,7 +425,7 @@ void HandleSetMode(uint32_t mode)
             break;
 
         case REMOTE_MODE_STORE:
-            g_sysData.remoteModeLast = REMOTE_MODE_UNDEFINED;
+            g_sysData.remoteMode = g_sysData.remoteModePrev;
             SetButtonLedMask(0, L_STORE);
             break;
 
@@ -423,6 +442,8 @@ void HandleSetMode(uint32_t mode)
         /*
          * New mode requested, set LED's accordingly
          */
+
+        g_sysData.remoteModePrev = g_sysData.remoteMode;
 
         /* Save the new mode */
         g_sysData.remoteMode = mode;
@@ -505,6 +526,10 @@ void HandleDigitPress(size_t index)
 
         /* Store the current locate point */
         CuePointSet(index, g_sysData.tapePosition);
+
+        /* Return to previous Cue or default mode */
+        HandleSetMode(g_sysData.remoteModePrev);
+        SetLocateButtonLED(g_sysData.currentMemIndex);
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
     {
