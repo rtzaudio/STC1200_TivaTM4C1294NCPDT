@@ -382,7 +382,7 @@ void DrawTimeBottom(void)
     x = width + 6;
     y = y + 1;
 
-    if (CuePointGet(g_sysData.currentMemIndex, NULL) & CF_SET)
+    if (CuePointGet(g_sysData.currentMemIndex, NULL) & CF_ACTIVE)
     {
         CuePointGetTime(g_sysData.currentMemIndex, &tapeTime);
         int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';

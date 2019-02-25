@@ -176,7 +176,7 @@ void CuePointSet(size_t index, int ipos)
         uint32_t key = Hwi_disable();
 
         g_sysData.cuePoint[index].ipos  = ipos;
-        g_sysData.cuePoint[index].flags = CF_SET;
+        g_sysData.cuePoint[index].flags = CF_ACTIVE;
 
         Hwi_restore(key);
     }
@@ -240,7 +240,7 @@ Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags)
         return FALSE;
 
     /* Make sure the memory location has a cue point stored */
-    if (!(g_sysData.cuePoint[cuePointIndex].flags & CF_SET))
+    if (!(g_sysData.cuePoint[cuePointIndex].flags & CF_ACTIVE))
         return FALSE;
 
     msgLocate.command = LOCATE_SEARCH;
@@ -304,7 +304,7 @@ typedef enum _LocateState {
 #define JOG_SLOW_VEL    260
 
 #define JOG_VEL_FAR     1000
-#define JOG_VEL_MID     640
+#define JOG_VEL_MID     500
 #define JOG_VEL_NEAR    240
 
 Void LocateTaskFxn(UArg arg0, UArg arg1)
@@ -442,12 +442,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			    if (g_sysData.cuePoint[cue_index].ipos > g_sysData.tapePosition)
 		        {
-                    CLI_printf("> FWD ");
+                    CLI_printf("FWD > ");
 		            dir = DIR_FWD;
 		        }
 		        else if (g_sysData.cuePoint[cue_index].ipos < g_sysData.tapePosition)
 		        {
-                    CLI_printf("< REW ");
+                    CLI_printf("REW < ");
 		            dir = DIR_REW;
 		        }
 		        else
@@ -466,7 +466,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     shuttle_vel = JOG_VEL_FAR;
                     state = LOCATE_SHUTTLE_FAR;
                 }
-                else if (abs_dist > 2000)
+                else if (abs_dist > 3000)
                 {
                     CLI_printf("MID");
                     shuttle_vel = JOG_VEL_MID;
@@ -482,12 +482,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 CLI_printf(" d=%d, t=%d\n", cue_dist, (int32_t)time);
 
                 /* Start the transport in either FWD or REV direction
-		         * based on the cue point and current location.
+		         * based on the cue point and current location. We set
+		         * the M_NOSLOW so the DTC auto-slow function will be
+		         * disabled for the shuttle command requested.
 		         */
                 if (dir == DIR_FWD)
-		            Transport_Fwd(shuttle_vel);
+		            Transport_Fwd(shuttle_vel, M_NOSLOW);
 		        else
-		            Transport_Rew(shuttle_vel);
+		            Transport_Rew(shuttle_vel, M_NOSLOW);
 			    break;
 
             case LOCATE_SHUTTLE_FAR:
@@ -511,7 +513,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     state = LOCATE_BRAKE_VELOCITY;
 
-                    if (velocity > 40.0f)
+                    if (velocity > 35.0f)
                     {
                         CLI_printf("SHUTTLE MID BRAKE STATE d=%d\n", cue_dist);
 
@@ -522,9 +524,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             case LOCATE_SHUTTLE_NEAR:
 
-                if (time < 28.0f)
+                if (time < 30.0f)
                 {
-                    CLI_printf("SHUTTLE NEAR STATE d=%d\n", cue_dist);
+                    CLI_printf("SHUTTLE NEAR BRAKE STATE d=%d\n", cue_dist);
 
                     state = LOCATE_BRAKE_VELOCITY;
                 }
@@ -548,9 +550,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                     /* Begin low speed shuttle */
                     if (dir == DIR_FWD)
-                        Transport_Fwd(JOG_SLOW_VEL);
+                        Transport_Fwd(JOG_SLOW_VEL, M_NOSLOW);
                     else
-                        Transport_Rew(JOG_SLOW_VEL);
+                        Transport_Rew(JOG_SLOW_VEL, M_NOSLOW);
 
                     state = LOCATE_ZERO_CROSS;
                 }
@@ -560,17 +562,18 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			case LOCATE_BRAKE_VELOCITY:
 
 			    /* Wait for velocity to drop to 15 or below */
+                //CLI_printf("d=%d, f=%d, t=%u, v=%u\n", cue_dist, cue_from, (uint32_t)time, (uint32_t)velocity);
 
-			    if (time < 20.0f)
+			    if (velocity > 40.0f)
 			        break;
 
 			    CLI_printf("BEGIN SLOW SHUTTLE d=%d, t=%d, v=%u\n", cue_dist, (int32_t)time, (uint32_t)velocity);
 
                 /* Begin low speed shuttle */
                 if (dir == DIR_FWD)
-                    Transport_Fwd(JOG_SLOW_VEL);
+                    Transport_Fwd(JOG_SLOW_VEL, M_NOSLOW);
                 else
-                    Transport_Rew(JOG_SLOW_VEL);
+                    Transport_Rew(JOG_SLOW_VEL, M_NOSLOW);
 
                 /* Next look for zero cross */
                 state = LOCATE_ZERO_CROSS;
@@ -706,7 +709,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             if (g_sysData.autoMode)
 	        {
-                if (cue_flags & CF_REC)
+                if (cue_flags & CF_AUTO_REC)
                 {
                     CLI_printf("AUTO-RECORD\n");
                     Transport_Play(M_RECORD);
@@ -745,7 +748,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                         CLI_printf("PASSED ZERO BY d=%d - CHANGE DIR\n", cue_dist);
                         last_dir = g_sysData.tapeDirection;
                         /* REWIND overshoot, change direction */
-                        Transport_Fwd(250);
+                        Transport_Fwd(250, M_NOSLOW);
                         state = LOCATE_ZERO_DIR;
                     }
                 }

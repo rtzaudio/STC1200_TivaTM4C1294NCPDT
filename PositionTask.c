@@ -364,26 +364,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
                     flags &= ~(F_BLINK);
 			}
 
-#if 0
-			/* Get the current encoder position */
-			float position = fabsf((float)g_sysData.tapePosition);
-
-			/* Calculate the number of revolutions from the position */
-			//float revolutions = position / ROLLER_TICKS_PER_REV_F;
-            float revolutions = position * invRollerTicks;
-
-			/* Calculate the distance in inches based on the number of revolutions */
-			float distance = revolutions * ROLLER_CIRCUMFERENCE_F;
-
-			/* Get the current speed setting */
-			float invspeed = GPIO_read(Board_SPEED_SELECT) ? (1.0f/30.0f) : (1.0f/15.0f);
-
-			/* Calculate the time in seconds from the distance and speed
-			 * while avoiding any divisions.
-			 */
-			uint32_t seconds = (uint32_t)(distance * invspeed);
-#endif
-
 			/* Get the tape time member values */
 			PositionToTapeTime(g_sysData.tapePosition, &g_sysData.tapeTime);
 

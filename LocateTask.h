@@ -22,10 +22,10 @@ typedef struct _CUE_POINT {
 } CUE_POINT;
 
 /* Cue Point Flags */
-#define CF_NONE     0x00    /* no cue point stored for location */
-#define CF_SET      0x01    /* cue point available to search    */
-#define CF_PLAY     0x02    /* enter play mode after locate     */
-#define CF_REC      0x04    /* enter play + record after locate */
+#define CF_NONE         0x00    /* no cue point stored for location */
+#define CF_ACTIVE       0x01    /* cue point available to search    */
+#define CF_AUTO_PLAY    0x02    /* enter play mode after locate     */
+#define CF_AUTO_REC     0x04    /* enter play + record after locate */
 
 /* This defines the array size that holds all cue point memories. Note
  * one extra cue point is reserved in the buffer space at the end for

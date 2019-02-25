@@ -129,26 +129,26 @@ Bool Transport_Play(uint32_t flags)
     return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
-Bool Transport_Fwd(uint32_t velocity)
+Bool Transport_Fwd(uint32_t velocity, uint32_t flags)
 {
     IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_FWD;
     msg.param1.U = velocity;
-    msg.param2.U = 0;
+    msg.param2.U = flags;
 
     return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
-Bool Transport_Rew(uint32_t velocity)
+Bool Transport_Rew(uint32_t velocity, uint32_t flags)
 {
     IPC_MSG msg;
 
     msg.type     = IPC_TYPE_TRANSPORT;
     msg.opcode   = OP_MODE_REW;
     msg.param1.U = velocity;
-    msg.param2.U = 0;
+    msg.param2.U = flags;
 
     return IPC_Notify(&msg, IPC_TIMEOUT);
 }

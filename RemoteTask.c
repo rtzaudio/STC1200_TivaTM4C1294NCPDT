@@ -364,10 +364,10 @@ void HandleJogwheelPress(uint32_t flags)
         SetLocateButtonLED(index);
 
         if (g_sysData.autoMode)
-            cue_flags |= CF_PLAY;
+            cue_flags |= CF_AUTO_PLAY;
 
         if (g_sysData.shiftRecButton)
-            cue_flags |= CF_REC;
+            cue_flags |= CF_AUTO_REC;
 
         /* Begin locate search */
         LocateSearch(index, cue_flags);
@@ -507,10 +507,10 @@ void HandleDigitPress(size_t index)
         SetLocateButtonLED(index);
 
         if (g_sysData.autoMode)
-            flags |= CF_PLAY;
+            flags |= CF_AUTO_PLAY;
 
         if (g_sysData.shiftRecButton)
-            flags |= CF_REC;
+            flags |= CF_AUTO_REC;
 
         /* Begin locate search */
         LocateSearch(index, flags);

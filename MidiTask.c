@@ -273,12 +273,12 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
                     break;
 
                 case MCC_FAST_FORWARD:
-                    Transport_Fwd(0);
+                    Transport_Fwd(0, 0);
                     CLI_printf("FFWD\n");
                     break;
 
                 case MCC_REWIND:
-                    Transport_Rew(0);
+                    Transport_Rew(0, 0);
                     CLI_printf("REW\n");
                     break;
 
