@@ -200,6 +200,199 @@ int main(void)
 }
 
 //*****************************************************************************
+// Default hardware initialization
+//*****************************************************************************
+
+void Hardware_init()
+{
+    /* Enables Floating Point Hardware Unit */
+    FPUEnable();
+    /* Allows the FPU to be used inside interrupt service routines */
+    //FPULazyStackingEnable();
+
+    /* Initialize a 1 BPP off-screen OLED display buffer that we draw into */
+    GrOffScreenMonoInit();
+
+    /* Deassert the Atmega88 reset line */
+    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
+    /* Deassert motion status lines */
+    GPIO_write(Board_TAPE_DIR, PIN_HIGH);
+    GPIO_write(Board_MOTION_FWD, PIN_HIGH);
+    GPIO_write(Board_MOTION_REW, PIN_HIGH);
+    /* Clear SEARCHING_OUT status i/o pin */
+    GPIO_write(Board_SEARCHING, PIN_HIGH);
+    /* Turn on the status LED */
+    GPIO_write(Board_STAT_LED, Board_LED_ON);
+    /* Turn off the play and shuttle lamps */
+    GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
+    GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
+    /* Deassert the RS-422 DE & RE pins */
+    GPIO_write(Board_RS422_DE, PIN_LOW);
+    GPIO_write(Board_RS422_RE_N, PIN_HIGH);
+
+    /* This enables the DIVSCLK output pin on PQ4
+     * and generates a 1.2 Mhz clock signal on the.
+     * expansion header and pin 16 of the edge
+     * connector if a clock signal is required.
+     */
+#if (DIV_CLOCK_ENABLED > 0)
+    EnableClockDivOutput(100);
+#endif
+}
+
+//*****************************************************************************
+// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
+// from the main cpu clock divided by 'div' parameter. A value of 100 gives
+// a clock of 1.2 Mhz.
+//*****************************************************************************
+
+#if (DIV_CLOCK_ENABLED > 0)
+void EnableClockDivOutput(uint32_t div)
+{
+    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
+    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
+    /* Configure the output pin for the clock output */
+    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
+    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    /* Enable the clock output */
+    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
+}
+#endif
+
+//*****************************************************************************
+// This function attempts to ready the unique serial number
+// from the I2C
+//*****************************************************************************
+
+int ReadSerialNumber(uint8_t ui8SerialNumber[16])
+{
+    bool            ret;
+    uint8_t         txByte;
+    I2C_Handle      handle;
+    I2C_Params      params;
+    I2C_Transaction i2cTransaction;
+
+    /* default invalid serial number is all FF's */
+    memset(ui8SerialNumber, 0xFF, sizeof(ui8SerialNumber));
+
+    I2C_Params_init(&params);
+
+    params.transferCallbackFxn = NULL;
+    params.transferMode = I2C_MODE_BLOCKING;
+    params.bitRate = I2C_100kHz;
+
+    handle = I2C_open(Board_I2C_AT24CS01, &params);
+
+    if (!handle) {
+        System_printf("I2C did not open\n");
+        System_flush();
+        return 0;
+    }
+
+    /* Note the Upper bit of the word address must be set
+     * in order to read the serial number. Thus 80H would
+     * set the starting address to zero prior to reading
+     * this sixteen bytes of serial number data.
+     */
+
+    txByte = 0x80;
+
+    i2cTransaction.slaveAddress = Board_AT24CS01_SERIAL_ADDR;
+    i2cTransaction.writeBuf     = &txByte;
+    i2cTransaction.writeCount   = 1;
+    i2cTransaction.readBuf      = ui8SerialNumber;
+    i2cTransaction.readCount    = 16;
+
+    ret = I2C_transfer(handle, &i2cTransaction);
+
+    if (!ret)
+    {
+        System_printf("Unsuccessful I2C transfer\n");
+        System_flush();
+    }
+
+    I2C_close(handle);
+
+    return ret;
+}
+
+//*****************************************************************************
+// Set default runtime values
+//*****************************************************************************
+
+void InitSysDefaults(SYSPARMS* p)
+{
+    /* default servo parameters */
+    p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    p->debug        = 0;        /* debug mode 0=off                 */
+    p->searchBlink  = TRUE;
+    p->showLongTime = FALSE;
+}
+
+//*****************************************************************************
+// Write system parameters from our global settings buffer to EEPROM.
+//
+// Returns:  0 = Sucess
+//          -1 = Error writing EEPROM data
+//*****************************************************************************
+
+int SysParamsWrite(SYSPARMS* sp)
+{
+    int32_t rc = 0;
+
+    sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    sp->magic   = MAGIC;
+
+    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSPARMS));
+
+    System_printf("Writing System Parameters %d\n", rc);
+    System_flush();
+
+    return rc;
+ }
+
+//*****************************************************************************
+// Read system parameters into our global settings buffer from EEPROM.
+//
+// Returns:  0 = Sucess
+//          -1 = Error reading flash
+//
+//*****************************************************************************
+
+int SysParamsRead(SYSPARMS* sp)
+{
+    InitSysDefaults(sp);
+
+    EEPROMRead((uint32_t *)sp, 0, sizeof(SYSPARMS));
+
+    if (sp->magic != MAGIC)
+    {
+        System_printf("ERROR Reading System Parameters - Using Defaults...\n");
+        System_flush();
+
+        InitSysDefaults(sp);
+
+        SysParamsWrite(sp);
+
+        return -1;
+    }
+
+    if (sp->version != MAKEREV(FIRMWARE_VER, FIRMWARE_REV))
+    {
+        System_printf("WARNING New Firmware Version - Using Defaults...\n");
+        System_flush();
+
+        InitSysDefaults(sp);
+
+        SysParamsWrite(sp);
+
+        return -1;
+    }
+
+    return 0;
+}
+
+//*****************************************************************************
 // This function attempts to ready the unique serial number
 // from the I2C
 //*****************************************************************************
@@ -347,67 +540,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 }
 
 //*****************************************************************************
-// Default hardware initialization
-//*****************************************************************************
-
-void Hardware_init()
-{
-    /* Enables Floating Point Hardware Unit */
-    FPUEnable();
-    /* Allows the FPU to be used inside interrupt service routines */
-    //FPULazyStackingEnable();
-
-    /* Initialize a 1 BPP off-screen OLED display buffer that we draw into */
-    GrOffScreenMonoInit();
-
-    /* Deassert the Atmega88 reset line */
-    GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
-    /* Deassert motion status lines */
-    GPIO_write(Board_TAPE_DIR, PIN_HIGH);
-    GPIO_write(Board_MOTION_FWD, PIN_HIGH);
-	GPIO_write(Board_MOTION_REW, PIN_HIGH);
-	/* Clear SEARCHING_OUT status i/o pin */
-	GPIO_write(Board_SEARCHING, PIN_HIGH);
-    /* Turn on the status LED */
-    GPIO_write(Board_STAT_LED, Board_LED_ON);
-    /* Turn off the play and shuttle lamps */
-    GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
-    GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
-    /* Deassert the RS-422 DE & RE pins */
-    GPIO_write(Board_RS422_DE, PIN_LOW);
-    GPIO_write(Board_RS422_RE_N, PIN_HIGH);
-
-    /* This enables the DIVSCLK output pin on PQ4
-     * and generates a 1.2 Mhz clock signal on the.
-     * expansion header and pin 16 of the edge
-     * connector if a clock signal is required.
-     */
-#if (DIV_CLOCK_ENABLED > 0)
-    EnableClockDivOutput(100);
-#endif
-}
-
-//*****************************************************************************
-// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
-// from the main cpu clock divided by 'div' parameter. A value of 100 gives
-// a clock of 1.2 Mhz.
-//*****************************************************************************
-
-#if (DIV_CLOCK_ENABLED > 0)
-void EnableClockDivOutput(uint32_t div)
-{
-    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
-    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
-    /* Configure the output pin for the clock output */
-    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
-    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
-    /* Enable the clock output */
-    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
-}
-#endif
-
-//*****************************************************************************
-// HWI Callback function for top left button
+// HWI Callback function for RESET button on transport tape roller/counter.
 //*****************************************************************************
 
 void gpioButtonResetHwi(unsigned int index)
@@ -429,7 +562,7 @@ void gpioButtonResetHwi(unsigned int index)
 }
 
 //*****************************************************************************
-// HWI Callback function for the top right button
+// HWI Callback function for CUE button on transport tape roller/counter.
 //*****************************************************************************
 
 void gpioButtonCueHwi(unsigned int index)
@@ -451,7 +584,7 @@ void gpioButtonCueHwi(unsigned int index)
 }
 
 //*****************************************************************************
-// HWI Callback function for the middle left button
+// HWI Callback function for SEARCH button on transport tape roller/counter.
 //*****************************************************************************
 
 void gpioButtonSearchHwi(unsigned int index)
@@ -481,139 +614,6 @@ void gpioButtonStopHwi(unsigned int index)
     uint32_t key = Hwi_disable();
     g_sysData.searchCancel = TRUE;
     Hwi_restore(key);
-}
-
-//*****************************************************************************
-// This function attempts to ready the unique serial number
-// from the I2C
-//*****************************************************************************
-
-int ReadSerialNumber(uint8_t ui8SerialNumber[16])
-{
-	bool			ret;
-	uint8_t			txByte;
-	I2C_Handle      handle;
-	I2C_Params      params;
-	I2C_Transaction i2cTransaction;
-
-    /* default invalid serial number is all FF's */
-    memset(ui8SerialNumber, 0xFF, sizeof(ui8SerialNumber));
-
-	I2C_Params_init(&params);
-
-	params.transferCallbackFxn = NULL;
-	params.transferMode = I2C_MODE_BLOCKING;
-	params.bitRate = I2C_100kHz;
-
-	handle = I2C_open(Board_I2C_AT24CS01, &params);
-
-	if (!handle) {
-		System_printf("I2C did not open\n");
-		System_flush();
-		return 0;
-	}
-
-	/* Note the Upper bit of the word address must be set
-	 * in order to read the serial number. Thus 80H would
-	 * set the starting address to zero prior to reading
-	 * this sixteen bytes of serial number data.
-	 */
-
-	txByte = 0x80;
-
-	i2cTransaction.slaveAddress = Board_AT24CS01_SERIAL_ADDR;
-	i2cTransaction.writeBuf     = &txByte;
-	i2cTransaction.writeCount   = 1;
-	i2cTransaction.readBuf      = ui8SerialNumber;
-	i2cTransaction.readCount    = 16;
-
-	ret = I2C_transfer(handle, &i2cTransaction);
-
-	if (!ret)
-	{
-		System_printf("Unsuccessful I2C transfer\n");
-		System_flush();
-	}
-
-	I2C_close(handle);
-
-	return ret;
-}
-
-//*****************************************************************************
-// Set default runtime values
-//*****************************************************************************
-
-void InitSysDefaults(SYSPARMS* p)
-{
-    /* default servo parameters */
-    p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    p->debug        = 0;        /* debug mode 0=off                 */
-    p->searchBlink  = TRUE;
-    p->showLongTime = FALSE;
-}
-
-//*****************************************************************************
-// Write system parameters from our global settings buffer to EEPROM.
-//
-// Returns:  0 = Sucess
-//          -1 = Error writing EEPROM data
-//*****************************************************************************
-
-int SysParamsWrite(SYSPARMS* sp)
-{
-    int32_t rc = 0;
-
-    sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    sp->magic   = MAGIC;
-
-    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSPARMS));
-
-    System_printf("Writing System Parameters %d\n", rc);
-    System_flush();
-
-    return rc;
- }
-
-//*****************************************************************************
-// Read system parameters into our global settings buffer from EEPROM.
-//
-// Returns:  0 = Sucess
-//          -1 = Error reading flash
-//
-//*****************************************************************************
-
-int SysParamsRead(SYSPARMS* sp)
-{
-    InitSysDefaults(sp);
-
-    EEPROMRead((uint32_t *)sp, 0, sizeof(SYSPARMS));
-
-    if (sp->magic != MAGIC)
-    {
-        System_printf("ERROR Reading System Parameters - Using Defaults...\n");
-        System_flush();
-
-        InitSysDefaults(sp);
-
-        SysParamsWrite(sp);
-
-        return -1;
-    }
-
-    if (sp->version != MAKEREV(FIRMWARE_VER, FIRMWARE_REV))
-    {
-        System_printf("WARNING New Firmware Version - Using Defaults...\n");
-        System_flush();
-
-        InitSysDefaults(sp);
-
-        SysParamsWrite(sp);
-
-        return -1;
-    }
-
-    return 0;
 }
 
 // End-Of-File

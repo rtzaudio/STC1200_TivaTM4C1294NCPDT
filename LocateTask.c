@@ -372,7 +372,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         GPIO_write(Board_SEARCHING, PIN_LOW);
 
         /* Cue memory is active, turn on the button LED */
-        SetLocateButtonLED(cue_index);
+        if (cue_index < LAST_CUE_POINT)
+            SetLocateButtonLED(cue_index);
 
         /* Set transport to STOP mode initially */
         Transport_Stop();
@@ -667,7 +668,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     GPIO_write(Board_SEARCHING, PIN_LOW);
 
                     /* Cue memory is active, turn on the button LED */
-                    SetLocateButtonLED(cue_index);
+                    if (cue_index < LAST_CUE_POINT)
+                        SetLocateButtonLED(cue_index);
 
                     /* Set transport to STOP mode initially */
                     Transport_Stop();
@@ -724,46 +726,6 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    }
     }
 }
-
-#if 0
-            case LOCATE_PAST_ZERO:
-
-                /* ZERO CROSS - check taking direction into account */
-
-                if (dir == DIR_FWD)
-                {
-                    if (cue_dist < 300)
-                    {
-                        CLI_printf("PASSED ZERO BY d=%d - CHANGE DIR\n", cue_dist);
-                        last_dir = g_sysData.tapeDirection;
-                        /* FORWARD overshoot, change direction */
-                        Transport_Rew(250);
-                        state = LOCATE_ZERO_DIR;
-                    }
-                }
-                else
-                {
-                    if (cue_dist > 300)
-                    {
-                        CLI_printf("PASSED ZERO BY d=%d - CHANGE DIR\n", cue_dist);
-                        last_dir = g_sysData.tapeDirection;
-                        /* REWIND overshoot, change direction */
-                        Transport_Fwd(250, M_NOSLOW);
-                        state = LOCATE_ZERO_DIR;
-                    }
-                }
-                break;
-
-            case LOCATE_ZERO_DIR:
-
-                /* Wait for tape direction to change */
-                if (g_sysData.tapeDirection != last_dir)
-                {
-                    CLI_printf("DIRECTION CHANGE EVENT\n");
-                    state = LOCATE_ZERO_CROSS;
-                }
-                break;
-#endif
 
 /*****************************************************************************
  * HELPER FUNCTIONS
