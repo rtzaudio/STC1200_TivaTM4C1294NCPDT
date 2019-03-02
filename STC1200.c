@@ -439,7 +439,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
-    taskParams.priority  = 15;
+    taskParams.priority  = 12;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
     /* Startup the MIDI services tasks */

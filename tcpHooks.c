@@ -1,4 +1,14 @@
-/*
+/***************************************************************************
+ *
+ * STC-1200 Digital Search Timer Cue Controller for Ampex MM-1200.
+ *
+ * Copyright (C) 2016-2019, RTZ Professional Audio, LLC
+ * All Rights Reserved
+ *
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
+ *
+ ***************************************************************************
+ *
  * Copyright (c) 2014, Texas Instruments Incorporated
  * All rights reserved.
  *
@@ -28,26 +38,32 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
-
-/*
- *    ======== tcpEchoHooks.c ========
- *    Contains non-BSD sockets code (NDK Network Open Hook)
- */
+ *
+ ***************************************************************************/
 
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
-#include <xdc/runtime/Error.h>
 #include <xdc/runtime/System.h>
+#include <xdc/runtime/Error.h>
+#include <xdc/runtime/Gate.h>
+#include <xdc/runtime/Memory.h>
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
+#include <ti/sysbios/knl/Semaphore.h>
+#include <ti/sysbios/knl/Event.h>
+#include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/knl/Clock.h>
+#include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/SDSPI.h>
+#include <ti/drivers/I2C.h>
+#include <ti/drivers/UART.h>
 
 /* NDK BSD support */
 #include <sys/socket.h>
@@ -55,15 +71,27 @@
 #include <file.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <stdbool.h>
+
+#include <driverlib/sysctl.h>
+
+/* Graphiclib Header file */
+#include <grlib/grlib.h>
+#include <RAMPServer.h>
+#include "drivers/offscrmono.h"
 
 /* PMX42 Board Header file */
 #include "Board.h"
+//#include "RAMPServer.h"
+//#include "IPCServer.h"
+#include "STC1200.h"
+#include "STC1200_TcpMessage.h"
 
-#define TCPPACKETSIZE 256
-#define NUMTCPWORKERS 3
+#define TCPPACKETSIZE   256
+#define NUMTCPWORKERS   3
 
-#define TCPPORT 1000
+#define TCPPORT         1200
 
 #ifdef CYASSL_TIRTOS
 #define TCPHANDLERSTACK 8704
@@ -76,10 +104,10 @@ Void tcpHandler(UArg arg0, UArg arg1);
 Void tcpWorker(UArg arg0, UArg arg1);
 void netOpenHook(void);
 
-/*
- *  ======== netOpenHook ========
- *  NDK network open hook used to initialize IPv6
- */
+//*****************************************************************************
+// NDK network open hook used to initialize IPv6
+//*****************************************************************************
+
 void netOpenHook()
 {
     Task_Handle taskHandle;
@@ -93,11 +121,15 @@ void netOpenHook()
      *  Create the Task that farms out incoming TCP connections.
      *  arg0 will be the port that this task listens to.
      */
+
     Task_Params_init(&taskParams);
+
     taskParams.stackSize = TCPHANDLERSTACK;
-    taskParams.priority = 1;
-    taskParams.arg0 = TCPPORT;
+    taskParams.priority  = 1;
+    taskParams.arg0      = TCPPORT;
+
     taskHandle = Task_create((Task_FuncPtr)tcpHandler, &taskParams, &eb);
+
     if (taskHandle == NULL) {
         System_printf("netOpenHook: Failed to create tcpHandler Task\n");
     }
@@ -105,10 +137,10 @@ void netOpenHook()
     System_flush();
 }
 
-/*
- *  ======== tcpHandler ========
- *  Creates new Task to handle new TCP connections.
- */
+//*****************************************************************************
+// Creates new Task to handle new TCP connections.
+//*****************************************************************************
+
 Void tcpHandler(UArg arg0, UArg arg1)
 {
     int                status;
@@ -124,24 +156,27 @@ Void tcpHandler(UArg arg0, UArg arg1)
     Error_Block        eb;
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
     if (server == -1) {
         System_printf("Error: socket not created.\n");
         goto shutdown;
     }
 
-
     memset(&localAddr, 0, sizeof(localAddr));
-    localAddr.sin_family = AF_INET;
+
+    localAddr.sin_family      = AF_INET;
     localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    localAddr.sin_port = htons(arg0);
+    localAddr.sin_port        = htons(arg0);
 
     status = bind(server, (struct sockaddr *)&localAddr, sizeof(localAddr));
+
     if (status == -1) {
         System_printf("Error: bind failed.\n");
         goto shutdown;
     }
 
     status = listen(server, NUMTCPWORKERS);
+
     if (status == -1) {
         System_printf("Error: listen failed.\n");
         goto shutdown;
@@ -152,9 +187,8 @@ Void tcpHandler(UArg arg0, UArg arg1)
         goto shutdown;
     }
 
-    while ((clientfd =
-            accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1) {
-
+    while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
+    {
         System_printf("tcpHandler: Creating thread clientfd = %d\n", clientfd);
 
         /* Init the Error_Block */
@@ -162,9 +196,11 @@ Void tcpHandler(UArg arg0, UArg arg1)
 
         /* Initialize the defaults and set the parameters. */
         Task_Params_init(&taskParams);
-        taskParams.arg0 = (UArg)clientfd;
+        taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
+
         taskHandle = Task_create((Task_FuncPtr)tcpWorker, &taskParams, &eb);
+
         if (taskHandle == NULL) {
             System_printf("Error: Failed to create new Task\n");
             close(clientfd);
@@ -177,34 +213,55 @@ Void tcpHandler(UArg arg0, UArg arg1)
     System_printf("Error: accept failed.\n");
 
 shutdown:
+
     if (server > 0) {
         close(server);
     }
 }
 
-/*
- *  ======== tcpWorker ========
- *  Task to handle TCP connection. Can be multiple Tasks running
- *  this function.
- */
+//*****************************************************************************
+// Task to handle TCP connection. There can be multiple TCP workers running.
+//*****************************************************************************
+
 Void tcpWorker(UArg arg0, UArg arg1)
 {
-    int  clientfd = (int)arg0;
-    int  bytesRcvd;
-    int  bytesSent;
-    char buffer[TCPPACKETSIZE];
+    int         clientfd = (int)arg0;
+    int         bytesRcvd;
+    int         bytesSent;
+    int         bytesToSend;
+    uint32_t    flags[2];
 
     System_printf("tcpWorker: start clientfd = 0x%x\n", clientfd);
 
-    while ((bytesRcvd = recv(clientfd, buffer, TCPPACKETSIZE, 0)) > 0) {
-        bytesSent = send(clientfd, buffer, bytesRcvd, 0);
-        if (bytesSent < 0 || bytesSent != bytesRcvd) {
-            System_printf("Error: send failed.\n");
+    /* Get point to display buffer & length to send */
+    uint8_t *textbuf = GrGetScreenBuffer(5);
+    int textlen = 1024 + 8;
+
+    bytesToSend = textlen;
+
+    while ((bytesSent = send(clientfd, textbuf, bytesToSend, 0)) > 0)
+    {
+        if (bytesSent < textlen)
+        {
+            bytesToSend -= bytesSent;
+            textbuf += bytesSent;
+            continue;
+        }
+
+        if ((bytesRcvd = recv(clientfd, &flags, 8, 0)) <= 0)
+        {
+            System_printf("Error: tpc recv failed.\n");
             break;
         }
+
+        if (bytesRcvd == 8)
+        {
+            System_printf("Button: %04x:%04x\n", flags[1], flags[0]);
+            System_flush();
+        }
     }
+
     System_printf("tcpWorker stop clientfd = 0x%x\n", clientfd);
 
     close(clientfd);
 }
-

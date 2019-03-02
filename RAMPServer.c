@@ -87,7 +87,7 @@
 #include <RAMPServer.h>
 #include "drivers/offscrmono.h"
 
-/* PMX42 Board Header file */
+/* STC-1200 Board Header file */
 #include "Board.h"
 #include "RAMPServer.h"
 #include "IPCServer.h"
