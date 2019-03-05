@@ -241,7 +241,7 @@ Void tcpWorker(UArg arg0, UArg arg1)
 
     while ((bytesSent = send(clientfd, textbuf, bytesToSend, 0)) > 0)
     {
-        if (bytesSent < textlen)
+        if (bytesSent < bytesToSend)
         {
             bytesToSend -= bytesSent;
             textbuf += bytesSent;
