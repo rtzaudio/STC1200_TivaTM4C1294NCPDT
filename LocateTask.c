@@ -303,7 +303,7 @@ typedef enum _LocateState {
 
 #define JOG_SLOW_VEL    260
 
-#define JOG_VEL_FAR     1000
+#define JOG_VEL_FAR     0       /* 0 = use DTC default high speed shuttle velocity */
 #define JOG_VEL_MID     500
 #define JOG_VEL_NEAR    240
 

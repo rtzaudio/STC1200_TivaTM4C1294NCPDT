@@ -66,14 +66,27 @@ extern "C" {
 #define Board_SPI_S25FL127        	STC1200_SPI2
 #define Board_SPI_EXPIO_SIO3        STC1200_SPI3
 
-#define Board_UART_RS232_DEBUG		STC1200_UART0
+#if (STC1200_HARDWARE_REV < 2)
+/* REV-A Hardware */
+#define Board_UART_RS232_DEBUG      STC1200_UART0
 #define Board_UART_RS232_COM1       STC1200_UART1
 #define Board_UART_RS232_COM2       STC1200_UART2
 #define Board_UART_BLUETOOTH        STC1200_UART3
-#define Board_UART_MIDI			    STC1200_UART4
+#define Board_UART_MIDI             STC1200_UART4
 #define Board_UART_RS422_REMOTE     STC1200_UART5
 #define Board_UART_ATMEGA88         STC1200_UART6
-#define Board_UART_IPC         		STC1200_UART7
+#define Board_UART_IPC_A            STC1200_UART7
+#else
+/* REV-B Hardware */
+#define Board_UART_IPC_A            STC1200_UART7               /* IPC commands to/from DTC */
+#define Board_UART_IPC_B            STC1200_UART0               /* IPC commands from DTC (future) */
+#define Board_UART_RS232_COM1       STC1200_UART1               /* RS-232 reserved for DCS channel switcher */
+#define Board_UART_RS232_COM2       STC1200_UART2               /* COM2 = RS232 debug port */
+#define Board_UART_RS422_SPARE      STC1200_UART3               /* spare RS-422 port */
+#define Board_UART_RS422_REMOTE     STC1200_UART5               /* RS-422 to DRC-1200 remote */
+#define Board_UART_MIDI             STC1200_UART4               /* MIDI MMC port */
+#define Board_UART_ATMEGA88         STC1200_UART6               /* ATMega 7-segment display driver */
+#endif
 
 #define Board_WATCHDOG0             STC1200_WATCHDOG0
 

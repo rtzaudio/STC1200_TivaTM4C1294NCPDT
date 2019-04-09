@@ -51,20 +51,24 @@ extern "C" {
 
 #include <ti/drivers/GPIO.h>
 
+/* STC hardware version (1=A, 2=B, etc) */
+#define STC1200_HARDWARE_REV    2
+
 /* LEDs on STC1200 are active high. */
-#define STC1200_LED_OFF		( 0)
-#define STC1200_LED_ON		(~0)
+#define STC1200_LED_OFF		    ( 0)
+#define STC1200_LED_ON		    (~0)
 
 /* Lamps on STC1200 are active high. */
-#define STC1200_LAMP_OFF	( 0)
-#define STC1200_LAMP_ON		(~0)
+#define STC1200_LAMP_OFF	    ( 0)
+#define STC1200_LAMP_ON		    (~0)
 
-#define PIN_LOW				( 0)
-#define PIN_HIGH			(~0)
+#define PIN_LOW				    ( 0)
+#define PIN_HIGH			    (~0)
 
 /*** Hardware Constants ****************************************************/
 
-#define QEI_BASE_ROLLER		QEI0_BASE   	/* QEI-0 is tape roller encoder */
+/* QEI-0 is tape roller encoder */
+#define QEI_BASE_ROLLER		    QEI0_BASE
 
 /*!
  *  @def    STC1200_EMACName

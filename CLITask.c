@@ -111,7 +111,7 @@ int CLI_init(void)
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
-    s_handleUart = UART_open(Board_UART_RS232_DEBUG, &uartParams);
+    s_handleUart = UART_open(Board_UART_RS232_COM2, &uartParams);
 
     if (s_handleUart == NULL)
         System_abort("Error initializing UART\n");
