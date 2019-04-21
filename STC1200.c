@@ -146,6 +146,7 @@ int main(void)
     Board_initGPIO();
     Board_initI2C();
     Board_initSPI();
+    Board_initSDSPI();
     Board_initUART();
     Board_initEMAC();
 
@@ -205,6 +206,9 @@ int main(void)
 
 void Hardware_init()
 {
+    SDSPI_Handle handle;
+    SDSPI_Params params;
+
     /* Enables Floating Point Hardware Unit */
     FPUEnable();
     /* Allows the FPU to be used inside interrupt service routines */
@@ -237,6 +241,15 @@ void Hardware_init()
      */
 #if (DIV_CLOCK_ENABLED > 0)
     EnableClockDivOutput(100);
+#endif
+
+    /* Initialize the SD drive for operation */
+#if 1
+    SDSPI_Params_init(&params);
+    handle = SDSPI_open(Board_SPI_SDCARD, 0, &params);
+    if (handle == NULL) {
+        System_abort("Failed to open SDSPI!");
+    }
 #endif
 }
 
@@ -438,7 +451,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
-    taskParams.stackSize = 2048;
+    taskParams.stackSize = 1024;
     taskParams.priority  = 12;
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 

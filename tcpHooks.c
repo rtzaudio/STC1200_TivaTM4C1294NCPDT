@@ -67,6 +67,7 @@
 
 /* NDK BSD support */
 #include <sys/socket.h>
+//#include <ti/ndk/inc/usertype.h>
 
 #include <file.h>
 #include <stdio.h>
@@ -103,13 +104,15 @@
 Void tcpHandler(UArg arg0, UArg arg1);
 Void tcpWorker(UArg arg0, UArg arg1);
 void netOpenHook(void);
+void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 
 //*****************************************************************************
 // NDK network open hook used to initialize IPv6
 //*****************************************************************************
 
-void netOpenHook()
+void netOpenHook(void)
 {
+#if 0
     Task_Handle taskHandle;
     Task_Params taskParams;
     Error_Block eb;
@@ -135,6 +138,12 @@ void netOpenHook()
     }
 
     System_flush();
+#endif
+}
+
+void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
+{
+    System_printf("netIPUpdate() %d hook!\n", fAdd);
 }
 
 //*****************************************************************************

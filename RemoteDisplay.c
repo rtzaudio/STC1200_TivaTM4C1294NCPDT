@@ -106,28 +106,27 @@ extern SYSPARMS g_sysParms;
 // Format a data buffer into an ascii hex string.
 //*****************************************************************************
 
-int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len)
+int GetHexStr(char* textbuf, uint8_t* databuf, int len)
 {
-    char fmt[8];
+    char *p = textbuf;
     uint32_t i;
     int32_t l;
 
-    *pTextBuf = 0;
-    strcpy(fmt, "%02X");
+    *textbuf = 0;
 
     for (i=0; i < len; i++)
     {
-        l = sprintf(pTextBuf, fmt, *pDataBuf++);
-        pTextBuf += l;
+        l = sprintf(p, "%02X", *databuf++);
+        p += l;
 
         if (((i % 2) == 1) && (i != (len-1)))
         {
-            l = sprintf(pTextBuf, "-");
-            pTextBuf += l;
+            l = sprintf(p, "-");
+            p += l;
         }
     }
 
-    return strlen(pTextBuf);
+    return strlen(textbuf);
 }
 
 //*****************************************************************************
