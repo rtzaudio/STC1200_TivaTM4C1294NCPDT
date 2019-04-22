@@ -244,13 +244,11 @@ void Hardware_init()
 #endif
 
     /* Initialize the SD drive for operation */
-#if 1
     SDSPI_Params_init(&params);
     handle = SDSPI_open(Board_SPI_SDCARD, 0, &params);
     if (handle == NULL) {
         System_abort("Failed to open SDSPI!");
     }
-#endif
 }
 
 //*****************************************************************************
@@ -337,6 +335,7 @@ void InitSysDefaults(SYSPARMS* p)
 {
     /* default servo parameters */
     p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    p->build        = FIRMWARE_BUILD;
     p->debug        = 0;        /* debug mode 0=off                 */
     p->searchBlink  = TRUE;
     p->showLongTime = FALSE;
@@ -393,6 +392,18 @@ int SysParamsRead(SYSPARMS* sp)
     if (sp->version != MAKEREV(FIRMWARE_VER, FIRMWARE_REV))
     {
         System_printf("WARNING New Firmware Version - Using Defaults...\n");
+        System_flush();
+
+        InitSysDefaults(sp);
+
+        SysParamsWrite(sp);
+
+        return -1;
+    }
+
+    if (sp->build < FIRMWARE_MIN_BUILD)
+    {
+        System_printf("WARNING New Firmware BUILD - Resetting Defaults...\n");
         System_flush();
 
         InitSysDefaults(sp);

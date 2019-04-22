@@ -108,14 +108,23 @@ Void RemoveWebFiles(Void)
 int GetHexStr(char* textbuf, uint8_t* databuf, int len)
 {
     char *p = textbuf;
+    uint8_t *d;
     uint32_t i;
     int32_t l;
 
+    /* Null output text buffer initially */
     *textbuf = 0;
+
+    /* Make sure buffer length is not zero */
+    if (!len)
+        return 0;
+
+    /* Read data bytes in reverse order so we print most significant byte first */
+    d = databuf + (len-1);
 
     for (i=0; i < len; i++)
     {
-        l = sprintf(p, "%02X", *databuf++);
+        l = sprintf(p, "%02X", *d--);
         p += l;
 
         if (((i % 2) == 1) && (i != (len-1)))
@@ -128,20 +137,18 @@ int GetHexStr(char* textbuf, uint8_t* databuf, int len)
     return strlen(textbuf);
 }
 
+
 //*****************************************************************************
 // CGI Callback Functions
 //*****************************************************************************
 
 Int sendIndexHtml(SOCKET s, int length)
 {
-    int l;
     Char buf[128];
-    Char serial_l[32];
-    Char serial_h[32];
+    Char serialnum[64];
 
     /*  Format the 64 bit GUID as a string */
-    l = GetHexStr(serial_l, &g_sysData.ui8SerialNumber[0], 8);
-    l = GetHexStr(serial_h, &g_sysData.ui8SerialNumber[8], 8);
+    GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
 
     //httpSendClientStr(s, "<!DOCTYPE html>");
     httpSendClientStr(s, "<html>");
@@ -161,7 +168,9 @@ Int sendIndexHtml(SOCKET s, int length)
     httpSendClientStr(s, "    <h1 class=""font-x2 btmspace-10"">MM1200 Server</h1>");
     System_sprintf(buf,  "    <p>STC Firmware v%d.%02d</p>", FIRMWARE_VER, FIRMWARE_REV);
     httpSendClientStr(s, buf);
-    System_sprintf(buf,  "    <p>Serial# %s-%s</p>", serial_h, serial_l);
+    System_sprintf(buf,  "    <p>Serial# %s</p>", serialnum);
+    httpSendClientStr(s, buf);
+    System_sprintf(buf,  "    <p>Tape Speed %dips</p>", g_sysData.tapeSpeed);
     httpSendClientStr(s, buf);
     httpSendClientStr(s, "  </div>");
     httpSendClientStr(s, "</body>");
