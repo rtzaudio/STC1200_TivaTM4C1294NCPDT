@@ -89,6 +89,10 @@
 #include "STC1200.h"
 #include "STC1200_TcpMessage.h"
 
+/* Global STC-1200 System data */
+extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
+
 #define TCPPACKETSIZE   256
 #define NUMTCPWORKERS   3
 
@@ -99,6 +103,8 @@
 #else
 #define TCPHANDLERSTACK 1024
 #endif
+
+extern void NtIPN2Str(uint32_t IPAddr, char *str);
 
 /* Prototypes */
 Void tcpHandler(UArg arg0, UArg arg1);
@@ -143,7 +149,12 @@ void netOpenHook(void)
 
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 {
-    System_printf("netIPUpdate() %d hook!\n", fAdd);
+    if (fAdd)
+        NtIPN2Str(IPAddr, g_sysData.ipAddr);
+    else
+        NtIPN2Str(0, g_sysData.ipAddr);
+
+    System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
 }
 
 //*****************************************************************************

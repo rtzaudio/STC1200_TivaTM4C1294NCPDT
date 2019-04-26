@@ -353,6 +353,7 @@ int SysParamsWrite(SYSPARMS* sp)
     int32_t rc = 0;
 
     sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    sp->build   = FIRMWARE_BUILD;
     sp->magic   = MAGIC;
 
     rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSPARMS));

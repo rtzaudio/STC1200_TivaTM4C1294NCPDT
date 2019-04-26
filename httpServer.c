@@ -68,6 +68,10 @@
 
 /* TI-RTOS NDK files */
 #include <ti/ndk/inc/netmain.h>
+#include <ti/ndk/inc/stkmain.h>
+#include <ti/ndk/inc/tools/cgiparse.h>
+#include <ti/ndk/inc/tools/cgiparsem.h>
+#include <ti/ndk/inc/tools/console.h>
 
 #include <file.h>
 #include <stdio.h>
@@ -86,6 +90,9 @@ extern SYSPARMS g_sysParms;
 
 static int GetHexStr(char* textbuf, uint8_t* databuf, int len);
 static Int sendIndexHtml(SOCKET s, int length);
+
+/* Get string of our IP address */
+//NtIPN2Str(ipAddr, g_sysData.szIPAddr);
 
 //*****************************************************************************
 // Main Entry Point
@@ -137,7 +144,6 @@ int GetHexStr(char* textbuf, uint8_t* databuf, int len)
     return strlen(textbuf);
 }
 
-
 //*****************************************************************************
 // CGI Callback Functions
 //*****************************************************************************
@@ -150,31 +156,50 @@ Int sendIndexHtml(SOCKET s, int length)
     /*  Format the 64 bit GUID as a string */
     GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
 
-    //httpSendClientStr(s, "<!DOCTYPE html>");
-    httpSendClientStr(s, "<html>");
-    httpSendClientStr(s, "<title>STC-1200 | home</title>");
-    httpSendClientStr(s, "<meta charset=""utf-8"">");
-    httpSendClientStr(s, "<head>");
-    httpSendClientStr(s, "<meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">");
-    httpSendClientStr(s, "<link rel=""stylesheet"" type=""text/css"" href=""css/style.css"">");
-    httpSendClientStr(s, "</head>");
-    httpSendClientStr(s, "<body>");
-    httpSendClientStr(s, "  <ul class=""sidenav"">");
-    httpSendClientStr(s, "    <li><a class=""active"" href=""index.html"">HOME</a></li>");
-    httpSendClientStr(s, "    <li><a href=""config.html"">CONFIG</a></li>");
-    httpSendClientStr(s, "    <li><a href=""remote.html"">REMOTE</a></li>");
-    httpSendClientStr(s, "  </ul>");
-    httpSendClientStr(s, "  <div class=""content"">");
-    httpSendClientStr(s, "    <h1 class=""font-x2 btmspace-10"">MM1200 Server</h1>");
-    System_sprintf(buf,  "    <p>STC Firmware v%d.%02d</p>", FIRMWARE_VER, FIRMWARE_REV);
+    httpSendClientStr(s, "<!DOCTYPE html>\r\n");
+    httpSendClientStr(s, "<html>\r\n");
+    httpSendClientStr(s, "<title>STC-1200 | home</title>\r\n");
+    httpSendClientStr(s, "<meta charset=\"utf-8\">\r\n");
+    httpSendClientStr(s, "<head>\r\n");
+    httpSendClientStr(s, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
+    httpSendClientStr(s, "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
+    httpSendClientStr(s, "</head>\r\n");
+    httpSendClientStr(s, "<body>\r\n");
+    httpSendClientStr(s, "<div class=\"container wrapper\">\r\n");
+    httpSendClientStr(s, "  <div id=\"top\">\r\n");
+    httpSendClientStr(s, "    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
+    httpSendClientStr(s, "    <h1>STC-1200</h1>\r\n");
+    httpSendClientStr(s, "    <p>Tape Machine Services</p>\r\n");
+    httpSendClientStr(s, "  </div>\r\n");
+    httpSendClientStr(s, "  <div class=\"wrapper\">\r\n");
+    httpSendClientStr(s, "    <div id=\"menubar\">\r\n");
+    httpSendClientStr(s, "      <ul id=\"menulist\">\r\n");
+    httpSendClientStr(s, "        <li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    httpSendClientStr(s, "        <li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    httpSendClientStr(s, "        <li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    httpSendClientStr(s, "      </ul>\r\n");
+    httpSendClientStr(s, "    </div>\r\n");
+    httpSendClientStr(s, "    <div id=\"main\">\r\n");
+    System_sprintf(buf,  "    <h2>STC Firmware v%d.%02d.%03d</h2>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     httpSendClientStr(s, buf);
-    System_sprintf(buf,  "    <p>Serial# %s</p>", serialnum);
+    System_sprintf(buf,  "    <p>Welcome the STC-1200 administration page!</p>\r\n");
     httpSendClientStr(s, buf);
-    System_sprintf(buf,  "    <p>Tape Speed %dips</p>", g_sysData.tapeSpeed);
+    System_sprintf(buf,  "    <p>Serial#: %s</p>\r\n", serialnum);
     httpSendClientStr(s, buf);
-    httpSendClientStr(s, "  </div>");
-    httpSendClientStr(s, "</body>");
-    httpSendClientStr(s, "</html>");
+    System_sprintf(buf,  "    <p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
+    httpSendClientStr(s, buf);
+    System_sprintf(buf,  "    <p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
+    httpSendClientStr(s, buf);
+    System_sprintf(buf,  "    <p>Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
+    httpSendClientStr(s, buf);
+    httpSendClientStr(s, "    </div>\r\n");
+    httpSendClientStr(s, "  </div>\r\n");
+    httpSendClientStr(s, "  <div id=\"bottom\">\r\n");
+    httpSendClientStr(s, "    <p>Copyright &copy; 2019, RTZ Professional Audio, LLC</p>\r\n");
+    httpSendClientStr(s, "  </div>\r\n");
+    httpSendClientStr(s, "</div>\r\n");
+    httpSendClientStr(s, "</body>\r\n");
+    httpSendClientStr(s, "</html>\r\n");
     return 1;
 }
 

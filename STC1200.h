@@ -49,6 +49,7 @@
 typedef struct _SYSDATA
 {
     uint8_t		ui8SerialNumber[16];		/* unique serial number       */
+    char        ipAddr[32];                 /* IP address from DHCP       */
     uint32_t    ledMaskButton;              /* DRC remote button LED mask */
     /* Items below are updated from DTC notifications */
     uint32_t    ledMaskTransport;           /* current transport LED mask */
