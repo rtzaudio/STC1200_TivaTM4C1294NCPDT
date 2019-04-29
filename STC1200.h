@@ -29,7 +29,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        2           /* firmware revision */
+#define FIRMWARE_REV        3           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -39,6 +39,21 @@
 
 #define MAGIC               0xCEB0FACE  /* magic number for EEPROM data */
 #define MAKEREV(v, r)       ((v << 16) | (r & 0xFFFF))
+
+//*****************************************************************************
+// SYSTEM RUN-TIME CONFIG PARAMETERS STORED IN EPROM
+//*****************************************************************************
+
+typedef struct _SYSPARMS
+{
+    uint32_t    magic;
+    uint32_t    version;
+    uint32_t    build;
+    /*** GLOBAL PARAMETERS ***/
+    bool        searchBlink;                /* blink 7-seg during search */
+    bool        showLongTime;
+    uint32_t    debug;                      /* debug level */
+} SYSPARMS;
 
 //*****************************************************************************
 // GLOBAL SHARED MEMORY & REAL-TIME DATA
@@ -83,21 +98,6 @@ typedef struct _SYSDATA
 } SYSDATA;
 
 //*****************************************************************************
-// SYSTEM RUN-TIME CONFIG PARAMETERS STORED IN EPROM
-//*****************************************************************************
-
-typedef struct _SYSPARMS
-{
-    uint32_t    magic;
-    uint32_t    version;
-    uint32_t    build;
-    /*** GLOBAL PARAMETERS ***/
-    bool        searchBlink;                /* blink 7-seg during search */
-    bool        showLongTime;
-    uint32_t    debug;                     	/* debug level */
-} SYSPARMS;
-
-//*****************************************************************************
 // Task Command Message Structure
 //*****************************************************************************
 
@@ -121,5 +121,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1);
 void InitSysDefaults(SYSPARMS* p);
 int SysParamsRead(SYSPARMS* sp);
 int SysParamsWrite(SYSPARMS* sp);
+int GetHexStr(char* textbuf, uint8_t* databuf, int len);
 
 #endif /* __STC1200_H */

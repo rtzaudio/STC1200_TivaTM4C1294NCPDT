@@ -641,4 +641,40 @@ void gpioButtonStopHwi(unsigned int index)
     Hwi_restore(key);
 }
 
+//*****************************************************************************
+// Helper Functions
+//*****************************************************************************
+
+int GetHexStr(char* textbuf, uint8_t* databuf, int len)
+{
+    char *p = textbuf;
+    uint8_t *d;
+    uint32_t i;
+    int32_t l;
+
+    /* Null output text buffer initially */
+    *textbuf = 0;
+
+    /* Make sure buffer length is not zero */
+    if (!len)
+        return 0;
+
+    /* Read data bytes in reverse order so we print most significant byte first */
+    d = databuf + (len-1);
+
+    for (i=0; i < len; i++)
+    {
+        l = sprintf(p, "%02X", *d--);
+        p += l;
+
+        if (((i % 2) == 1) && (i != (len-1)))
+        {
+            l = sprintf(p, "-");
+            p += l;
+        }
+    }
+
+    return strlen(textbuf);
+}
+
 // End-Of-File

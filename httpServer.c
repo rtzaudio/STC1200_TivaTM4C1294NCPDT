@@ -87,12 +87,11 @@ extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
 /* Static CGI callback functions */
+static Int sendIndexHtml(SOCKET htmlSock, int length);
+static Int sendConfigHtml(SOCKET htmlSock, int length);
+static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs);
 
-static int GetHexStr(char* textbuf, uint8_t* databuf, int len);
-static Int sendIndexHtml(SOCKET s, int length);
-
-/* Get string of our IP address */
-//NtIPN2Str(ipAddr, g_sysData.szIPAddr);
+#define html(str) httpSendClientStr(htmlSock, (char *)str)
 
 //*****************************************************************************
 // Main Entry Point
@@ -101,106 +100,191 @@ static Int sendIndexHtml(SOCKET s, int length);
 Void AddWebFiles(Void)
 {
     efs_createfile("index.html", 0, (UINT8 *)&sendIndexHtml);
+    efs_createfile("config.html", 0, (UINT8 *)&sendConfigHtml);
+    efs_createfile("config.cgi", 0, (UINT8 *)&cgiConfig);
 }
 
 Void RemoveWebFiles(Void)
 {
+    efs_destroyfile("config.cgi");
+    efs_destroyfile("config.html");
     efs_destroyfile("index.html");
-}
-
-//*****************************************************************************
-// Helper Functions
-//*****************************************************************************
-
-int GetHexStr(char* textbuf, uint8_t* databuf, int len)
-{
-    char *p = textbuf;
-    uint8_t *d;
-    uint32_t i;
-    int32_t l;
-
-    /* Null output text buffer initially */
-    *textbuf = 0;
-
-    /* Make sure buffer length is not zero */
-    if (!len)
-        return 0;
-
-    /* Read data bytes in reverse order so we print most significant byte first */
-    d = databuf + (len-1);
-
-    for (i=0; i < len; i++)
-    {
-        l = sprintf(p, "%02X", *d--);
-        p += l;
-
-        if (((i % 2) == 1) && (i != (len-1)))
-        {
-            l = sprintf(p, "-");
-            p += l;
-        }
-    }
-
-    return strlen(textbuf);
 }
 
 //*****************************************************************************
 // CGI Callback Functions
 //*****************************************************************************
 
-Int sendIndexHtml(SOCKET s, int length)
+static Int sendIndexHtml(SOCKET htmlSock, int length)
 {
-    Char buf[128];
+    Char buf[MAX_RESPONSE_SIZE];
     Char serialnum[64];
 
     /*  Format the 64 bit GUID as a string */
     GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
 
-    httpSendClientStr(s, "<!DOCTYPE html>\r\n");
-    httpSendClientStr(s, "<html>\r\n");
-    httpSendClientStr(s, "<title>STC-1200 | home</title>\r\n");
-    httpSendClientStr(s, "<meta charset=\"utf-8\">\r\n");
-    httpSendClientStr(s, "<head>\r\n");
-    httpSendClientStr(s, "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
-    httpSendClientStr(s, "<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
-    httpSendClientStr(s, "</head>\r\n");
-    httpSendClientStr(s, "<body>\r\n");
-    httpSendClientStr(s, "<div class=\"container wrapper\">\r\n");
-    httpSendClientStr(s, "  <div id=\"top\">\r\n");
-    httpSendClientStr(s, "    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
-    httpSendClientStr(s, "    <h1>STC-1200</h1>\r\n");
-    httpSendClientStr(s, "    <p>Tape Machine Services</p>\r\n");
-    httpSendClientStr(s, "  </div>\r\n");
-    httpSendClientStr(s, "  <div class=\"wrapper\">\r\n");
-    httpSendClientStr(s, "    <div id=\"menubar\">\r\n");
-    httpSendClientStr(s, "      <ul id=\"menulist\">\r\n");
-    httpSendClientStr(s, "        <li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    httpSendClientStr(s, "        <li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    httpSendClientStr(s, "        <li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    httpSendClientStr(s, "      </ul>\r\n");
-    httpSendClientStr(s, "    </div>\r\n");
-    httpSendClientStr(s, "    <div id=\"main\">\r\n");
-    System_sprintf(buf,  "    <h2>STC Firmware v%d.%02d.%03d</h2>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    httpSendClientStr(s, buf);
-    System_sprintf(buf,  "    <p>Welcome the STC-1200 administration page!</p>\r\n");
-    httpSendClientStr(s, buf);
-    System_sprintf(buf,  "    <p>Serial#: %s</p>\r\n", serialnum);
-    httpSendClientStr(s, buf);
+    html("<!DOCTYPE html>\r\n");
+    html("<html>\r\n");
+    html("<title>STC-1200 | home</title>\r\n");
+    html("<meta charset=\"utf-8\">\r\n");
+    html("<head>\r\n");
+    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
+    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
+    html("</head>\r\n");
+    html("<body>\r\n");
+    html("<div class=\"container wrapper\">\r\n");
+    html("  <div id=\"top\">\r\n");
+    html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
+    html("    <h1>STC-1200</h1>\r\n");
+    html("    <p>Tape Machine Services</p>\r\n");
+    html("  </div>\r\n");
+    html("  <div class=\"wrapper\">\r\n");
+    html("    <div id=\"menubar\">\r\n");
+    html("      <ul id=\"menulist\">\r\n");
+    html("        <li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("        <li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("        <li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("      </ul>\r\n");
+    html("    </div>\r\n");
+    html("    <div id=\"main\">\r\n");
+    System_sprintf(buf,  "    <p>Firmware Version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    html(buf);
+    System_sprintf(buf,  "    <p>PCB Serial#: %s</p>\r\n", serialnum);
+    html(buf);
     System_sprintf(buf,  "    <p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
-    httpSendClientStr(s, buf);
+    html(buf);
     System_sprintf(buf,  "    <p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
-    httpSendClientStr(s, buf);
+    html(buf);
     System_sprintf(buf,  "    <p>Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
-    httpSendClientStr(s, buf);
-    httpSendClientStr(s, "    </div>\r\n");
-    httpSendClientStr(s, "  </div>\r\n");
-    httpSendClientStr(s, "  <div id=\"bottom\">\r\n");
-    httpSendClientStr(s, "    <p>Copyright &copy; 2019, RTZ Professional Audio, LLC</p>\r\n");
-    httpSendClientStr(s, "  </div>\r\n");
-    httpSendClientStr(s, "</div>\r\n");
-    httpSendClientStr(s, "</body>\r\n");
-    httpSendClientStr(s, "</html>\r\n");
+    html(buf);
+    html("    </div>\r\n");
+    html("  </div>\r\n");
+    html("  <div id=\"bottom\">\r\n");
+    html("    Copyright &copy; 2019, RTZ Professional Audio, LLC\r\n");
+    html("  </div>\r\n");
+    html("</div>\r\n");
+    html("</body>\r\n");
+    html("</html>\r\n");
+
     return 1;
+}
+
+static Int sendConfigHtml(SOCKET htmlSock, int length)
+{
+    Char buf[MAX_RESPONSE_SIZE];
+
+    html("<!DOCTYPE html>\r\n");
+    html("<html>\r\n");
+    html("<title>STC-1200 | config</title>\r\n");
+    html("<meta charset=\"utf-8\">\r\n");
+    html("<head>\r\n");
+    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
+    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
+    html("</head>\r\n");
+    html("<body>\r\n");
+    html("<div class=\"container wrapper\">\r\n");
+    html("  <div id=\"top\">\r\n");
+    html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
+    html("    <h1>STC-1200</h1>\r\n");
+    html("    <p>Tape Machine Services</p>\r\n");
+    html("  </div>\r\n");
+    html("  <div class=\"wrapper\">\r\n");
+    html("    <div id=\"menubar\">\r\n");
+    html("      <ul id=\"menulist\">\r\n");
+    html("        <li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("        <li class=\"menuitem active\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("        <li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("      </ul>\r\n");
+    html("    </div>\r\n");
+    html("    <div id=\"main\">\r\n");
+    html("      <p class=\"bold\">General Settings</p>\r\n");
+    html("      <form action=\"config.cgi\" method=\"post\">\r\n");
+    System_sprintf(buf, "        <input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
+                       g_sysParms.showLongTime ? "checked" : "");
+    html(buf);
+    html("        <br />\r\n");
+    System_sprintf(buf, "        <input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
+                   g_sysParms.searchBlink ? "checked" : "");
+    html(buf);
+    html("        <br /><br />\r\n");
+    html("        <input type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
+    html("        <input type=\"reset\" reset=\"submit\" value=\"Reset\">\r\n");
+    html("      </form>\r\n");
+    html("    </div>\r\n");
+    html("  </div>\r\n");
+    html("  <div id=\"bottom\">\r\n");
+    html("    Copyright &copy; 2019, RTZ Professional Audio, LLC\r\n");
+    html("  </div>\r\n");
+    html("</div>\r\n");
+    html("</body>\r\n");
+    html("</html>\r\n");
+
+    return 1;
+}
+
+//*****************************************************************************
+// CGI Handler Functions
+//*****************************************************************************
+
+// This function processes the sample CGI from off the config
+// page on the HTTP server.
+//
+// CGI Functions must return 1 if the socket is left open,
+// and zero if the socket is closed. This example always
+// returns 1.
+//
+static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
+{
+    char    *buffer, *key, *value;
+    int     len;
+    int     parseIndex;
+
+    // CGI Functions can now support URI arguments as well if the
+    // pArgs pointer is not NULL, and the ContentLength were zero,
+    // we could parse the arguments off of pArgs instead.
+
+    // First, allocate a buffer for the request
+    buffer = (char*) mmBulkAlloc( ContentLength );
+    if ( !buffer )
+        goto ERROR;
+
+    // Now read the data from the client
+    len = recv( htmlSock, buffer, ContentLength, MSG_WAITALL );
+    if ( len < 1 )
+        goto ERROR;
+
+    // Setup to parse the post data
+    parseIndex = 0;
+    buffer[ContentLength] = '\0';
+
+    g_sysParms.showLongTime = false;
+    g_sysParms.searchBlink  = false;
+
+    // Process request variables until there are none left
+    do
+    {
+        key   = cgiParseVars(buffer, &parseIndex);
+        value = cgiParseVars(buffer, &parseIndex);
+
+        if( !strcmp("longtime", key) )
+            g_sysParms.showLongTime = (strcmp(value, "yes") == 0) ? true : false;
+        else if( !strcmp("blink", key) )
+            g_sysParms.searchBlink = (strcmp(value, "yes") == 0) ? true : false;
+    } while ( parseIndex != -1 );
+
+    // Output the data we read in...
+    httpSendStatusLine(htmlSock, HTTP_OK, CONTENT_TYPE_HTML);
+    // CRLF before entity
+    html( CRLF );
+
+    // Send the updated page
+    sendConfigHtml(htmlSock, 0);
+
+ERROR:
+    if( buffer )
+        mmBulkFree( buffer );
+
+    return( 1 );
 }
 
 /* End-Of-File */

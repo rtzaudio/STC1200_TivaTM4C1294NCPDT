@@ -88,7 +88,6 @@ static void DrawTimeTop(void);
 static void DrawTimeMiddle(void);
 static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
-static int GetHexStr(char* pTextBuf, uint8_t* pDataBuf, int len);
 
 /* External Global Data */
 extern tContext g_context;
@@ -101,33 +100,6 @@ extern tFont *g_psFontWDseg7bold12pt;
 extern tFont *g_psFontWDseg7bold10pt;
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
-
-//*****************************************************************************
-// Format a data buffer into an ascii hex string.
-//*****************************************************************************
-
-int GetHexStr(char* textbuf, uint8_t* databuf, int len)
-{
-    char *p = textbuf;
-    uint32_t i;
-    int32_t l;
-
-    *textbuf = 0;
-
-    for (i=0; i < len; i++)
-    {
-        l = sprintf(p, "%02X", *databuf++);
-        p += l;
-
-        if (((i % 2) == 1) && (i != (len-1)))
-        {
-            l = sprintf(p, "-");
-            p += l;
-        }
-    }
-
-    return strlen(textbuf);
-}
 
 //*****************************************************************************
 //
@@ -176,28 +148,38 @@ void DrawScreen(uint32_t uScreenNum)
 
 void DrawMenu(void)
 {
-    int len;
     char buf[64];
+    int32_t x, y;
+    int32_t len;
+    //int32_t width;
+    int32_t height;
 
     /* Set foreground pixel color on to 0x01 */
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    /* Setup font */
-    uint32_t y = 4;
-    uint32_t height;
-
     /* Use fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
+    x = SCREEN_WIDTH/2;
+    y = height;
+
     len = sprintf(buf, "MENU");
-    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-    y += (height/2) + 4;
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+
+    y = SCREEN_HEIGHT - height - 1;
+
+    /* Display the IP address */
+    if (strlen(g_sysData.ipAddr) == 0)
+        len = sprintf(buf, "IP: (none)");
+    else
+        len = sprintf(buf, "IP:%s", g_sysData.ipAddr);
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
 }
 
 //*****************************************************************************
-// Draw the welome screen with version info
+// Draw the welcome screen with version info
 //*****************************************************************************
 
 void DrawAbout(void)
@@ -229,19 +211,13 @@ void DrawAbout(void)
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
-    sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
-    GrStringDraw(&g_context, buf, -1, 25, y, 0);
+    len = sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
+    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
     y += height + spacing + 4;
 
     /* Get the serial number string and display it */
-
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[0], 8);
-    GrStringDraw(&g_context, buf, -1, 8, y, 0);
-    y += height + spacing;
-
-    GetHexStr(buf, &g_sysData.ui8SerialNumber[8], 8);
-    GrStringDraw(&g_context, buf, -1, 8, y, 0);
-    y += height + spacing;
+    GetHexStr(buf, g_sysData.ui8SerialNumber, 16);
+    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
 }
 
 //*****************************************************************************

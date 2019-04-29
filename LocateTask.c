@@ -98,7 +98,15 @@
 /* Local Constants */
 
 #define IPC_TIMEOUT         1000
+
 #define BUTTON_PULSE_TIME   50
+
+/* Locator velocities for various distances from the locate point */
+#define JOG_VEL_FAR         0       /* 0 = use DTC default shuttle velocity */
+#define JOG_VEL_MID         500     /* velocity for mid distance from locate point */
+#define JOG_VEL_NEAR        240     /* velocity for near distance from locate point */
+
+#define SHUTTLE_SLOW_VEL    260     /* slow velocity to use for locates */
 
 /* External Data Items */
 
@@ -300,12 +308,6 @@ typedef enum _LocateState {
     LOCATE_ZERO_CROSS,
     LOCATE_COMPLETE,
 } LocateState;
-
-#define JOG_SLOW_VEL    260
-
-#define JOG_VEL_FAR     0       /* 0 = use DTC default high speed shuttle velocity */
-#define JOG_VEL_MID     500
-#define JOG_VEL_NEAR    240
 
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
@@ -551,9 +553,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                     /* Begin low speed shuttle */
                     if (dir == DIR_FWD)
-                        Transport_Fwd(JOG_SLOW_VEL, M_NOSLOW);
+                        Transport_Fwd(SHUTTLE_SLOW_VEL, M_NOSLOW);
                     else
-                        Transport_Rew(JOG_SLOW_VEL, M_NOSLOW);
+                        Transport_Rew(SHUTTLE_SLOW_VEL, M_NOSLOW);
 
                     state = LOCATE_ZERO_CROSS;
                 }
@@ -572,9 +574,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                 /* Begin low speed shuttle */
                 if (dir == DIR_FWD)
-                    Transport_Fwd(JOG_SLOW_VEL, M_NOSLOW);
+                    Transport_Fwd(SHUTTLE_SLOW_VEL, M_NOSLOW);
                 else
-                    Transport_Rew(JOG_SLOW_VEL, M_NOSLOW);
+                    Transport_Rew(SHUTTLE_SLOW_VEL, M_NOSLOW);
 
                 /* Next look for zero cross */
                 state = LOCATE_ZERO_CROSS;
@@ -720,7 +722,6 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     CLI_printf("AUTO-PLAY\n");
                     Transport_Play(0);
-
                 }
 	        }
 	    }
