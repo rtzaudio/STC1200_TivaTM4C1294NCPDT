@@ -436,10 +436,11 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     	System_flush();
     }
 
-    /* Load system config from EPROM */
-    //SysParamsRead(&g_sysParms);
-    /* FIX */
+    /* Set default system parameters */
     InitSysDefaults(&g_sysParms);
+
+    /* FIX: Attempt to load system config from EPROM */
+    //SysParamsRead(&g_sysParms);
 
     /* Initialize the command line serial debug console port */
     CLI_init();
