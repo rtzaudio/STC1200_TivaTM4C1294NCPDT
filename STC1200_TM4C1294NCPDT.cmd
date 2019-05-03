@@ -72,7 +72,6 @@ SECTIONS
     .TI.ramfunc : {} load=FLASH, run=SRAM, table(BINIT)
 #endif
 #endif
-    /*.boot : {__boot_end__ = 0x00001000; . = __boot_end__; } > BOOT */
     .const  :   > FLASH
     .cinit  :   > FLASH
     .pinit  :   > FLASH
