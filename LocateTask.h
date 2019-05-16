@@ -13,6 +13,14 @@
 #ifndef _LOCATETASK_H_
 #define _LOCATETASK_H_
 
+/* Locator velocities for various distances from the locate point */
+
+#define JOG_VEL_FAR         0       /* 0 = use DTC default shuttle velocity */
+#define JOG_VEL_MID         500     /* velocity for mid distance from locate point */
+#define JOG_VEL_NEAR        240     /* velocity for near distance from locate point */
+
+#define SHUTTLE_SLOW_VEL    240     /* slow velocity to use for locates */
+
 /*** CUE POINT DATA STRUCTURE **********************************************/
 
 /* Cue Point Memory Table Structure */

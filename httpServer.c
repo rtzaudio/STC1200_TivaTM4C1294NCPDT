@@ -197,8 +197,8 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("      </ul>\r\n");
     html("    </div>\r\n");
     html("    <div id=\"main\">\r\n");
-    html("      <p class=\"bold\">General Settings</p>\r\n");
     html("      <form action=\"config.cgi\" method=\"post\">\r\n");
+    html("        <p class=\"bold\">General Settings</p>\r\n");
     System_sprintf(buf, "        <input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
                        g_sysParms.showLongTime ? "checked" : "");
     html(buf);
@@ -206,7 +206,18 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "        <input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
                    g_sysParms.searchBlink ? "checked" : "");
     html(buf);
-    html("        <br /><br />\r\n");
+    html("        <p class=\"bold\">Locator Settings</p>\r\n");
+
+    System_sprintf(buf, "         Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_near);
+    html(buf);
+
+    System_sprintf(buf, "         Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_mid);
+    html(buf);
+
+    System_sprintf(buf, "         Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_far);
+    html(buf);
+
+    html("        <br />\r\n");
     html("        <input type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
     html("        <input type=\"reset\" reset=\"submit\" value=\"Reset\">\r\n");
     html("      </form>\r\n");
@@ -238,6 +249,7 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
     char    *buffer, *key, *value;
     int     len;
     int     parseIndex;
+    int     val;
 
     // CGI Functions can now support URI arguments as well if the
     // pArgs pointer is not NULL, and the ContentLength were zero,
@@ -266,25 +278,46 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
         key   = cgiParseVars(buffer, &parseIndex);
         value = cgiParseVars(buffer, &parseIndex);
 
-        if( !strcmp("longtime", key) )
+        if (!strcmp("longtime", key))
             g_sysParms.showLongTime = (strcmp(value, "yes") == 0) ? true : false;
-        else if( !strcmp("blink", key) )
+        else if (!strcmp("blink", key))
             g_sysParms.searchBlink = (strcmp(value, "yes") == 0) ? true : false;
-    } while ( parseIndex != -1 );
+        else if (!strcmp("jognear", key))
+        {
+            val = atoi(value);
+            if ((val >= 0) && (val <= 300))
+                g_sysParms.jog_vel_near = (uint32_t)val;
+        }
+        else if (!strcmp("jogmid", key))
+        {
+            val = atoi(value);
+            if ((val >= 0) && (val <= 500))
+                g_sysParms.jog_vel_mid = (uint32_t)val;
+        }
+        else if (!strcmp("jogfar", key))
+        {
+            val = atoi(value);
+            if ((val >= 0) && (val <= 1100))
+                g_sysParms.jog_vel_far = (uint32_t)val;
+        }
+    } while(parseIndex != -1);
 
     // Output the data we read in...
     httpSendStatusLine(htmlSock, HTTP_OK, CONTENT_TYPE_HTML);
     // CRLF before entity
-    html( CRLF );
+    html(CRLF);
+
+    /* Write system parameters to EPROM */
+    SysParamsWrite(&g_sysParms);
 
     // Send the updated page
     sendConfigHtml(htmlSock, 0);
 
 ERROR:
-    if( buffer )
-        mmBulkFree( buffer );
+    if (buffer)
+        mmBulkFree(buffer);
 
-    return( 1 );
+    return 1;
 }
 
 /* End-Of-File */

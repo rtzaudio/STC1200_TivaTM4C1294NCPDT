@@ -333,18 +333,24 @@ int ReadSerialNumber(uint8_t ui8SerialNumber[16])
 
 void InitSysDefaults(SYSPARMS* p)
 {
-    /* default servo parameters */
+    /** Default servo parameters **/
     p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     p->build        = FIRMWARE_BUILD;
-    p->debug        = 0;        /* debug mode 0=off                 */
+    p->debug        = 0;                    /* debug mode 0=off             */
     p->searchBlink  = TRUE;
+    /** Remote Parameters **/
     p->showLongTime = FALSE;
+    /** Locator Parameters **/
+    p->jog_vel_far  = JOG_VEL_FAR;          /* 0 for DTC default velocity   */
+    p->jog_vel_mid  = JOG_VEL_MID;          /* vel for mid distance locate  */
+    p->jog_vel_near = JOG_VEL_NEAR;         /* vel for near distance locate */
+
 }
 
 //*****************************************************************************
 // Write system parameters from our global settings buffer to EEPROM.
 //
-// Returns:  0 = Sucess
+// Returns:  0 = Success
 //          -1 = Error writing EEPROM data
 //*****************************************************************************
 
@@ -352,10 +358,12 @@ int SysParamsWrite(SYSPARMS* sp)
 {
     int32_t rc = 0;
 
+    /* Initialize the version, build# and magic# */
     sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     sp->build   = FIRMWARE_BUILD;
     sp->magic   = MAGIC;
 
+    /* Store the configuration parameters to EPROM */
     rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSPARMS));
 
     System_printf("Writing System Parameters %d\n", rc);
@@ -376,8 +384,12 @@ int SysParamsRead(SYSPARMS* sp)
 {
     InitSysDefaults(sp);
 
+    /* Read the configuration parameters from EPROM */
     EEPROMRead((uint32_t *)sp, 0, sizeof(SYSPARMS));
 
+    /* Does the magic number match? If not, set defaults and
+     * store to initialize the system default parameters.
+     */
     if (sp->magic != MAGIC)
     {
         System_printf("ERROR Reading System Parameters - Using Defaults...\n");
@@ -390,6 +402,9 @@ int SysParamsRead(SYSPARMS* sp)
         return -1;
     }
 
+    /* If firmware is different version, the reset system defaults
+     * and store as system default parameters.
+     */
     if (sp->version != MAKEREV(FIRMWARE_VER, FIRMWARE_REV))
     {
         System_printf("WARNING New Firmware Version - Using Defaults...\n");
@@ -402,6 +417,10 @@ int SysParamsRead(SYSPARMS* sp)
         return -1;
     }
 
+    /* If stored build number is less that minimum build number required,
+     * then reset and store system defaults. This is to avoid loading old
+     * configuration parameters store from an earlier build version.
+     */
     if (sp->build < FIRMWARE_MIN_BUILD)
     {
         System_printf("WARNING New Firmware BUILD - Resetting Defaults...\n");
@@ -439,8 +458,8 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Set default system parameters */
     InitSysDefaults(&g_sysParms);
 
-    /* FIX: Attempt to load system config from EPROM */
-    //SysParamsRead(&g_sysParms);
+    /* Load system configuration from EPROM */
+    SysParamsRead(&g_sysParms);
 
     /* Initialize the command line serial debug console port */
     CLI_init();
@@ -491,7 +510,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Blink LED fast when search in progress */
-        timeout =  (g_sysData.searching) ? 250 : 1000;
+        timeout =  (g_sysData.searching) ? 100 : 1000;
 
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxCommand, &msgCmd, timeout))

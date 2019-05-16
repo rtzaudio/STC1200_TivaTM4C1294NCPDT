@@ -174,7 +174,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     IPC_MSG ipc;
     RAMP_MSG msg;
 
-    g_sysData.currentMemIndex = 0;
+    g_sysData.cueIndex = 0;
 
     g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
 
@@ -355,7 +355,7 @@ void HandleJogwheelPress(uint32_t flags)
 {
     uint32_t cue_flags = 0;
 
-    size_t index = g_sysData.currentMemIndex;
+    size_t index = g_sysData.cueIndex;
 
     switch (g_sysData.remoteMode)
     {
@@ -435,7 +435,7 @@ void HandleSetMode(uint32_t mode)
             break;
         }
 
-        SetLocateButtonLED(g_sysData.currentMemIndex);
+        SetLocateButtonLED(g_sysData.cueIndex);
     }
     else
     {
@@ -481,7 +481,7 @@ void HandleSetMode(uint32_t mode)
             break;
         }
 
-        SetLocateButtonLED(g_sysData.currentMemIndex);
+        SetLocateButtonLED(g_sysData.cueIndex);
     }
 }
 
@@ -502,7 +502,7 @@ void HandleDigitPress(size_t index)
          */
         uint32_t flags = 0;
 
-        g_sysData.currentMemIndex = index;
+        g_sysData.cueIndex = index;
 
         SetLocateButtonLED(index);
 
@@ -520,7 +520,7 @@ void HandleDigitPress(size_t index)
         /*
          * Remote is in STORE mode and a LOC-# button was pressed
          */
-        g_sysData.currentMemIndex = index;
+        g_sysData.cueIndex = index;
 
         SetLocateButtonLED(index);
 
@@ -529,7 +529,7 @@ void HandleDigitPress(size_t index)
 
         /* Return to previous Cue or default mode */
         HandleSetMode(g_sysData.remoteModePrev);
-        SetLocateButtonLED(g_sysData.currentMemIndex);
+        SetLocateButtonLED(g_sysData.cueIndex);
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
     {
@@ -599,7 +599,7 @@ void HandleDigitPress(size_t index)
             TapeTimeToPosition(&g_sysData.editTime, &ipos);
 
             /* Store the position at current memory index */
-            CuePointSet(g_sysData.currentMemIndex, ipos);
+            CuePointSet(g_sysData.cueIndex, ipos);
             break;
 
         default:
@@ -610,7 +610,7 @@ void HandleDigitPress(size_t index)
     }
     else
     {
-        g_sysData.currentMemIndex = index;
+        g_sysData.cueIndex = index;
 
         SetLocateButtonLED(index);
     }

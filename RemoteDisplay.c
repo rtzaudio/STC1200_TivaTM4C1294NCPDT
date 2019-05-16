@@ -333,7 +333,7 @@ void DrawTimeBottom(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "L:%02u", g_sysData.currentMemIndex+1);
+    len = sprintf(buf, "L:%02u", g_sysData.cueIndex+1);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -357,9 +357,9 @@ void DrawTimeBottom(void)
     x = width + 6;
     y = y + 1;
 
-    if (CuePointGet(g_sysData.currentMemIndex, NULL) & CF_ACTIVE)
+    if (CuePointGet(g_sysData.cueIndex, NULL) & CF_ACTIVE)
     {
-        CuePointGetTime(g_sysData.currentMemIndex, &tapeTime);
+        CuePointGetTime(g_sysData.cueIndex, &tapeTime);
         int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';
         sprintf(buf, "%c%1u:%02u:%02u:%1u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs, tapeTime.tens);
         GrStringDraw(&g_context, buf, -1, x, y, 0);

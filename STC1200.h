@@ -30,8 +30,8 @@
  */
 #define FIRMWARE_VER        1           /* firmware version */
 #define FIRMWARE_REV        3           /* firmware revision */
-#define FIRMWARE_BUILD      1           /* firmware build number */
-#define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
+#define FIRMWARE_BUILD      2           /* firmware build number */
+#define FIRMWARE_MIN_BUILD  2           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
 #error "STC build option FIRMWARE_MIN_BUILD set incorrectly"
@@ -49,10 +49,16 @@ typedef struct _SYSPARMS
     uint32_t    magic;
     uint32_t    version;
     uint32_t    build;
-    /*** GLOBAL PARAMETERS ***/
-    bool        searchBlink;                /* blink 7-seg during search */
+    /** System Parameters **/
+    uint32_t    debug;              /* debug level */
+    /** Remote Parameters **/
     bool        showLongTime;
-    uint32_t    debug;                      /* debug level */
+    /** Locator Parameters **/
+    bool        searchBlink;        /* blink 7-seg during search */
+    /** Locator velocities for various distances from the locate point **/
+    uint32_t    jog_vel_far;        /* 0 = use DTC default shuttle velocity */
+    uint32_t    jog_vel_mid;        /* vel for mid distance from locate point */
+    uint32_t    jog_vel_near;       /* vel for near distance from locate point */
 } SYSPARMS;
 
 //*****************************************************************************
@@ -93,7 +99,7 @@ typedef struct _SYSDATA
     bool        shiftAltButton;             /* true if shifted ALT button */
     /* Locate and Position data */
     TAPETIME    tapeTime;                   /* current tape time position */
-    size_t      currentMemIndex;            /* currend cue table index    */
+    size_t      cueIndex;                   /* current cue table index    */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
 } SYSDATA;
 

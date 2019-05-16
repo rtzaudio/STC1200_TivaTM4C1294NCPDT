@@ -95,33 +95,38 @@
 #include "RemoteTask.h"
 #include "CLITask.h"
 
-/* Local Constants */
+/*** Local Constants ***/
 
-#define IPC_TIMEOUT         1000
+#define IPC_TIMEOUT     1000
 
-#define BUTTON_PULSE_TIME   50
+/* Locator States */
+typedef enum _LocateState {
+    LOCATE_START_STATE,
+    LOCATE_BEGIN_SHUTTLE,
+    LOCATE_SHUTTLE_FAR,
+    LOCATE_SHUTTLE_MID,
+    LOCATE_SHUTTLE_NEAR,
+    LOCATE_BRAKE_STATE,
+    LOCATE_BRAKE_VELOCITY,
+    LOCATE_PAST_ZERO,
+    LOCATE_ZERO_DIR,
+    LOCATE_ZERO_CROSS,
+    LOCATE_COMPLETE,
+} LocateState;
 
-/* Locator velocities for various distances from the locate point */
-#define JOG_VEL_FAR         0       /* 0 = use DTC default shuttle velocity */
-#define JOG_VEL_MID         500     /* velocity for mid distance from locate point */
-#define JOG_VEL_NEAR        240     /* velocity for near distance from locate point */
-
-#define SHUTTLE_SLOW_VEL    260     /* slow velocity to use for locates */
-
-/* External Data Items */
+/*** External Data Items ***/
 
 extern SYSDATA g_sysData;
 extern Event_Handle g_eventQEI;
 extern Mailbox_Handle g_mailboxLocate;
 
-/* Static Function Prototypes */
-
-//static void GPIOPulseLow(uint32_t index, uint32_t duration);
+/*** Static Function Prototypes ***/
 
 bool IsTransportHaltMode(void);
 
 /*****************************************************************************
- * This functions stores the current tape position to a cue point in the
+ * This function stores the current tape position to a cue point memory
+ * location specified by index.
  *****************************************************************************/
 
 void CuePointClear(size_t index)
@@ -142,7 +147,8 @@ void CuePointClear(size_t index)
 }
 
 /*****************************************************************************
- * Clear all cue point memories except single cue point on the deck.
+ * Clear all cue point memories except the single cue point memory for
+ * the single button locate point on the deck.
  *****************************************************************************/
 
 void CuePointClearAll(void)
@@ -166,8 +172,8 @@ void CuePointClearAll(void)
 
 /*****************************************************************************
  * This functions stores the current tape position to a cue point in the
- * cue point locate table. The parameter index must be the range of
- * zero to MAX_CUE_POINTS-1. Cue point 0-63 are for the remote control
+ * cue point memory table. The parameter index must be the range of
+ * zero to MAX_CUE_POINTS. Cue point 0-63 are for the remote control
  * memories. Cue point 64 is for the single memory cue point buttons
  * on the machine.
  *****************************************************************************/
@@ -295,20 +301,6 @@ bool IsTransportHaltMode()
 // position is always being shown on the machine's display on the transport.
 //*****************************************************************************
 
-typedef enum _LocateState {
-    LOCATE_START_STATE,
-    LOCATE_BEGIN_SHUTTLE,
-    LOCATE_SHUTTLE_FAR,
-    LOCATE_SHUTTLE_MID,
-    LOCATE_SHUTTLE_NEAR,
-    LOCATE_BRAKE_STATE,
-    LOCATE_BRAKE_VELOCITY,
-    LOCATE_PAST_ZERO,
-    LOCATE_ZERO_DIR,
-    LOCATE_ZERO_CROSS,
-    LOCATE_COMPLETE,
-} LocateState;
-
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
     bool     cancel;
@@ -334,7 +326,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     CuePointSet(LAST_CUE_POINT, 0);
 
     /* Initialize LOC-1 to zero */
-    CuePointSet(g_sysData.currentMemIndex, 0);
+    CuePointSet(g_sysData.cueIndex, 0);
 
     while(TRUE)
     {
@@ -745,6 +737,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 //*****************************************************************************
 
 #if 0
+#define BUTTON_PULSE    50
+
 void GPIOPulseLow(uint32_t index, uint32_t duration)
 {
     /* Set the i/o pin to low state */
