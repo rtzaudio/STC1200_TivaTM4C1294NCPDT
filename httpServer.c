@@ -87,6 +87,9 @@
 #include "IPCServer.h"
 #include "IPCCommands.h"
 
+static bool rec_arm = false;
+static bool rec_active = false;
+
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
@@ -356,9 +359,9 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html("</head>\r\n");
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
-    html("  <div id=\"top\">\r\n");
-    html("    <p>REMOTE</p>\r\n");
-    html("  </div>\r\n");
+//    html("  <div id=\"top\">\r\n");
+//    html("    <p>REMOTE</p>\r\n");
+//    html("  </div>\r\n");
     html("  <div class=\"wrapper\">\r\n");
     html("    <div id=\"menubar\">\r\n");
     html("      <ul id=\"menulist\">\r\n");
@@ -372,7 +375,17 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html("        <fieldset>\r\n");
     html("        <legend>Transport</legend>\r\n");
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n", (g_sysData.ledMaskTransport & L_REC) ? '1' : '0');
+    if (rec_arm)
+    {
+        System_sprintf(buf, "<input class=\"btnrec0\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n");
+    }
+    else
+    {
+        if (rec_active) //g_sysData.ledMaskTransport & L_REC)
+            System_sprintf(buf, "<input class=\"btnrec1\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n");
+        else
+            System_sprintf(buf, "<input class=\"btn\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n");
+    }
     html(buf);
 
     html("<input class=\"btn\" type=\"submit\" name=\"play\" value=\"PLAY\">\r\n");
@@ -469,43 +482,98 @@ static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
         key   = cgiParseVars(buffer, &parseIndex);
         value = cgiParseVars(buffer, &parseIndex);
 
-        /* Transport Buttons */
+        /*** Transport Buttons ***/
         if (!strcmp("stop", key))
+        {
             Transport_Stop();
+            rec_arm = rec_active = false;
+        }
         else if (!strcmp("play", key))
-            Transport_Play(0);
+        {
+            if (rec_arm)
+            {
+                Transport_Play(M_RECORD);
+                rec_active = true;
+                rec_arm = false;
+            }
+            else
+            {
+                Transport_Play(0);
+                rec_arm = rec_active = false;
+            }
+        }
         else if (!strcmp("rew", key))
+        {
             Transport_Rew(0, 0);
+            rec_arm = rec_active = false;
+        }
         else if (!strcmp("fwd", key))
+        {
             Transport_Fwd(0, 0);
+            rec_arm = rec_active = false;
+        }
         else if (!strcmp("rec", key))
-            Transport_Play(M_RECORD);
-        /* Mode Buttons */
-        else if (!strcmp("cue", key))
-            Remote_PostSwitchPress(SW_CUE);
-        else if (!strcmp("store", key))
-            Remote_PostSwitchPress(SW_STORE);
-        /* Locate Buttons */
-        else if (!strcmp("loc1", key))
-            Remote_PostSwitchPress(SW_LOC1);
-        else if (!strcmp("loc2", key))
-            Remote_PostSwitchPress(SW_LOC2);
-        else if (!strcmp("loc3", key))
-            Remote_PostSwitchPress(SW_LOC3);
-        else if (!strcmp("loc4", key))
-            Remote_PostSwitchPress(SW_LOC4);
-        else if (!strcmp("loc5", key))
-            Remote_PostSwitchPress(SW_LOC5);
-        else if (!strcmp("loc6", key))
-            Remote_PostSwitchPress(SW_LOC6);
-        else if (!strcmp("loc7", key))
-            Remote_PostSwitchPress(SW_LOC7);
-        else if (!strcmp("loc8", key))
-            Remote_PostSwitchPress(SW_LOC8);
-        else if (!strcmp("loc9", key))
-            Remote_PostSwitchPress(SW_LOC9);
-        else if (!strcmp("loc0", key))
-            Remote_PostSwitchPress(SW_LOC0);
+        {
+            if (rec_arm)
+                rec_arm = false;
+            else
+                rec_arm = true;
+        }
+        else
+        {
+            rec_arm = rec_active = false;
+
+            /*** Mode Buttons ***/
+            if (!strcmp("cue", key))
+            {
+                Remote_PostSwitchPress(SW_CUE);
+            }
+            else if (!strcmp("store", key))
+            {
+                Remote_PostSwitchPress(SW_STORE);
+            }
+            /*** Locate Buttons ***/
+            if (!strcmp("loc1", key))
+            {
+                Remote_PostSwitchPress(SW_LOC1);
+            }
+            else if (!strcmp("loc2", key))
+            {
+                Remote_PostSwitchPress(SW_LOC2);
+            }
+            else if (!strcmp("loc3", key))
+            {
+                Remote_PostSwitchPress(SW_LOC3);
+            }
+            else if (!strcmp("loc4", key))
+            {
+                Remote_PostSwitchPress(SW_LOC4);
+            }
+            else if (!strcmp("loc5", key))
+            {
+                Remote_PostSwitchPress(SW_LOC5);
+            }
+            else if (!strcmp("loc6", key))
+            {
+                Remote_PostSwitchPress(SW_LOC6);
+            }
+            else if (!strcmp("loc7", key))
+            {
+                Remote_PostSwitchPress(SW_LOC7);
+            }
+            else if (!strcmp("loc8", key))
+            {
+                Remote_PostSwitchPress(SW_LOC8);
+            }
+            else if (!strcmp("loc9", key))
+            {
+                Remote_PostSwitchPress(SW_LOC9);
+            }
+            else if (!strcmp("loc0", key))
+            {
+                Remote_PostSwitchPress(SW_LOC0);
+            }
+        }
     } while(parseIndex != -1);
 
     // Output the data we read in...

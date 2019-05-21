@@ -1,0 +1,179 @@
+/*
+ * Copyright (C) 2019, RTZ Professional Audio, LLC
+ */
+
+.bold{font-weight:bold;}
+.center{text-align:center;}
+.right{text-align:right;}
+.uppercase{text-transform:uppercase;}
+.italic{font-style:italic;}
+
+.fl_left, .imgl{float:left;} .imglsb{float:left;}
+.fl_right, .imgr{float:right;}
+img{width:auto; max-width:100%; height:auto; margin:0; padding:0; border:none; line-height:normal; vertical-align:middle;}
+.imgl{margin:0 15px 10px 0; clear:left;}
+.imgr{margin:0 0 10px 15px; clear:right;}
+
+/* Grid */
+.one_half, .one_third, .two_third, .one_quarter, .two_quarter, .three_quarter{display:inline-block; float:left; margin:0 0 0 3.06748466257669%; list-style:none;}
+.first{margin-left:0; clear:left;}
+.one_quarter{width:22.69938650306748%;}
+.one_third{width:31.28834355828221%;}
+.one_half, .two_quarter{width:48.46625766871166%;}
+.two_third{width:65.6441717791411%;}
+.three_quarter{width:74.23312883435584%;}
+
+.w3-light-grey,.w3-hover-light-grey:hover,.w3-light-gray,.w3-hover-light-gray:hover{color:#000!important;background-color:#f1f1f1!important}
+
+body {
+    font: 100% Lucida Sans, Verdana;
+    margin: 20px;
+    line-height: 26px;
+}
+
+fieldset {
+    border-radius: 5px;
+    border: 1px solid #d4d4d4;    
+}
+
+.container {
+    xmin-width: 900px;
+}
+
+.wrapper {
+    position: relative;
+    overflow: auto;
+}
+
+#top, #bottom, .menuitem {
+    border-radius: 5px;
+    margin: 4px;
+}
+
+#top {
+    background-color: #4CAF50;
+    color: #ffffff;
+    padding: 15px;
+}
+
+#menubar {
+    width: 200px;
+    float: left
+}
+
+#main {
+    padding: 15px;
+    margin: 0 210px;
+    margin-right: 5px;    
+}
+
+#bottom {
+    border: 1px solid #d4d4d4;
+    background-color: #f1f1f1;
+    text-align: center;
+    padding: 10px;
+    font-size: 70%;
+    line-height: 14px;
+}
+
+#top h1, #top p, #menulist {
+    margin: 0;
+    padding: 0;
+}
+
+.menuitem {
+    background-color: #f1f1f1;
+    border: 2px solid #d4d4d4;
+    list-style-type: none;
+    padding: 2px;
+    padding-left: 10px;
+    cursor: pointer;
+}
+
+.menuitem:hover {
+    background-color: #ffffff;
+}
+
+.menuitem.active {
+    background-color:#4CAF50;
+    color: white;
+    font-weight:bold;
+}
+
+a {
+    color: #000000;
+    text-decoration: none;    
+}
+
+a:hover {
+    text-decoration: none;
+}
+
+.btn, .btn1 {
+  background-color: #4CAF50;
+  color: white;  
+  border: 2px solid #d4d4d4;
+  border-radius: 5px;
+  padding: 8px 10px;
+  text-decoration: none;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.btn0 {
+  background-color: #f1f1f1;
+  color: 0;  
+  border: 2px solid #d4d4d4;
+  border-radius: 5px;
+  padding: 8px 10px;
+  text-decoration: none;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.btn0:hover {
+    background-color: #ffffff;
+}
+
+.btnrec1 {
+  background-color: red;
+  color: #ffffff;  
+  border: 2px solid #d4d4d4;  
+  border-radius: 5px;
+  padding: 8px 10px;
+  text-decoration: none;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.btnrec0 {
+  background-color: #4CAF50;
+  color: 0;  
+  border: 2px solid red;
+  border-radius: 5px;
+  padding: 8px 10px;
+  text-decoration: none;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.btnrec0:hover {
+    background-color: #ffffff;
+}
+
+
+@media (max-width: 800px) {
+    #main {
+        margin-right: 0;
+    }    
+}
+
+@media (max-width: 600px) {
+    #menubar {
+        width: auto;
+        float: none;
+    }
+    #main {
+        margin: 0;
+    }    
+}
