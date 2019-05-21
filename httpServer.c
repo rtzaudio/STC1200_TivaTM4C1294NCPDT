@@ -82,6 +82,10 @@
 /* STC1200 Board Header file */
 #include "STC1200.h"
 #include "Board.h"
+#include "RemoteTask.h"
+#include "RAMPMessage.h"
+#include "IPCServer.h"
+#include "IPCCommands.h"
 
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
@@ -90,6 +94,8 @@ extern SYSPARMS g_sysParms;
 static Int sendIndexHtml(SOCKET htmlSock, int length);
 static Int sendConfigHtml(SOCKET htmlSock, int length);
 static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs);
+static Int sendRemoteHtml(SOCKET htmlSock, int length);
+static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs);
 
 #define html(str) httpSendClientStr(htmlSock, (char *)str)
 
@@ -102,10 +108,14 @@ Void AddWebFiles(Void)
     efs_createfile("index.html", 0, (UINT8 *)&sendIndexHtml);
     efs_createfile("config.html", 0, (UINT8 *)&sendConfigHtml);
     efs_createfile("config.cgi", 0, (UINT8 *)&cgiConfig);
+    efs_createfile("remote.html", 0, (UINT8 *)&sendRemoteHtml);
+    efs_createfile("remote.cgi", 0, (UINT8 *)&cgiRemote);
 }
 
 Void RemoveWebFiles(Void)
 {
+    efs_destroyfile("remote.cgi");
+    efs_destroyfile("remote.html");
     efs_destroyfile("config.cgi");
     efs_destroyfile("config.html");
     efs_destroyfile("index.html");
@@ -147,16 +157,22 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("      </ul>\r\n");
     html("    </div>\r\n");
     html("    <div id=\"main\">\r\n");
+
     System_sprintf(buf,  "    <p>Firmware Version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
+
     System_sprintf(buf,  "    <p>PCB Serial#: %s</p>\r\n", serialnum);
     html(buf);
+
     System_sprintf(buf,  "    <p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
     html(buf);
+
     System_sprintf(buf,  "    <p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
     html(buf);
+
     System_sprintf(buf,  "    <p>Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
     html(buf);
+
     html("    </div>\r\n");
     html("  </div>\r\n");
     html("  <div id=\"bottom\">\r\n");
@@ -199,10 +215,12 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("    <div id=\"main\">\r\n");
     html("      <form action=\"config.cgi\" method=\"post\">\r\n");
     html("        <p class=\"bold\">General Settings</p>\r\n");
+
     System_sprintf(buf, "        <input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
                        g_sysParms.showLongTime ? "checked" : "");
     html(buf);
     html("        <br />\r\n");
+
     System_sprintf(buf, "        <input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
                    g_sysParms.searchBlink ? "checked" : "");
     html(buf);
@@ -218,8 +236,8 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html(buf);
 
     html("        <br />\r\n");
-    html("        <input type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
-    html("        <input type=\"reset\" reset=\"submit\" value=\"Reset\">\r\n");
+    html("        <input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
+    html("        <input class=\"btn\" type=\"reset\" name=\"submit\" value=\"Reset\">\r\n");
     html("      </form>\r\n");
     html("    </div>\r\n");
     html("  </div>\r\n");
@@ -312,6 +330,191 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
 
     // Send the updated page
     sendConfigHtml(htmlSock, 0);
+
+ERROR:
+    if (buffer)
+        mmBulkFree(buffer);
+
+    return 1;
+}
+
+//*****************************************************************************
+// Remote Handler Functions
+//*****************************************************************************
+
+static Int sendRemoteHtml(SOCKET htmlSock, int length)
+{
+    Char buf[MAX_RESPONSE_SIZE];
+
+    html("<!DOCTYPE html>\r\n");
+    html("<html>\r\n");
+    html("<title>STC-1200 | home</title>\r\n");
+    html("<meta charset=\"utf-8\">\r\n");
+    html("<head>\r\n");
+    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
+    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
+    html("</head>\r\n");
+    html("<body>\r\n");
+    html("<div class=\"container wrapper\">\r\n");
+    html("  <div id=\"top\">\r\n");
+    html("    <p>REMOTE</p>\r\n");
+    html("  </div>\r\n");
+    html("  <div class=\"wrapper\">\r\n");
+    html("    <div id=\"menubar\">\r\n");
+    html("      <ul id=\"menulist\">\r\n");
+    html("        <li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("        <li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("        <li class=\"menuitem active\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("      </ul>\r\n");
+    html("    </div>\r\n");
+    html("    <div id=\"main\">\r\n");
+    html("      <form action=\"remote.cgi\" method=\"post\">\r\n");
+    html("        <fieldset>\r\n");
+    html("        <legend>Transport</legend>\r\n");
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n", (g_sysData.ledMaskTransport & L_REC) ? '1' : '0');
+    html(buf);
+
+    html("<input class=\"btn\" type=\"submit\" name=\"play\" value=\"PLAY\">\r\n");
+    html("<input class=\"btn\" type=\"submit\" name=\"rew\" value=\"REW\">\r\n");
+    html("<input class=\"btn\" type=\"submit\" name=\"fwd\" value=\"FWD\">\r\n");
+    html("<input class=\"btn\" type=\"submit\" name=\"stop\" value=\"STOP\">\r\n");
+
+    html("        </fieldset>\r\n");
+    html("        <fieldset>\r\n");
+    html("        <legend>Mode</legend>\r\n");
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"cue\" value=\"CUE\">\r\n", (g_sysData.ledMaskButton & L_CUE) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"store\" value=\"STORE\">\r\n", (g_sysData.ledMaskButton & L_STORE) ? '1' : '0');
+    html(buf);
+
+    html("        </fieldset>\r\n");
+    html("        <fieldset>\r\n");
+    html("        <legend>Locate</legend>\r\n");
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sysData.ledMaskButton & L_LOC1) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc2\" value=\"LOC-2\">\r\n", (g_sysData.ledMaskButton & L_LOC2) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc3\" value=\"LOC-3\">\r\n", (g_sysData.ledMaskButton & L_LOC3) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc4\" value=\"LOC-4\">\r\n", (g_sysData.ledMaskButton & L_LOC4) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc5\" value=\"LOC-5\"><br />\r\n", (g_sysData.ledMaskButton & L_LOC5) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc6\" value=\"LOC-6\">\r\n", (g_sysData.ledMaskButton & L_LOC6) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc7\" value=\"LOC-7\">\r\n", (g_sysData.ledMaskButton & L_LOC7) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc8\" value=\"LOC-8\">\r\n", (g_sysData.ledMaskButton & L_LOC8) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc9\" value=\"LOC-9\">\r\n", (g_sysData.ledMaskButton & L_LOC9) ? '1' : '0');
+    html(buf);
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sysData.ledMaskButton & L_LOC0) ? '1' : '0');
+    html(buf);
+
+    html("        </fieldset>\r\n");
+    html("      </form>\r\n");
+    html("    </div>\r\n");
+    html("  </div>\r\n");
+    html("  <div id=\"bottom\">\r\n");
+    html("    Copyright &copy; 2019, RTZ Professional Audio, LLC\r\n");
+    html("  </div>\r\n");
+    html("</div>\r\n");
+    html("</body>\r\n");
+    html("</html>\r\n");
+
+    return 1;
+}
+
+static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
+{
+    char    *buffer, *key, *value;
+    int     len;
+    int     parseIndex;
+    int     val;
+
+    // CGI Functions can now support URI arguments as well if the
+    // pArgs pointer is not NULL, and the ContentLength were zero,
+    // we could parse the arguments off of pArgs instead.
+
+    // First, allocate a buffer for the request
+    buffer = (char*) mmBulkAlloc( ContentLength );
+    if ( !buffer )
+        goto ERROR;
+
+    // Now read the data from the client
+    len = recv( htmlSock, buffer, ContentLength, MSG_WAITALL );
+    if ( len < 1 )
+        goto ERROR;
+
+    // Setup to parse the post data
+    parseIndex = 0;
+    buffer[ContentLength] = '\0';
+
+    // Process request variables until there are none left
+    do
+    {
+        key   = cgiParseVars(buffer, &parseIndex);
+        value = cgiParseVars(buffer, &parseIndex);
+
+        /* Transport Buttons */
+        if (!strcmp("stop", key))
+            Transport_Stop();
+        else if (!strcmp("play", key))
+            Transport_Play(0);
+        else if (!strcmp("rew", key))
+            Transport_Rew(0, 0);
+        else if (!strcmp("fwd", key))
+            Transport_Fwd(0, 0);
+        else if (!strcmp("rec", key))
+            Transport_Play(M_RECORD);
+        /* Mode Buttons */
+        else if (!strcmp("cue", key))
+            Remote_PostSwitchPress(SW_CUE);
+        else if (!strcmp("store", key))
+            Remote_PostSwitchPress(SW_STORE);
+        /* Locate Buttons */
+        else if (!strcmp("loc1", key))
+            Remote_PostSwitchPress(SW_LOC1);
+        else if (!strcmp("loc2", key))
+            Remote_PostSwitchPress(SW_LOC2);
+        else if (!strcmp("loc3", key))
+            Remote_PostSwitchPress(SW_LOC3);
+        else if (!strcmp("loc4", key))
+            Remote_PostSwitchPress(SW_LOC4);
+        else if (!strcmp("loc5", key))
+            Remote_PostSwitchPress(SW_LOC5);
+        else if (!strcmp("loc6", key))
+            Remote_PostSwitchPress(SW_LOC6);
+        else if (!strcmp("loc7", key))
+            Remote_PostSwitchPress(SW_LOC7);
+        else if (!strcmp("loc8", key))
+            Remote_PostSwitchPress(SW_LOC8);
+        else if (!strcmp("loc9", key))
+            Remote_PostSwitchPress(SW_LOC9);
+        else if (!strcmp("loc0", key))
+            Remote_PostSwitchPress(SW_LOC0);
+    } while(parseIndex != -1);
+
+    // Output the data we read in...
+    httpSendStatusLine(htmlSock, HTTP_OK, CONTENT_TYPE_HTML);
+    // CRLF before entity
+    html(CRLF);
+
+    // Send the updated page
+    sendRemoteHtml(htmlSock, 0);
 
 ERROR:
     if (buffer)

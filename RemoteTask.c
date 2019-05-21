@@ -158,6 +158,20 @@ void ResetDigitBuf(void)
     memset(&g_sysData.digitBuf, 0, sizeof(g_sysData.digitBuf));
 }
 
+
+void Remote_PostSwitchPress(uint32_t mode)
+{
+    RAMP_MSG msg;
+
+    msg.type   = MSG_TYPE_SWITCH;
+    msg.opcode = OP_SWITCH_REMOTE;
+
+    msg.param1.U = mode;
+    msg.param2.U = 0;
+
+    Mailbox_post(g_mailboxRemote, &msg, 100);
+}
+
 //*****************************************************************************
 // DRC-1200 Wired Remote Controller Task
 //

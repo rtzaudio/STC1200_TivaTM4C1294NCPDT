@@ -244,6 +244,10 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	uartParams.stopBits       = UART_STOP_ONE;
 	uartParams.parityType     = UART_PAR_NONE;
 
+	/* Open the UART to the ATMega88. The position task will send the
+	 * 7-segment display data to the Mega88 doing the display multiplexing.
+	 */
+
 	uartHandle = UART_open(Board_UART_ATMEGA88, &uartParams);
 
 	/* This is the main tape position/counter task. Here we read the tape

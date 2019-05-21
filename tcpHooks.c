@@ -118,7 +118,7 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 
 void netOpenHook(void)
 {
-#if 0
+#if 1
     Task_Handle taskHandle;
     Task_Params taskParams;
     Error_Block eb;
