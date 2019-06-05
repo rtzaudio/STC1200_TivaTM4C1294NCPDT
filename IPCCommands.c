@@ -105,6 +105,18 @@ extern Mailbox_Handle g_mailboxLocate;
  * TRANSPORT COMMANDS TO DTC
  *****************************************************************************/
 
+Bool Transport_PostButtonPress(uint32_t btn_mask)
+{
+    IPC_MSG msg;
+
+    msg.type     = IPC_TYPE_NOTIFY;
+    msg.opcode   = OP_NOTIFY_BUTTON;
+    msg.param1.U = btn_mask;
+    msg.param2.U = 0;
+
+    return IPC_Notify(&msg, IPC_TIMEOUT);
+}
+
 Bool Transport_Stop(void)
 {
     IPC_MSG msg;
@@ -128,6 +140,9 @@ Bool Transport_Play(uint32_t flags)
 
     return IPC_Notify(&msg, IPC_TIMEOUT);
 }
+
+/* Send the transport command button mask to the DTC */
+
 
 Bool Transport_Fwd(uint32_t velocity, uint32_t flags)
 {

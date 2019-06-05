@@ -485,14 +485,14 @@ static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
         /*** Transport Buttons ***/
         if (!strcmp("stop", key))
         {
-            Transport_Stop();
+            Transport_PostButtonPress(S_STOP);
             rec_arm = rec_active = false;
         }
         else if (!strcmp("play", key))
         {
             if (rec_arm)
             {
-                Transport_Play(M_RECORD);
+                Transport_PostButtonPress(S_PLAY|S_REC);
                 rec_active = true;
                 rec_arm = false;
             }
@@ -504,12 +504,12 @@ static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
         }
         else if (!strcmp("rew", key))
         {
-            Transport_Rew(0, 0);
+            Transport_PostButtonPress(S_REW);
             rec_arm = rec_active = false;
         }
         else if (!strcmp("fwd", key))
         {
-            Transport_Fwd(0, 0);
+            Transport_PostButtonPress(S_FWD);
             rec_arm = rec_active = false;
         }
         else if (!strcmp("rec", key))

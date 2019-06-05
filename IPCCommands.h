@@ -15,6 +15,8 @@
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
+Bool Transport_PostButtonPress(uint32_t btn_mask);
+
 Bool Transport_Stop(void);
 Bool Transport_Play(uint32_t flags);
 Bool Transport_Fwd(uint32_t velocity, uint32_t flags);
