@@ -51,6 +51,9 @@
 /* Functions Prototypes                                                       */
 /******************************************************************************/
 
+/* calculate frequency register value for a desired output frequency */
+uint32_t AD9837_freqCalc(uint32_t freq);
+
 /* Initializes the SPI communication peripheral and resets the part. */
 void AD9837_Init(void);
 

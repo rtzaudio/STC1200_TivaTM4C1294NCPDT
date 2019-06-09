@@ -104,17 +104,6 @@ void AD9837_Init(void)
 
     if (g_handleSpi3 == NULL)
         System_abort("Error initializing SPI0\n");
-
-    /* Issue a reset to the AD9837 */
-    AD9837_SetRegisterValue(AD9837_REG_CMD | AD9837_RESET);
-
-    Task_sleep(100);
-
-    AD9837_SetFrequency(AD9837_REG_FREQ0, 9600);
-    AD9837_SetFrequency(AD9837_REG_FREQ1, 9600);
-
-    AD9837_SetFrequency(AD9837_REG_PHASE0, 0);
-    AD9837_SetFrequency(AD9837_REG_PHASE1, 0);
 }
 
 //*****************************************************************************
@@ -147,9 +136,17 @@ bool AD9837_Write(uint16_t word)
 // in Hz, the smallest step size for adjusting the output frequency.
 //*****************************************************************************
 
-uint32_t AD9837_freqCalc(float desiredFrequency)
+uint32_t AD9837_freqCalc(uint32_t freq)
 {
-    return (uint32_t)(desiredFrequency/0.04470f);
+    /*
+     * Freq out put is flck/2^28 * FREQREG
+     * at flck 16Mhz const = 12Mhz/2^28 = 0.04470hz
+     * flck is the 16Mhz clock attached to the Gen.
+     * Per AN-1070 Freq is calculated by
+     * FregReg = (Fout * 2^28)/fmclk
+     */
+    const float flck_16_const = 0.04470f;
+    return (uint32_t)(freq/flck_16_const);
 }
 
 //*****************************************************************************
@@ -160,7 +157,19 @@ uint32_t AD9837_freqCalc(float desiredFrequency)
 
 void AD9837_Reset(void)
 {
+    /* Place AD9837 in reset mode */
     AD9837_SetRegisterValue(AD9837_REG_CMD | AD9837_RESET);
+
+    /* Set the frequency Registers */
+    AD9837_SetFrequency(AD9837_REG_FREQ0, 9600);
+    AD9837_SetFrequency(AD9837_REG_FREQ1, 9600);
+
+    /* Set the phase registers */
+    AD9837_SetPhase(AD9837_REG_PHASE0, 0);
+    AD9837_SetPhase(AD9837_REG_PHASE1, 0);
+
+    /* Take the AD9837 out of reset mode */
+    AD9837_ClearReset();
 }
 
 /***************************************************************************//**
@@ -194,7 +203,7 @@ void AD9837_SetRegisterValue(uint16_t regValue)
     /* Write AD9837 Control Word Bits */
 
     transaction.count = 1;
-    transaction.txBuf = (Ptr)data;
+    transaction.txBuf = (Ptr)&data;
     transaction.rxBuf = (Ptr)&ulReply;
 
     SPI_transfer(g_handleSpi3, &transaction);

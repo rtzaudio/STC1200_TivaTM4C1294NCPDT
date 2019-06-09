@@ -99,6 +99,7 @@
 
 #include "STC1200.h"
 #include "Board.h"
+#include "AD9837.h"
 #include "CLITask.h"
 
 /* Enable div-clock output if non-zero */
@@ -242,6 +243,12 @@ void Hardware_init()
 #if (DIV_CLOCK_ENABLED > 0)
     EnableClockDivOutput(100);
 #endif
+
+    /* Initialize the AD9837 frequency synthesizer on the
+     * SMPTE daughter card. This generates the 9600 Hz
+     * reference clock to the capstan motor servo driver.
+     */
+    AD9837_Init();
 
     /* Initialize the SD drive for operation */
     SDSPI_Params_init(&params);
@@ -470,6 +477,12 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize the remote task if CFG2 switch is ON */
     if (GPIO_read(Board_DIPSW_CFG2) == 0)
         Remote_Task_startup();
+
+    /* Reset the capstan reference clock and set the default
+     * output frequency to 9600Hz to the capstan board. The
+     * AD9837 hardware is located on the SMPTE daughter card.
+     */
+    AD9837_Reset();
 
     /*
      * Create the various system tasks
