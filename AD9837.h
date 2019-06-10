@@ -60,11 +60,8 @@ void AD9837_Init(void);
 /* Sets the Reset bit of the AD9837. */
 void AD9837_Reset(void);
 
-/* Clears the Reset bit of the AD9837. */
-void AD9837_ClearReset(void);
-
 /* Writes the value to a register. */
-void AD9837_SetRegisterValue(uint16_t regValue);
+void AD9837_WriteRegister(uint16_t regValue);
 
 /* Writes to the frequency registers. */
 void AD9837_SetFrequency(uint16_t reg, uint32_t val);

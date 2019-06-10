@@ -96,7 +96,7 @@ void AD9837_Init(void)
     spiParams.transferMode  = SPI_MODE_BLOCKING;
     spiParams.mode          = SPI_MASTER;
     spiParams.frameFormat   = SPI_POL1_PHA0;
-    spiParams.bitRate       = 1000000;
+    spiParams.bitRate       = 250000;
     spiParams.dataSize      = 16;
     spiParams.transferCallbackFxn = NULL;
 
@@ -106,26 +106,30 @@ void AD9837_Init(void)
         System_abort("Error initializing SPI0\n");
 }
 
-//*****************************************************************************
-//
-//*****************************************************************************
+/***************************************************************************//**
+ * @brief Writes the value to a register.
+ *
+ * @param -  regValue - The value to write to the register.
+ *
+ * @return  None.
+*******************************************************************************/
 
-bool AD9837_Write(uint16_t word)
+void AD9837_WriteRegister(uint16_t regValue)
 {
-    bool transferOK;
-    uint16_t ulWord = word;
+    unsigned char data[2];
     uint16_t ulReply;
     SPI_Transaction transaction;
+
+    data[0] = (unsigned char)((regValue & 0xFF00) >> 8);
+    data[1] = (unsigned char)((regValue & 0x00FF) >> 0);
 
     /* Write AD9837 Control Word Bits */
 
     transaction.count = 1;
-    transaction.txBuf = (Ptr)&ulWord;
+    transaction.txBuf = (Ptr)&data;
     transaction.rxBuf = (Ptr)&ulReply;
 
-    transferOK = SPI_transfer(g_handleSpi3, &transaction);
-
-    return transferOK;
+    SPI_transfer(g_handleSpi3, &transaction);
 }
 
 //*****************************************************************************
@@ -158,7 +162,11 @@ uint32_t AD9837_freqCalc(uint32_t freq)
 void AD9837_Reset(void)
 {
     /* Place AD9837 in reset mode */
-    AD9837_SetRegisterValue(AD9837_REG_CMD | AD9837_RESET);
+    AD9837_WriteRegister(AD9837_REG_CMD | AD9837_RESET);
+    /* Settling time */
+    Task_sleep(10);
+    /* Take the AD9837 out of reset mode */
+    AD9837_WriteRegister(AD9837_REG_CMD);
 
     /* Set the frequency Registers */
     AD9837_SetFrequency(AD9837_REG_FREQ0, 9600);
@@ -167,46 +175,6 @@ void AD9837_Reset(void)
     /* Set the phase registers */
     AD9837_SetPhase(AD9837_REG_PHASE0, 0);
     AD9837_SetPhase(AD9837_REG_PHASE1, 0);
-
-    /* Take the AD9837 out of reset mode */
-    AD9837_ClearReset();
-}
-
-/***************************************************************************//**
- * @brief Clears the Reset bit of the AD9837.
- *
- * @return None.
-*******************************************************************************/
-
-void AD9837_ClearReset(void)
-{
-    AD9837_SetRegisterValue(AD9837_REG_CMD);
-}
-
-/***************************************************************************//**
- * @brief Writes the value to a register.
- *
- * @param -  regValue - The value to write to the register.
- *
- * @return  None.
-*******************************************************************************/
-
-void AD9837_SetRegisterValue(uint16_t regValue)
-{
-    unsigned char data[2];
-    uint16_t ulReply;
-    SPI_Transaction transaction;
-
-    data[0] = (unsigned char)((regValue & 0xFF00) >> 8);
-    data[1] = (unsigned char)((regValue & 0x00FF) >> 0);
-
-    /* Write AD9837 Control Word Bits */
-
-    transaction.count = 1;
-    transaction.txBuf = (Ptr)&data;
-    transaction.rxBuf = (Ptr)&ulReply;
-
-    SPI_transfer(g_handleSpi3, &transaction);
 }
 
 /***************************************************************************//**
@@ -226,9 +194,9 @@ void AD9837_SetFrequency(uint16_t reg, uint32_t val)
     freqHi |= (val & 0xFFFC000) >> 14 ;
     freqLo |= (val & 0x3FFF);
 
-    AD9837_SetRegisterValue(AD9837_B28);
-    AD9837_SetRegisterValue(freqLo);
-    AD9837_SetRegisterValue(freqHi);
+    AD9837_WriteRegister(AD9837_B28);
+    AD9837_WriteRegister(freqLo);
+    AD9837_WriteRegister(freqHi);
 }
 
 /***************************************************************************//**
@@ -246,7 +214,7 @@ void AD9837_SetPhase(uint16_t reg, uint16_t val)
 
     phase |= val;
 
-    AD9837_SetRegisterValue(phase);
+    AD9837_WriteRegister(phase);
 }
 
 /***************************************************************************//**
@@ -267,7 +235,7 @@ void AD9837_Setup(uint16_t freq,
 
     val = freq | phase | type;
 
-    AD9837_SetRegisterValue(val);
+    AD9837_WriteRegister(val);
 }
 
 /***************************************************************************//**
@@ -280,7 +248,7 @@ void AD9837_Setup(uint16_t freq,
 
 void AD9837_SetWave(uint16_t type)
 {
-    AD9837_SetRegisterValue(type);
+    AD9837_WriteRegister(type);
 }
 
 // End-Of-File
