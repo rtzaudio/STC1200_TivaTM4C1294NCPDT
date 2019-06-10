@@ -1,6 +1,6 @@
 /**************************************************************************//**
-*   @file   ad9833.c
-*   @brief  Implementation of ad9833 Driver for Microblaze processor.
+*   @file   AD9837.c
+*   @brief  Implementation of AD9837 Driver for Microblaze processor.
 *   @author Lucian Sin (Lucian.Sin@analog.com)
 *
 *******************************************************************************
@@ -67,40 +67,21 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 /* STC1200 Board Header file */
 
 #include "STC1200.h"
 #include "Board.h"
 #include "CLITask.h"
-#include "AD9837.h"
-
-static SPI_Handle g_handleSpi3 = 0;
-#include "ad9833.h"
+#include "AD9837-2.h"
 
 /******************************************************************************/
 /************************** Constants Definitions *****************************/
 /******************************************************************************/
 float phase_const = 651.8986469f;
-
-static const struct ad9833_chip_info chip_info[] = {
-	[ID_AD9833] = {
-		.mclk       = 25000000,
-		.freq_const = 10.7374182f,
-	},
-	[ID_AD9834]  = {
-		.mclk       = 75000000,
-		.freq_const = 3.5791394f,
-	},
-	[ID_AD9837] = {
-		.mclk       = 16000000,
-		.freq_const = 16.777216f,
-	},
-	[ID_AD9838]  = {
-		.mclk       = 16000000,
-		.freq_const = 16.777216f,
-	}
-};
+//float freq_const  = 16.777216f;         // mclk = 16000000
+float freq_const  = 22.36962133f;         // mclk = 12000000
 
 /******************************************************************************/
 /************************** Functions Definitions *****************************/
@@ -117,53 +98,77 @@ static const struct ad9833_chip_info chip_info[] = {
  *                  Example:  0 - if initialization was successful;
  *                           -1 - if initialization was unsuccessful.
 *******************************************************************************/
-int8_t ad9833_init(struct ad9833_dev **device, struct ad9833_init_param init_param)
-{
-	struct ad9833_dev *dev;
-	uint16_t spi_data = 0;
-	int8_t status = -1;
 
-	dev = (struct ad9833_dev *)malloc(sizeof(*dev));
+int32_t AD9837_init(struct AD9837_DEVICE **device)
+{
+	uint16_t spi_data = 0;
+    struct AD9837_DEVICE *dev;
+    SPI_Params spiParams;
+
+	dev = (struct AD9837_DEVICE *)malloc(sizeof(*dev));
+
 	if (!dev)
 		return -1;
 
-	dev->act_device = init_param.act_device;
-	dev->prog_method = 0;
+	dev->prog_method    = 0;
 	dev->ctrl_reg_value = 0;
-	dev->test_opbiten = 0;
+    dev->test_opbiten   = 0;
 
-	/* Setup SPI interface. */
-	status = spi_init(&dev->spi_desc, &init_param.spi_init);
+    /* Open SPI port to AD9732  on the STC SMPTE daughter card */
+
+    /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
+    SPI_Params_init(&spiParams);
+
+    spiParams.transferMode  = SPI_MODE_BLOCKING;
+    spiParams.mode          = SPI_MASTER;
+    spiParams.frameFormat   = SPI_POL1_PHA0;
+    spiParams.bitRate       = 250000;
+    spiParams.dataSize      = 16;
+    spiParams.transferCallbackFxn = NULL;
+
+    dev->handle = SPI_open(Board_SPI_EXPIO_SIO3, &spiParams);
+
+    if (dev->handle == NULL)
+        System_abort("Error initializing SPI0\n");
 
 	/* Initialize board. */
-	spi_data |= AD9833_CTRLRESET;
-	ad9833_tx_spi(dev, spi_data);
-	mdelay(10);
-	spi_data &= ~AD9833_CTRLRESET;
-	ad9833_tx_spi(dev, spi_data);
+	spi_data |= AD9837_CTRLRESET;
+	AD9837_write(dev, spi_data);
+	Task_sleep(10);
+	spi_data &= ~(AD9837_CTRLRESET);
+	AD9837_write(dev, spi_data);
 
-	ad9833_set_freq(dev, 0, 0);
-	ad9833_set_freq(dev, 1, 0);
-	ad9833_set_phase(dev, 0, 0);
-	ad9833_set_phase(dev, 1, 0);
+	/* Sine Output */
+	AD9837_out_mode(dev, 0);
+
+	AD9837_set_freq(dev, 0, 9600);
+	AD9837_set_freq(dev, 1, 9600);
+
+	AD9837_set_phase(dev, 0, 0.0f);
+	AD9837_set_phase(dev, 1, 0.0f);
 
 	*device = dev;
 
-	return status;
+	return 0;
 }
 
 /***************************************************************************//**
- * @brief Free the resources allocated by ad9833_init().
+ * @brief Free the resources allocated by AD9837_init().
  *
  * @param dev - The device structure.
  *
  * @return SUCCESS in case of success, negative error code otherwise.
 *******************************************************************************/
-int32_t ad9833_remove(struct ad9833_dev *dev)
+int32_t AD9837_remove(struct AD9837_DEVICE *dev)
 {
-	int32_t ret;
+	int32_t ret = -1;
 
-	ret = spi_remove(dev->spi_desc);
+	if (dev->handle)
+	{
+	    SPI_close(dev->handle);
+	    dev->handle = NULL;
+	    ret = 0;
+	}
 
 	free(dev);
 
@@ -178,23 +183,22 @@ int32_t ad9833_remove(struct ad9833_dev *dev)
  *
  * @return none.
 ******************************************************************************/
-void ad9833_tx_spi(struct ad9833_dev *dev, int16_t value)
+
+void AD9837_write(struct AD9837_DEVICE *dev, int16_t value)
 {
-	uint16_t spi_data = 0;
-	uint8_t tx_buffer[4]  = {0, 0, 0, 0};   // Tx SPI Buffer.
+    uint8_t data[2];
+    uint16_t ulReply;
+    SPI_Transaction transaction;
 
-	tx_buffer[0] = (uint8_t) ((value & 0x00ff00) >> 8); // data to be sent
-	tx_buffer[1] = (uint8_t) (value & 0x0000ff);        // in 8 bit packets
+    data[0] = (uint8_t)((value & 0xFF00) >> 8);
+    data[1] = (uint8_t)((value & 0x00FF) >> 0);
 
-	if (spi_write_and_read(dev->spi_desc, tx_buffer, 2) != SUCCESS)
-	{
-		/* Initialize board. */
-		spi_data |= AD9833_CTRLRESET;
-		ad9833_tx_spi(dev, spi_data);
-		mdelay(10);
-		spi_data &=~ AD9833_CTRLRESET;
-		ad9833_tx_spi(dev, spi_data);
-	}
+    /* Write AD9837 Control Word Bits */
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&data;
+    transaction.rxBuf = (Ptr)&ulReply;
+
+    SPI_transfer(dev->handle, &transaction);
 }
 
 /**************************************************************************//**
@@ -202,41 +206,39 @@ void ad9833_tx_spi(struct ad9833_dev *dev, int16_t value)
  *
  * @param dev      - The device structure.
  * @param out_mode - type of output
- *                   Example AD9833&AD9837: 0 - Sinusoid.
+ *                   Example AD9837&AD9837: 0 - Sinusoid.
  *                                          1 - Triangle.
  *                                          2 - DAC Data MSB/2.
  *                                          3 - DAC Data MSB.
- *                   Example AD9834&AD9838: 0 - Sinusoid.
- *                                          1 - Triangle.
  *
  * @return status - output type could / couldn't be selected.
  *                  Example: 0 - output type possible for the given configuration.
  *                          -1 - output type not possible for the given configuration.
 ******************************************************************************/
 
-int8_t ad9833_out_mode(struct ad9833_dev *dev, uint8_t out_mode)
+int32_t AD9837_out_mode(struct AD9837_DEVICE *dev, uint8_t out_mode)
 {
 	uint16_t spi_data = 0;
 	int8_t status = 0;
 
-	spi_data = (dev->ctrl_reg_value & ~(AD9833_CTRLMODE | AD9833_CTRLOPBITEN | AD9833_CTRLDIV2));
+	spi_data = (dev->ctrl_reg_value & ~(AD9837_CTRLMODE | AD9837_CTRLOPBITEN | AD9837_CTRLDIV2));
 
 	switch(out_mode)
 	{
 		case 1:     // Triangle
-			spi_data += AD9833_CTRLMODE;
+			spi_data += AD9837_CTRLMODE;
 			break;
 		case 2:     // DAC Data MSB/2
-			spi_data += AD9833_CTRLOPBITEN;
+			spi_data += AD9837_CTRLOPBITEN;
 			break;
 		case 3:     // DAC Data MSB
-			spi_data += AD9833_CTRLOPBITEN + AD9833_CTRLDIV2;
+			spi_data += AD9837_CTRLOPBITEN + AD9837_CTRLDIV2;
 			break;
 		default:    // Sinusoid
 			break;
 	}
 
-	ad9833_tx_spi(dev, spi_data);
+	AD9837_write(dev, spi_data);
 
 	dev->ctrl_reg_value = spi_data;
 
@@ -260,44 +262,31 @@ int8_t ad9833_out_mode(struct ad9833_dev *dev, uint8_t out_mode)
  *
  * @return None.
 ******************************************************************************/
-void ad9833_sleep_mode(struct ad9833_dev *dev,
+void AD9837_sleep_mode(struct AD9837_DEVICE *dev,
 		       uint8_t sleep_mode)
 {
 	uint16_t spi_data = 0;
 
-	if (dev->prog_method == 0) {
-		spi_data = (dev->ctrl_reg_value & ~(AD9833_CTRLSLEEP12 | AD9833_CTRLSLEEP1));
-		switch(sleep_mode) {
+	spi_data = (dev->ctrl_reg_value & ~(AD9837_CTRLSLEEP12 | AD9837_CTRLSLEEP1));
+
+	switch(sleep_mode)
+	{
 		case 1:     // DAC powered down
-			spi_data += AD9833_CTRLSLEEP12;
+			spi_data += AD9837_CTRLSLEEP12;
 			break;
 		case 2:     // Internal clock disabled
-			spi_data += AD9833_CTRLSLEEP1;
+			spi_data += AD9837_CTRLSLEEP1;
 			break;
 		case 3:     // DAC powered down and Internal clock disabled
-			spi_data += AD9833_CTRLSLEEP1 + AD9833_CTRLSLEEP12;
+			spi_data += AD9837_CTRLSLEEP1 + AD9837_CTRLSLEEP12;
 			break;
 		default:    // No power-down
 			break;
-		}
-		ad9833_tx_spi(dev,
-			      spi_data);
-		dev->ctrl_reg_value = spi_data;
-	} else {
-		if (dev->prog_method == 1) {
-			switch(sleep_mode) {
-			case 0:     // No power-down
-				AD9834_SLEEP_LOW;
-				break;
-			case 1:     // DAC powered down
-				AD9834_SLEEP_HIGH;
-				break;
-			default:    // Do nothing
-				break;
-			}
-		}
 	}
 
+	AD9837_write(dev, spi_data);
+
+	dev->ctrl_reg_value = spi_data;
 }
 
 /**************************************************************************//**
@@ -309,30 +298,32 @@ void ad9833_sleep_mode(struct ad9833_dev *dev,
  *
  * @return None.
 ******************************************************************************/
-void ad9833_set_freq(struct ad9833_dev *dev,
+void AD9837_set_freq(struct AD9837_DEVICE *dev,
 		     uint8_t register_number,
 		     uint32_t frequency_value)
 {
 	uint32_t ul_freq_register;
-	uint16_t i_freq_lsb, i_freq_msb;
+	uint16_t i_freq_lsb;
+	uint16_t i_freq_msb;
 
-	ul_freq_register = (uint32_t)(frequency_value *
-				      chip_info[dev->act_device].freq_const);
+	ul_freq_register = (uint32_t)(frequency_value * freq_const);
+
 	i_freq_lsb = (ul_freq_register & 0x0003FFF);
 	i_freq_msb = ((ul_freq_register & 0xFFFC000) >> 14);
-	dev->ctrl_reg_value |= AD9833_CTRLB28;
-	ad9833_tx_spi(dev,
-		      dev->ctrl_reg_value);
-	if(register_number == 0) {
-		ad9833_tx_spi(dev,
-			      BIT_F0ADDRESS + i_freq_lsb);
-		ad9833_tx_spi(dev,
-			      BIT_F0ADDRESS + i_freq_msb);
-	} else {
-		ad9833_tx_spi(dev,
-			      BIT_F1ADDRESS + i_freq_lsb);
-		ad9833_tx_spi(dev,
-			      BIT_F1ADDRESS + i_freq_msb);
+
+	dev->ctrl_reg_value |= AD9837_CTRLB28;
+
+	AD9837_write(dev, dev->ctrl_reg_value);
+
+	if (register_number == 0)
+	{
+		AD9837_write(dev, BIT_F0ADDRESS + i_freq_lsb);
+		AD9837_write(dev, BIT_F0ADDRESS + i_freq_msb);
+	}
+	else
+	{
+		AD9837_write(dev, BIT_F1ADDRESS + i_freq_lsb);
+		AD9837_write(dev, BIT_F1ADDRESS + i_freq_msb);
 	}
 }
 
@@ -345,20 +336,18 @@ void ad9833_set_freq(struct ad9833_dev *dev,
  *
  * @return none
 ******************************************************************************/
-void ad9833_set_phase(struct ad9833_dev *dev,
+void AD9837_set_phase(struct AD9837_DEVICE *dev,
 		      uint8_t register_number,
 		      float phase_value)
 {
 	uint16_t phase_calc;
 
 	phase_calc = (uint16_t)(phase_value * phase_const);
-	if(register_number == 0) {
-		ad9833_tx_spi(dev,
-			      BIT_P0ADDRESS + phase_calc);
-	} else {
-		ad9833_tx_spi(dev,
-			      BIT_P1ADDRESS + phase_calc);
-	}
+
+	if (register_number == 0)
+		AD9837_write(dev, BIT_P0ADDRESS + phase_calc);
+	else
+		AD9837_write(dev, BIT_P1ADDRESS + phase_calc);
 }
 
 /**************************************************************************//**
@@ -369,32 +358,20 @@ void ad9833_set_phase(struct ad9833_dev *dev,
  *
  * @return None.
 ******************************************************************************/
-void ad9833_select_freq_reg(struct ad9833_dev *dev,
+void AD9837_select_freq_reg(struct AD9837_DEVICE *dev,
 			    uint8_t freq_reg)
 {
 	uint16_t spi_data = 0;
 
-	if (dev->prog_method == 0) {
-		spi_data = (dev->ctrl_reg_value & ~AD9833_CTRLFSEL);
-		// Select soft the working frequency register according to parameter
-		if(freq_reg == 1) {
-			spi_data += AD9833_CTRLFSEL;
-		}
-		ad9833_tx_spi(dev,
-			      spi_data);
-		dev->ctrl_reg_value = spi_data;
-	} else {
-		if (dev->prog_method == 1) {
-			// Select hard the working frequency register according to parameter
-			if (freq_reg == 1) {
-				AD9834_FSEL_HIGH;
-			} else {
-				if (freq_reg == 0) {
-					AD9834_FSEL_LOW;
-				}
-			}
-		}
-	}
+	spi_data = (dev->ctrl_reg_value & ~AD9837_CTRLFSEL);
+
+	// Select soft the working frequency register according to parameter
+	if (freq_reg == 1)
+		spi_data += AD9837_CTRLFSEL;
+
+	AD9837_write(dev, spi_data);
+
+	dev->ctrl_reg_value = spi_data;
 }
 
 /**************************************************************************//**
@@ -405,105 +382,20 @@ void ad9833_select_freq_reg(struct ad9833_dev *dev,
  *
  * @return None.
 ******************************************************************************/
-void ad9833_select_phase_reg(struct ad9833_dev *dev,
+void AD9837_select_phase_reg(struct AD9837_DEVICE *dev,
 			     uint8_t phase_reg)
 {
 	uint16_t spi_data = 0;
 
-	if (dev->prog_method == 0) {
-		spi_data = (dev->ctrl_reg_value & ~AD9833_CTRLPSEL);
-		// Select soft the working phase register according to parameter
-		if(phase_reg == 1) {
-			spi_data += AD9833_CTRLPSEL;
-		}
-		ad9833_tx_spi(dev,
-			      spi_data);
-		dev->ctrl_reg_value = spi_data;
-	} else {
-		if (dev->prog_method == 1) {
-			// Select hard the working phase register according to parameter
-			if (phase_reg == 1) {
-				AD9834_PSEL_HIGH;
-			} else {
-				if (phase_reg == 0) {
-					AD9834_PSEL_LOW;
-				}
-			}
-		}
-	}
-}
+	spi_data = (dev->ctrl_reg_value & ~AD9837_CTRLPSEL);
 
-/**************************************************************************//**
- * @brief Sets the programming method. (only for AD9834 & AD9838)
- *
- * @param dev   - The device structure.
- * @param value - soft or hard method. (0 / 1)
- *
- * @return None.
-******************************************************************************/
-void ad9834_select_prog_method(struct ad9833_dev *dev,
-			       uint8_t value)
-{
-	uint16_t spi_data = (dev->ctrl_reg_value & ~AD9834_CTRLPINSW);
+	// Select soft the working phase register according to parameter
+	if (phase_reg == 1)
+	    spi_data += AD9837_CTRLPSEL;
 
-	dev->prog_method = 0;        // software method
-	if (value == 1) {
-		spi_data += AD9834_CTRLPINSW;
-		dev->prog_method = 1;    // hardware method
-	}
-	ad9833_tx_spi(dev,
-		      spi_data);
+	AD9837_write(dev, spi_data);
+
 	dev->ctrl_reg_value = spi_data;
 }
 
-/**************************************************************************//**
- * @brief Configures the control register for logic output.
- *        (only for AD9834 & AD9838)
- *
- * @param dev     - The device structure.
- * @param opbiten - Enables / disables the logic output.
- * @param signpib - Connects comparator / MSB to the SIGN BIT OUT pin.
- * @param div2    - MSB / MSB/2
- *
- * @return None.
-******************************************************************************/
-void ad9834_logic_output(struct ad9833_dev *dev,
-			 uint8_t opbiten,
-			 uint8_t signpib,
-			 uint8_t div2)
-{
-	uint16_t spi_data = 0;
-
-	spi_data = (dev->ctrl_reg_value & ~(AD9833_CTRLOPBITEN |
-					    AD9833_CTRLMODE    |
-					    AD9834_CTRLSIGNPIB |
-					    AD9833_CTRLDIV2));
-
-
-	if(opbiten == 1) {
-		spi_data |= AD9833_CTRLOPBITEN;
-
-		if (signpib == 1) {
-			spi_data |= AD9834_CTRLSIGNPIB;
-		} else {
-			if (signpib == 0) {
-				spi_data &= ~AD9834_CTRLSIGNPIB;
-			}
-		}
-		if (div2 == 1) {
-			spi_data |= AD9833_CTRLDIV2;
-		} else {
-			if (div2 == 0) {
-				spi_data &= ~AD9833_CTRLDIV2;
-			}
-		}
-	} else {
-		if (opbiten == 0) {
-			spi_data &= ~AD9833_CTRLOPBITEN;
-		}
-	}
-	ad9833_tx_spi(dev,
-		      spi_data);
-	dev->ctrl_reg_value = spi_data;
-}
-
+/* End-Of-File */

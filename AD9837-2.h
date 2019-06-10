@@ -1,6 +1,6 @@
 /***************************************************************************//**
-*   @file   ad9833.h
-*   @brief  Header file of AD9833 Driver for Microblaze processor.
+*   @file   AD9837.h
+*   @brief  Header file of AD9837 Driver for Microblaze processor.
 *   @author Lucian Sin (Lucian.Sin@analog.com)
 *
 ********************************************************************************
@@ -37,25 +37,25 @@
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
-#ifndef _AD9833_H_
-#define _AD9833_H_
+#ifndef _AD9837_H_
+#define _AD9837_H_
 
 /******************************************************************************/
 /********************* Macros and Constants Definitions ***********************/
 /******************************************************************************/
 
-#define AD9833_CTRLB28          (1 << 13)
-#define AD9833_CTRLHLB          (1 << 12)
-#define AD9833_CTRLFSEL         (1 << 11)
-#define AD9833_CTRLPSEL         (1 << 10)
+#define AD9837_CTRLB28          (1 << 13)
+#define AD9837_CTRLHLB          (1 << 12)
+#define AD9837_CTRLFSEL         (1 << 11)
+#define AD9837_CTRLPSEL         (1 << 10)
 #define AD9834_CTRLPINSW        (1 << 9)
-#define AD9833_CTRLRESET        (1 << 8)
-#define AD9833_CTRLSLEEP1       (1 << 7)
-#define AD9833_CTRLSLEEP12      (1 << 6)
-#define AD9833_CTRLOPBITEN      (1 << 5)
+#define AD9837_CTRLRESET        (1 << 8)
+#define AD9837_CTRLSLEEP1       (1 << 7)
+#define AD9837_CTRLSLEEP12      (1 << 6)
+#define AD9837_CTRLOPBITEN      (1 << 5)
 #define AD9834_CTRLSIGNPIB      (1 << 4)
-#define AD9833_CTRLDIV2         (1 << 3)
-#define AD9833_CTRLMODE         (1 << 1)
+#define AD9837_CTRLDIV2         (1 << 3)
+#define AD9837_CTRLMODE         (1 << 1)
 
 #define BIT_F0ADDRESS           0x4000      // Frequency Register 0 address.
 #define BIT_F1ADDRESS           0x8000      // Frequency Register 1 address.
@@ -66,65 +66,41 @@
 /*************************** Types Declarations *******************************/
 /******************************************************************************/
 
-struct ad9833_dev {
+struct AD9837_DEVICE {
 	/* SPI */
-	spi_desc*   spi_desc;
+    SPI_Handle  handle;
 	/* Device Settings */
 	uint8_t		prog_method;
 	uint16_t    ctrl_reg_value;
 	uint16_t	test_opbiten;
 };
 
-struct ad9833_chip_info {
-	uint32_t	mclk;
-	float		freq_const;
-};
-
 /******************************************************************************/
 /************************** Functions Declarations ****************************/
 /******************************************************************************/
+
 /* Initialize the SPI communication with the device. */
-int8_t ad9833_init(struct ad9833_dev **device);
+int32_t AD9837_init(struct AD9837_DEVICE **device);
 
 /* Free the resources allocated by adf7023_init(). */
-int32_t ad9833_remove(struct ad9833_dev *dev);
+int32_t AD9837_remove(struct AD9837_DEVICE *dev);
 
 /* Transmits 16 bits on SPI. */
-void ad9833_tx_spi(struct ad9833_dev *dev,
-		   int16_t value);
+void AD9837_write(struct AD9837_DEVICE *dev, int16_t value);
 
 /* Selects the type of output. */
-int8_t ad9833_out_mode(struct ad9833_dev *dev,
-		       uint8_t v_out_mode);
+int32_t AD9837_out_mode(struct AD9837_DEVICE *dev, uint8_t v_out_mode);
 
 /* Loads a frequency value in a register. */
-void ad9833_set_freq(struct ad9833_dev *dev,
-		     uint8_t register_number,
-		     uint32_t frequency_value);
+void AD9837_set_freq(struct AD9837_DEVICE *dev, uint8_t register_number, uint32_t frequency_value);
 
 /* Loads a phase value in a register. */
-void ad9833_set_phase(struct ad9833_dev *dev,
-		      uint8_t register_number,
-		      float phase_value);
+void AD9837_set_phase(struct AD9837_DEVICE *dev, uint8_t register_number, float phase_value);
 
 /* Select the frequency register to be used. */
-void ad9833_select_freq_reg(struct ad9833_dev *dev,
-			    uint8_t freq_reg);
+void AD9837_select_freq_reg(struct AD9837_DEVICE *dev, uint8_t freq_reg);
 
 /* Select the phase register to be used. */
-void ad9833_select_phase_reg(struct ad9833_dev *dev,
-			     uint8_t phase_reg);
+void AD9837_select_phase_reg(struct AD9837_DEVICE *dev, uint8_t phase_reg);
 
-/* Enable / Disable the sleep function. */
-void ad9833_sleep_mode(struct ad9833_dev *dev,
-		       uint8_t sleep_mode);
-
-void ad9834_select_prog_method(struct ad9833_dev *dev,
-			       uint8_t value);
-
-void ad9834_logic_output(struct ad9833_dev *dev,
-			 uint8_t opbiten,
-			 uint8_t signpib,
-			 uint8_t div2);
-
-#endif  /* _AD9833_H_ */
+#endif  /* _AD9837_H_ */

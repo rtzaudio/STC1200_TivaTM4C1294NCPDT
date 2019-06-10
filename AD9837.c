@@ -116,8 +116,7 @@ void AD9837_Init(void)
 
 void AD9837_WriteRegister(uint16_t regValue)
 {
-    bool status;
-    unsigned char data[2];
+     unsigned char data[2];
     uint16_t ulReply;
     SPI_Transaction transaction;
 
@@ -130,7 +129,7 @@ void AD9837_WriteRegister(uint16_t regValue)
     transaction.txBuf = (Ptr)&data;
     transaction.rxBuf = (Ptr)&ulReply;
 
-    status = SPI_transfer(g_handleSpi3, &transaction);
+    SPI_transfer(g_handleSpi3, &transaction);
 }
 
 //*****************************************************************************
@@ -144,7 +143,7 @@ void AD9837_WriteRegister(uint16_t regValue)
 uint32_t AD9837_freqCalc(uint32_t freq)
 {
     /*
-     * Freq out put is flck/2^28 * FREQREG
+     * Freq output is flck/2^28 * FREQREG
      * at flck 16Mhz const = 12Mhz/2^28 = 0.04470hz
      * flck is the 16Mhz clock attached to the Gen.
      * Per AN-1070 Freq is calculated by
