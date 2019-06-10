@@ -116,6 +116,7 @@ void AD9837_Init(void)
 
 void AD9837_WriteRegister(uint16_t regValue)
 {
+    bool status;
     unsigned char data[2];
     uint16_t ulReply;
     SPI_Transaction transaction;
@@ -129,7 +130,7 @@ void AD9837_WriteRegister(uint16_t regValue)
     transaction.txBuf = (Ptr)&data;
     transaction.rxBuf = (Ptr)&ulReply;
 
-    SPI_transfer(g_handleSpi3, &transaction);
+    status = SPI_transfer(g_handleSpi3, &transaction);
 }
 
 //*****************************************************************************
@@ -164,9 +165,10 @@ void AD9837_Reset(void)
     /* Place AD9837 in reset mode */
     AD9837_WriteRegister(AD9837_REG_CMD | AD9837_RESET);
     /* Settling time */
-    Task_sleep(10);
+    Task_sleep(100);
     /* Take the AD9837 out of reset mode */
     AD9837_WriteRegister(AD9837_REG_CMD);
+    Task_sleep(100);
 
     /* Set the frequency Registers */
     AD9837_SetFrequency(AD9837_REG_FREQ0, 9600);
