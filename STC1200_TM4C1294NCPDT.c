@@ -366,6 +366,8 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
     GPIOTiva_PL_0 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
     /* STC1200_STAT_LED */
     GPIOTiva_PF_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    /* STC1200_AD9732_FSYNC */
+    GPIOTiva_PF_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
 };
 
 /*
@@ -469,6 +471,9 @@ void STC1200_initGPIO(void)
     GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_1);
     // Enable pin PQ2 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_2);
+
+    // Enable pin PF2 for GPIOOutput
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
 
 	/* Once GPIO_init is called, GPIO_config cannot be changed */
     GPIO_init();
@@ -746,8 +751,8 @@ void STC1200_initSPI(void)
     GPIOPinConfigure(GPIO_PF3_SSI3CLK);
     GPIOPinTypeSSI(GPIO_PORTF_BASE, GPIO_PIN_3);
     // Enable pin PF2 for SSI3 SSI3FSS
-    GPIOPinConfigure(GPIO_PF2_SSI3FSS);
-    GPIOPinTypeSSI(GPIO_PORTF_BASE, GPIO_PIN_2);
+    //GPIOPinConfigure(GPIO_PF2_SSI3FSS);
+    //GPIOPinTypeSSI(GPIO_PORTF_BASE, GPIO_PIN_2);
     // Enable pin PF1 for SSI3 SSI3XDAT0
     GPIOPinConfigure(GPIO_PF1_SSI3XDAT0);
     GPIOPinTypeSSI(GPIO_PORTF_BASE, GPIO_PIN_1);

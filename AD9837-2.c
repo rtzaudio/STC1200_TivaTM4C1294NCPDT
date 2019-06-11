@@ -76,115 +76,11 @@
 #include "CLITask.h"
 #include "AD9837-2.h"
 
-/******************************************************************************/
-/************************** Constants Definitions *****************************/
-/******************************************************************************/
-float phase_const = 651.8986469f;
-//float freq_const  = 16.777216f;         // mclk = 16000000
-float freq_const  = 22.36962133f;         // mclk = 12000000
+static SPI_Handle  handle;
+static uint16_t    configReg;
 
-/******************************************************************************/
-/************************** Functions Definitions *****************************/
-/******************************************************************************/
 
-/***************************************************************************//**
- * @brief Initialize the SPI communication with the device.
- *
- * @param device     - The device structure.
- * @param init_param - The structure that contains the device initial
- * 		       parameters.
- *
- * @return status - Result of the initialization procedure.
- *                  Example:  0 - if initialization was successful;
- *                           -1 - if initialization was unsuccessful.
-*******************************************************************************/
-
-int32_t AD9837_init(struct AD9837_DEVICE **device)
-{
-	uint16_t spi_data = 0;
-    struct AD9837_DEVICE *dev;
-    SPI_Params spiParams;
-
-	dev = (struct AD9837_DEVICE *)malloc(sizeof(*dev));
-
-	if (!dev)
-		return -1;
-
-	dev->prog_method    = 0;
-	dev->ctrl_reg_value = 0;
-    dev->test_opbiten   = 0;
-
-    /* Open SPI port to AD9732  on the STC SMPTE daughter card */
-
-    /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
-    SPI_Params_init(&spiParams);
-
-    spiParams.transferMode  = SPI_MODE_BLOCKING;
-    spiParams.mode          = SPI_MASTER;
-    spiParams.frameFormat   = SPI_POL1_PHA0;
-    spiParams.bitRate       = 250000;
-    spiParams.dataSize      = 16;
-    spiParams.transferCallbackFxn = NULL;
-
-    dev->handle = SPI_open(Board_SPI_EXPIO_SIO3, &spiParams);
-
-    if (dev->handle == NULL)
-        System_abort("Error initializing SPI0\n");
-
-	/* Initialize board. */
-	spi_data |= AD9837_CTRLRESET;
-	AD9837_write(dev, spi_data);
-	Task_sleep(10);
-	spi_data &= ~(AD9837_CTRLRESET);
-	AD9837_write(dev, spi_data);
-
-	/* Sine Output */
-	AD9837_out_mode(dev, 0);
-
-	AD9837_set_freq(dev, 0, 9600);
-	AD9837_set_freq(dev, 1, 9600);
-
-	AD9837_set_phase(dev, 0, 0.0f);
-	AD9837_set_phase(dev, 1, 0.0f);
-
-	*device = dev;
-
-	return 0;
-}
-
-/***************************************************************************//**
- * @brief Free the resources allocated by AD9837_init().
- *
- * @param dev - The device structure.
- *
- * @return SUCCESS in case of success, negative error code otherwise.
-*******************************************************************************/
-int32_t AD9837_remove(struct AD9837_DEVICE *dev)
-{
-	int32_t ret = -1;
-
-	if (dev->handle)
-	{
-	    SPI_close(dev->handle);
-	    dev->handle = NULL;
-	    ret = 0;
-	}
-
-	free(dev);
-
-	return ret;
-}
-
-/**************************************************************************//**
- * @brief Transmits 16 bits on SPI.
- *
- * @param dev   - The device structure.
- * @param value - Data which will be transmitted.
- *
- * @return none.
-******************************************************************************/
-
-void AD9837_write(struct AD9837_DEVICE *dev, int16_t value)
+static void SPIWrite(int16_t value)
 {
     uint8_t data[2];
     uint16_t ulReply;
@@ -198,204 +94,257 @@ void AD9837_write(struct AD9837_DEVICE *dev, int16_t value)
     transaction.txBuf = (Ptr)&data;
     transaction.rxBuf = (Ptr)&ulReply;
 
-    SPI_transfer(dev->handle, &transaction);
+    GPIO_write(Board_AD9732_FSYNC, PIN_LOW);
+    SPI_transfer(handle, &transaction);
+    GPIO_write(Board_AD9732_FSYNC, PIN_HIGH);
 }
 
-/**************************************************************************//**
- * @brief Selects the type of output.
- *
- * @param dev      - The device structure.
- * @param out_mode - type of output
- *                   Example AD9837&AD9837: 0 - Sinusoid.
- *                                          1 - Triangle.
- *                                          2 - DAC Data MSB/2.
- *                                          3 - DAC Data MSB.
- *
- * @return status - output type could / couldn't be selected.
- *                  Example: 0 - output type possible for the given configuration.
- *                          -1 - output type not possible for the given configuration.
-******************************************************************************/
 
-int32_t AD9837_out_mode(struct AD9837_DEVICE *dev, uint8_t out_mode)
+int32_t AD9837_init(void)
 {
-	uint16_t spi_data = 0;
-	int8_t status = 0;
+    SPI_Params spiParams;
 
-	spi_data = (dev->ctrl_reg_value & ~(AD9837_CTRLMODE | AD9837_CTRLOPBITEN | AD9837_CTRLDIV2));
+    /* Open SPI port to AD9732  on the STC SMPTE daughter card */
 
-	switch(out_mode)
-	{
-		case 1:     // Triangle
-			spi_data += AD9837_CTRLMODE;
-			break;
-		case 2:     // DAC Data MSB/2
-			spi_data += AD9837_CTRLOPBITEN;
-			break;
-		case 3:     // DAC Data MSB
-			spi_data += AD9837_CTRLOPBITEN + AD9837_CTRLDIV2;
-			break;
-		default:    // Sinusoid
-			break;
-	}
+    /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
+    SPI_Params_init(&spiParams);
 
-	AD9837_write(dev, spi_data);
+    spiParams.transferMode  = SPI_MODE_BLOCKING;
+    spiParams.mode          = SPI_MASTER;
+    spiParams.frameFormat   = SPI_POL1_PHA0;
+    spiParams.bitRate       = 250000;
+    spiParams.dataSize      = 16;
+    spiParams.transferCallbackFxn = NULL;
 
-	dev->ctrl_reg_value = spi_data;
+    handle = SPI_open(Board_SPI_EXPIO_SIO3, &spiParams);
 
-	return status;
+    if (handle == NULL)
+        System_abort("Error initializing SPI0\n");
+
+	return 0;
 }
 
-/**************************************************************************//**
- * @brief Enable / Disable the sleep function.
- *
- * @param dev        - The device structure.
- * @param sleep_mode - type of sleep
- *                    Example soft method(all devices):
- *                              0 - No power-down.
- *                              1 - DAC powered down.
- *                              2 - Internal clock disabled.
- *                              3 - DAC powered down and Internal
- *                                  clock disabled.
- *                    Example hard method(AD9834 & AD9838):
- *                              0 - No power-down.
- *                              1 - DAC powered down.
- *
- * @return None.
-******************************************************************************/
-void AD9837_sleep_mode(struct AD9837_DEVICE *dev,
-		       uint8_t sleep_mode)
+// reset the AD part. This will disable all function generation and set the
+//  output to approximately mid-level, constant voltage. Since we're resetting,
+//  we can also forego worrying about maintaining the state of the other bits
+//  in the config register.
+
+void AD9837_reset()
 {
-	uint16_t spi_data = 0;
+  uint32_t defaultFreq = AD9837_freqCalc(100.0);
 
-	spi_data = (dev->ctrl_reg_value & ~(AD9837_CTRLSLEEP12 | AD9837_CTRLSLEEP1));
+  AD9837_adjustFreqMode32(FREQ0, FULL, defaultFreq);
+  AD9837_adjustFreqMode32(FREQ1, FULL, defaultFreq);
 
-	switch(sleep_mode)
-	{
-		case 1:     // DAC powered down
-			spi_data += AD9837_CTRLSLEEP12;
-			break;
-		case 2:     // Internal clock disabled
-			spi_data += AD9837_CTRLSLEEP1;
-			break;
-		case 3:     // DAC powered down and Internal clock disabled
-			spi_data += AD9837_CTRLSLEEP1 + AD9837_CTRLSLEEP12;
-			break;
-		default:    // No power-down
-			break;
-	}
+  AD9837_adjustPhaseShift(PHASE0, 0x0000);
+  AD9837_adjustPhaseShift(PHASE1, 0x0000);
 
-	AD9837_write(dev, spi_data);
-
-	dev->ctrl_reg_value = spi_data;
+  SPIWrite(0x0100);
+  SPIWrite(0x0000);
 }
 
-/**************************************************************************//**
- * @brief Loads a frequency value in a register.
- *
- * @param dev             - The device structure.
- * @param register_number - Number of the register (0 / 1).
- * @param frequency_value - Frequency value.
- *
- * @return None.
-******************************************************************************/
-void AD9837_set_freq(struct AD9837_DEVICE *dev,
-		     uint8_t register_number,
-		     uint32_t frequency_value)
+// Set the mode of the part. The mode (trinagle, sine, or square) is set by
+//  three bits in the status register: D5 (OPBITEN), D3 (DIV2), and D1 (MODE).
+//  Here's a nice truth table for those settings:
+//  D5 D1 D3
+//  0  0  x   Sine wave output
+//  0  1  x   Triangle wave output
+//  1  0  0   Square wave @ 1/2 frequency
+//  1  0  1   Square wave @ frequency
+//  1  1  x   Not allowed
+
+void AD9837_setMode(enum MODE newMode)
 {
-	uint32_t ul_freq_register;
-	uint16_t i_freq_lsb;
-	uint16_t i_freq_msb;
+    // We want to adjust the three bits in the config register that we're
+    //  interested in without screwing up anything else. Unfortunately, this
+    //  part is write-only, so we need to maintain a local shadow, adjust that,
+    //  then write it.
 
-	ul_freq_register = (uint32_t)(frequency_value * freq_const);
+    configReg &= ~0x002A; // Clear D5, D3, and D1.
 
-	i_freq_lsb = (ul_freq_register & 0x0003FFF);
-	i_freq_msb = ((ul_freq_register & 0xFFFC000) >> 14);
+    switch(newMode)
+    {
+    case TRIANGLE:
+        configReg |= 0x0002;
+        break;
 
-	dev->ctrl_reg_value |= AD9837_CTRLB28;
+    case SQUARE_2:
+        configReg |= 0x0020;
+        break;
 
-	AD9837_write(dev, dev->ctrl_reg_value);
+    case SQUARE:
+        configReg |= 0x0028;
+        break;
 
-	if (register_number == 0)
-	{
-		AD9837_write(dev, BIT_F0ADDRESS + i_freq_lsb);
-		AD9837_write(dev, BIT_F0ADDRESS + i_freq_msb);
-	}
-	else
-	{
-		AD9837_write(dev, BIT_F1ADDRESS + i_freq_lsb);
-		AD9837_write(dev, BIT_F1ADDRESS + i_freq_msb);
-	}
+    case SINE:
+        configReg |= 0x0000;
+        break;
+    }
+
+    // Now write our shadow copy to the part.
+    SPIWrite(configReg);
 }
 
-/**************************************************************************//**
- * @brief Loads a phase value in a register.
- *
- * @param dev             - The device structure.
- * @param register_number - Number of the register (0 / 1).
- * @param phase_value     - Phase value.
- *
- * @return none
-******************************************************************************/
-void AD9837_set_phase(struct AD9837_DEVICE *dev,
-		      uint8_t register_number,
-		      float phase_value)
+// The AD9837 has two frequency registers that can be independently adjusted.
+//  This allows us to fiddle with the value in one without affecting the output
+//  of the device. The register used for calculating the output is selected by
+//  toggling bit 11 of the config register.
+
+void AD9837_selectFreqReg(enum FREQREG reg)
 {
-	uint16_t phase_calc;
+    // For register FREQ0, we want to clear bit 11.
+    if (reg == FREQ0)
+        configReg &= ~0x0800;
+    else
+        configReg |= 0x0800;
 
-	phase_calc = (uint16_t)(phase_value * phase_const);
-
-	if (register_number == 0)
-		AD9837_write(dev, BIT_P0ADDRESS + phase_calc);
-	else
-		AD9837_write(dev, BIT_P1ADDRESS + phase_calc);
+    SPIWrite(configReg);
 }
 
-/**************************************************************************//**
- * @brief Select the frequency register to be used.
- *
- * @param dev      - The device structure.
- * @param freq_reg - Number of frequency register. (0 / 1)
- *
- * @return None.
-******************************************************************************/
-void AD9837_select_freq_reg(struct AD9837_DEVICE *dev,
-			    uint8_t freq_reg)
+// Similarly, there are two phase registers, selected by bit 10 of the config
+//  register.
+
+void AD9837_selectPhaseReg(enum PHASEREG reg)
 {
-	uint16_t spi_data = 0;
+    if (reg == PHASE0)
+        configReg &= ~0x0400;
+    else
+        configReg |= 0x0400;
 
-	spi_data = (dev->ctrl_reg_value & ~AD9837_CTRLFSEL);
-
-	// Select soft the working frequency register according to parameter
-	if (freq_reg == 1)
-		spi_data += AD9837_CTRLFSEL;
-
-	AD9837_write(dev, spi_data);
-
-	dev->ctrl_reg_value = spi_data;
+    SPIWrite(configReg);
 }
 
-/**************************************************************************//**
- * @brief Select the phase register to be used.
- *
- * @param dev       - The device structure.
- * @param phase_reg - Number of phase register. (0 / 1)
- *
- * @return None.
-******************************************************************************/
-void AD9837_select_phase_reg(struct AD9837_DEVICE *dev,
-			     uint8_t phase_reg)
+// The frequency registers are 28 bits in size (combining the lower 14 bits of
+//  two 16 bit writes; the upper 2 bits are the register address to write).
+//  Bits 13 and 12 of the config register select how these writes are handled:
+//  13 12
+//  0  0   Any write to a frequency register is treated as a write to the lower
+//          14 bits; this allows for fast fine adjustment.
+//  0  1   Writes are send to upper 14 bits, allowing for fast coarse adjust.
+//  1  x   First write of a pair goes to LSBs, second to MSBs. Note that the
+//          user must, in this case, be certain to write in pairs, to avoid
+//          unexpected results!
+
+void AD9837_setFreqAdjustMode(enum FREQADJUSTMODE newMode)
 {
-	uint16_t spi_data = 0;
+  // Start by clearing the bits in question.
+  configReg &= ~0x3000;
+  // Now, adjust the bits to match the truth table above.
+  switch(newMode)
+  {
+    case COARSE:  // D13:12 = 01
+      configReg |= 0x1000;
+    break;
+    case FINE:    // D13:12 = 00
+    break;
+    case FULL:    // D13:12 = 1x (we use 10)
+      configReg |= 0x2000;
+    break;
+  }
+  SPIWrite(configReg);
+}
 
-	spi_data = (dev->ctrl_reg_value & ~AD9837_CTRLPSEL);
+// The phase shift value is 12 bits long; it gets routed to the proper phase
+//  register based on the value of the 3 MSBs (4th MSB is ignored).
 
-	// Select soft the working phase register according to parameter
-	if (phase_reg == 1)
-	    spi_data += AD9837_CTRLPSEL;
+void AD9837_adjustPhaseShift(enum PHASEREG reg, uint16_t newPhase)
+{
+  // First, let's blank the top four bits. Just because it's the right thing
+  //  to do, you know?
+  newPhase &= ~0xF000;
+  // Now, we need to set the top three bits to properly route the data.
+  //  D15:D13 = 110 for PHASE0...
+  if (reg == PHASE0) newPhase |= 0xC000;
+  // ... and D15:D13 = 111 for PHASE1.
+  else               newPhase |= 0xE000;
+  SPIWrite(newPhase);
+}
 
-	AD9837_write(dev, spi_data);
+// Okay, now we're going to handle frequency adjustments. This is a little
+//  trickier than a phase adjust, because in addition to properly routing the
+//  data, we need to know whether we're writing all 32 bits or just 16. I've
+//  overloaded this function call for three cases: write with a mode change (if
+//  one is needed), and write with the existing mode.
 
-	dev->ctrl_reg_value = spi_data;
+// Adjust the contents of the given register, and, if necessary, switch mode
+//  to do so. This is probably the slowest method of updating a register.
+
+void AD9837_adjustFreqMode32(enum FREQREG reg, enum FREQADJUSTMODE mode, uint32_t newFreq)
+{
+    AD9837_setFreqAdjustMode(mode);
+    // Now, we can just call the normal 32-bit write.
+    AD9837_adjustFreq32(reg, newFreq);
+}
+
+// Fine or coarse update of the given register; change modes if necessary to
+//  do this.
+
+void AD9837_adjustFreqMode16(enum FREQREG reg, enum FREQADJUSTMODE mode, uint16_t newFreq)
+{
+    AD9837_setFreqAdjustMode(mode);  // Set the mode
+    AD9837_adjustFreq16(reg, newFreq); // Call the known-mode write.
+}
+
+// Adjust the contents of the register, but assume that the write mode is
+//  already set to full. Note that if it is NOT set to full, bad things will
+//  happen- the coarse or fine register will be updated with the contents of
+//  the upper 14 bits of the 28 bits you *meant* to send.
+
+void AD9837_adjustFreq32(enum FREQREG reg, uint32_t newFreq)
+{
+  // We need to split the 32-bit input into two 16-bit values, blank the top
+  //  two bits of those values, and set the top two bits according to the
+  //  value of reg.
+  // Start by acquiring the low 16-bits...
+  uint16_t temp = (uint16_t)newFreq;
+  // ...and blanking the first two bits.
+  temp &= ~0xC000;
+  // Now, set the top two bits according to the reg parameter.
+  if (reg==FREQ0) temp |= 0x4000;
+  else            temp |= 0x8000;
+  // Now, we can write temp out to the device.
+  SPIWrite(temp);
+  // Okay, that's the lower 14 bits. Now let's grab the upper 14.
+  temp = (uint16_t)(newFreq>>14);
+  // ...and now, we can just repeat the process.
+  temp &= ~0xC000;
+  // Now, set the top two bits according to the reg parameter.
+  if (reg==FREQ0) temp |= 0x4000;
+  else            temp |= 0x8000;
+  // Now, we can write temp out to the device.
+  SPIWrite(temp);
+}
+
+// Adjust the coarse or fine register, depending on the current mode. Note that
+//  if the current adjust mode is FULL, this is going to cause undefined
+//  behavior, as it will leave one transfer hanging. Maybe that means only
+//  half the register gets loaded? Maybe nothing happens until another write
+//  to that register? Either way, it's not going to be good.
+
+void AD9837_adjustFreq16(enum FREQREG reg, uint16_t newFreq)
+{
+    // We need to blank the first two bits...
+    newFreq &= ~0xC000;
+
+    // Now, set the top two bits according to the reg parameter.
+    if (reg == FREQ0)
+        newFreq |= 0x4000;
+    else
+        newFreq |= 0x8000;
+
+    // Now, we can write newFreq out to the device.
+    SPIWrite(newFreq);
+}
+
+// Helper function, used to calculate the integer value to be written to a
+//  freq register for a desired output frequency.
+// The output frequency is fclk/2^28 * FREQREG. For us, fclk is 16MHz. We can
+//  save processor time by specifying a constant for fclk/2^28- .0596. That is,
+//  in Hz, the smallest step size for adjusting the output frequency.
+
+uint32_t AD9837_freqCalc(float desiredFrequency)
+{
+    return (uint32_t) (desiredFrequency/.0596);
 }
 
 /* End-Of-File */

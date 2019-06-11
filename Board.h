@@ -110,6 +110,7 @@ extern "C" {
 #define Board_EXPIO_PP5				STC1200_EXPIO_PP5
 #define Board_EXPIO_PK2				STC1200_EXPIO_PK2
 #define Board_EXPIO_PK3				STC1200_EXPIO_PK3
+#define Board_AD9732_FSYNC          STC1200_AD9732_FSYNC
 
 #define Board_RS422_RE_N			STC1200_RS422_RE_N
 #define Board_RS422_DE				STC1200_RS422_DE

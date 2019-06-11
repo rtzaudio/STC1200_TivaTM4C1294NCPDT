@@ -66,41 +66,31 @@
 /*************************** Types Declarations *******************************/
 /******************************************************************************/
 
-struct AD9837_DEVICE {
-	/* SPI */
+enum MODE {TRIANGLE, SINE, SQUARE, SQUARE_2};
+enum FREQREG {FREQ0, FREQ1};
+enum PHASEREG {PHASE0, PHASE1};
+enum FREQADJUSTMODE {FULL, COARSE, FINE};
+
+typedef struct _AD9837_DEVICE {
     SPI_Handle  handle;
-	/* Device Settings */
-	uint8_t		prog_method;
-	uint16_t    ctrl_reg_value;
-	uint16_t	test_opbiten;
-};
+	uint16_t    configReg;
+} AD9837_DEVICE;
 
 /******************************************************************************/
 /************************** Functions Declarations ****************************/
 /******************************************************************************/
 
-/* Initialize the SPI communication with the device. */
-int32_t AD9837_init(struct AD9837_DEVICE **device);
-
-/* Free the resources allocated by adf7023_init(). */
-int32_t AD9837_remove(struct AD9837_DEVICE *dev);
-
-/* Transmits 16 bits on SPI. */
-void AD9837_write(struct AD9837_DEVICE *dev, int16_t value);
-
-/* Selects the type of output. */
-int32_t AD9837_out_mode(struct AD9837_DEVICE *dev, uint8_t v_out_mode);
-
-/* Loads a frequency value in a register. */
-void AD9837_set_freq(struct AD9837_DEVICE *dev, uint8_t register_number, uint32_t frequency_value);
-
-/* Loads a phase value in a register. */
-void AD9837_set_phase(struct AD9837_DEVICE *dev, uint8_t register_number, float phase_value);
-
-/* Select the frequency register to be used. */
-void AD9837_select_freq_reg(struct AD9837_DEVICE *dev, uint8_t freq_reg);
-
-/* Select the phase register to be used. */
-void AD9837_select_phase_reg(struct AD9837_DEVICE *dev, uint8_t phase_reg);
+int32_t AD9837_init(void);
+void AD9837_reset(void);
+void AD9837_setMode(enum MODE newMode);
+void AD9837_selectFreqReg(enum FREQREG reg);
+void AD9837_selectPhaseReg(enum PHASEREG reg);
+void AD9837_setFreqAdjustMode(enum FREQADJUSTMODE newMode);
+void AD9837_adjustPhaseShift(enum PHASEREG reg, uint16_t newPhase);
+void AD9837_adjustFreqMode32(enum FREQREG reg, enum FREQADJUSTMODE mode, uint32_t newFreq);
+void AD9837_adjustFreqMode16(enum FREQREG reg, enum FREQADJUSTMODE mode, uint16_t newFreq);
+void AD9837_adjustFreq32(enum FREQREG reg, uint32_t newFreq);
+void AD9837_adjustFreq16(enum FREQREG reg, uint16_t newFreq);
+uint32_t AD9837_freqCalc(float desiredFrequency);
 
 #endif  /* _AD9837_H_ */
