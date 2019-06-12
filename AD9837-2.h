@@ -37,6 +37,7 @@
 * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *******************************************************************************/
+
 #ifndef _AD9837_H_
 #define _AD9837_H_
 
@@ -59,6 +60,7 @@
 
 #define BIT_F0ADDRESS           0x4000      // Frequency Register 0 address.
 #define BIT_F1ADDRESS           0x8000      // Frequency Register 1 address.
+
 #define BIT_P0ADDRESS           0xC000      // Phase Register 0 address.
 #define BIT_P1ADDRESS           0xE000      // Phase Register 1 address.
 

@@ -86,8 +86,8 @@ static void SPIWrite(int16_t value)
     uint16_t ulReply;
     SPI_Transaction transaction;
 
-    data[0] = (uint8_t)((value & 0xFF00) >> 8);
-    data[1] = (uint8_t)((value & 0x00FF) >> 0);
+    data[1] = (uint8_t)((value & 0xFF00) >> 8);
+    data[0] = (uint8_t)((value & 0x00FF) >> 0);
 
     /* Write AD9837 Control Word Bits */
     transaction.count = 1;
@@ -133,13 +133,17 @@ void AD9837_reset()
 {
   uint32_t defaultFreq = AD9837_freqCalc(100.0);
 
+  SPIWrite(AD9837_CTRLRESET);
+  SPIWrite(0x0000);
+  Task_sleep(100);
+
   AD9837_adjustFreqMode32(FREQ0, FULL, defaultFreq);
   AD9837_adjustFreqMode32(FREQ1, FULL, defaultFreq);
 
   AD9837_adjustPhaseShift(PHASE0, 0x0000);
   AD9837_adjustPhaseShift(PHASE1, 0x0000);
 
-  SPIWrite(0x0100);
+  SPIWrite(AD9837_CTRLRESET);
   SPIWrite(0x0000);
 }
 
@@ -344,7 +348,8 @@ void AD9837_adjustFreq16(enum FREQREG reg, uint16_t newFreq)
 
 uint32_t AD9837_freqCalc(float desiredFrequency)
 {
-    return (uint32_t) (desiredFrequency/.0596);
+    // 12.0 Mhz clock
+    return (uint32_t) (desiredFrequency / 0.044703f);
 }
 
 /* End-Of-File */
