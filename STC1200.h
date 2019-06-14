@@ -69,7 +69,8 @@ typedef struct _SYSPARMS
 
 typedef struct _SYSDATA
 {
-    uint8_t		ui8SerialNumber[16];		/* unique serial number       */
+    uint8_t		ui8SerialNumber[16];		/* 128-bit serial number      */
+    uint8_t     uMAC[6];                    /* 48-bit MAC from EPROM      */
     char        ipAddr[32];                 /* IP address from DHCP       */
     uint32_t    ledMaskButton;              /* DRC remote button LED mask */
     /* Items below are updated from DTC notifications */
@@ -121,7 +122,7 @@ typedef struct CommandMessage {
 //*****************************************************************************
 
 int main(void);
-int ReadSerialNumber(uint8_t ui8SerialNumber[16]);
+int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 void EnableClockDivOutput(uint32_t div);
 Void CommandTaskFxn(UArg arg0, UArg arg1);
 void InitSysDefaults(SYSPARMS* p);

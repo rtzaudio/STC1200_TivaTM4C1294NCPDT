@@ -456,7 +456,7 @@ static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
     char    *buffer, *key, *value;
     int     len;
     int     parseIndex;
-    int     val;
+    //int     val;
 
     // CGI Functions can now support URI arguments as well if the
     // pArgs pointer is not NULL, and the ContentLength were zero,

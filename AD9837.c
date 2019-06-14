@@ -72,9 +72,10 @@
 /* STC1200 Board Header file */
 
 #include "STC1200.h"
+
 #include "Board.h"
 #include "CLITask.h"
-#include "AD9837-2.h"
+#include "AD9837.h"
 
 static SPI_Handle  handle;
 static uint16_t    configReg;
@@ -86,8 +87,8 @@ static void SPIWrite(int16_t value)
     uint16_t ulReply;
     SPI_Transaction transaction;
 
-    data[1] = (uint8_t)((value & 0xFF00) >> 8);
-    data[0] = (uint8_t)((value & 0x00FF) >> 0);
+    data[0] = (uint8_t)((value & 0xFF00) >> 8);
+    data[1] = (uint8_t)((value & 0x00FF) >> 0);
 
     /* Write AD9837 Control Word Bits */
     transaction.count = 1;
@@ -111,7 +112,7 @@ int32_t AD9837_init(void)
 
     spiParams.transferMode  = SPI_MODE_BLOCKING;
     spiParams.mode          = SPI_MASTER;
-    spiParams.frameFormat   = SPI_POL1_PHA0;
+    spiParams.frameFormat   = SPI_POL0_PHA1;
     spiParams.bitRate       = 250000;
     spiParams.dataSize      = 16;
     spiParams.transferCallbackFxn = NULL;
@@ -134,8 +135,8 @@ void AD9837_reset()
   uint32_t defaultFreq = AD9837_freqCalc(100.0);
 
   SPIWrite(AD9837_CTRLRESET);
-  SPIWrite(0x0000);
-  Task_sleep(100);
+  //SPIWrite(0x0000);
+  //Task_sleep(100);
 
   AD9837_adjustFreqMode32(FREQ0, FULL, defaultFreq);
   AD9837_adjustFreqMode32(FREQ1, FULL, defaultFreq);
@@ -143,7 +144,7 @@ void AD9837_reset()
   AD9837_adjustPhaseShift(PHASE0, 0x0000);
   AD9837_adjustPhaseShift(PHASE1, 0x0000);
 
-  SPIWrite(AD9837_CTRLRESET);
+  //SPIWrite(AD9837_CTRLRESET);
   SPIWrite(0x0000);
 }
 

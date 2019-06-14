@@ -59,7 +59,7 @@ extern "C" {
 #define Board_LAMP_ON               STC1200_LAMP_ON
 #define Board_LAMP_OFF              STC1200_LAMP_OFF
 
-#define Board_I2C_AT24CS01          STC1200_I2C0
+#define Board_I2C_AT24MAC402        STC1200_I2C0
 
 #define Board_SPI_SDCARD          	STC1200_SDSPI1
 #define Board_SPI_EXPIO_SSI0       	STC1200_SPI0
@@ -140,8 +140,9 @@ extern "C" {
 #define Board_gpioButtonCallbacks	STC1200_gpioPortMCallbacks
 
 /* Board specific I2C addresses */
-#define Board_AT24CS01_EPROM_ADDR   (0xA0 >> 1)
-#define Board_AT24CS01_SERIAL_ADDR	(0xB0 >> 1)
+#define Board_AT24MAC402_EPROM_ADDR     (0xA0 >> 1)
+#define Board_AT24MAC402_GUID128_ADDR   (0xB0 >> 1)
+#define Board_AT24MAC402_MAC48_ADDR     (0xB1 >> 1)
 
 #ifdef __cplusplus
 }
