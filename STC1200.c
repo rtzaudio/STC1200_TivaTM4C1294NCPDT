@@ -100,7 +100,8 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "CLITask.h"
-#include <AD9837.h>
+#include "AD9837.h"
+#include "AT24MAC.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
@@ -112,6 +113,7 @@
 SYSDATA g_sysData;
 SYSPARMS g_sysParms;
 
+/* SPI interface to AD9837 NCO master reference oscillator on daughter card */
 AD9837_DEVICE g_ad9837;
 
 /* Handles created dynamically */
@@ -140,11 +142,20 @@ static void EnableClockDivOutput(uint32_t div);
 
 int main(void)
 {
+    Error_Block eb;
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
-    Error_Block eb;
+    AT24MAC_Object macObject;
 
-    /* Call board init functions */
+    /* First, read the AT24MAC EEPROM to get the 48-bit MAC address
+     * and 128-bit serial number GUID. The MAC is needed prior to
+     * initializing the TI-RTOS Ethernet driver so we can use this
+     * MAC address for our Ethernet hardware interface.
+     */
+    AT24MAC_init(&macObject);
+    AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
+
+    /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
     Board_initGPIO();
     Board_initI2C();
@@ -475,10 +486,10 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
 
     /* Read the globally unique serial number from EPROM */
-    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC)) {
-    	System_printf("Read Serial Number Failed!\n");
-    	System_flush();
-    }
+    //if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC)) {
+    //	System_printf("Read Serial Number Failed!\n");
+    //	System_flush();
+    //}
 
     /* Set default system parameters */
     InitSysDefaults(&g_sysParms);

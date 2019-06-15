@@ -15,7 +15,7 @@
 /* AT24MAC I2C Object Structure */
 
 typedef struct AT24MAC_Object {
-    uint32_t    ui32Base;       /* base I2C port address */
+    uint32_t    baseAddr;   /* base I2C port address */
 } AT24MAC_Object;
 
 typedef AT24MAC_Object* AT24MAC_Handle;
@@ -38,6 +38,9 @@ typedef struct AT24MAC_Transaction {
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 void AT24MAC_init(AT24MAC_Object* object);
+
+bool AT24MAC_transfer(AT24MAC_Object* object,
+                      AT24MAC_Transaction* transaction);
 
 bool AT24MAC_GUID_read(AT24MAC_Object* object,
                        uint8_t ui8SerialNum[16], uint8_t ui8MAC[6]);
