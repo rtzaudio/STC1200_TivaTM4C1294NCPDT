@@ -475,7 +475,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
 
     /* Read the globally unique serial number from EPROM */
-    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.uMAC)) {
+    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC)) {
     	System_printf("Read Serial Number Failed!\n");
     	System_flush();
     }

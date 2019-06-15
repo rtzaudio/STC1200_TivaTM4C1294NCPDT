@@ -132,9 +132,14 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
     Char serialnum[64];
+    Char mac[32];
 
     /*  Format the 64 bit GUID as a string */
     GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
+
+    sprintf(mac, "%02X-%02X-%02X-%02X-%02X-%02X",
+            g_sysData.ui8MAC[0], g_sysData.ui8MAC[1], g_sysData.ui8MAC[2],
+            g_sysData.ui8MAC[3], g_sysData.ui8MAC[4], g_sysData.ui8MAC[5]);
 
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
@@ -165,6 +170,9 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html(buf);
 
     System_sprintf(buf,  "    <p>PCB Serial#: %s</p>\r\n", serialnum);
+    html(buf);
+
+    System_sprintf(buf,  "    <p>MAC Address: %s</p>\r\n", mac);
     html(buf);
 
     System_sprintf(buf,  "    <p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
@@ -481,6 +489,8 @@ static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
     {
         key   = cgiParseVars(buffer, &parseIndex);
         value = cgiParseVars(buffer, &parseIndex);
+
+        (void)value;
 
         /*** Transport Buttons ***/
         if (!strcmp("stop", key))
