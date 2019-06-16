@@ -145,15 +145,15 @@ int main(void)
     Error_Block eb;
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
-    AT24MAC_Object macObject;
+    //AT24MAC_Object macObject;
 
     /* First, read the AT24MAC EEPROM to get the 48-bit MAC address
      * and 128-bit serial number GUID. The MAC is needed prior to
      * initializing the TI-RTOS Ethernet driver so we can use this
      * MAC address for our Ethernet hardware interface.
      */
-    AT24MAC_init(&macObject);
-    AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
+    //AT24MAC_init(&macObject);
+    //AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
@@ -298,8 +298,8 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
     I2C_Transaction i2cTransaction;
 
     /* default is all FF's  in case read fails*/
-    memset(ui8SerialNumber, 0xFF, sizeof(ui8SerialNumber));
-    memset(ui8MAC, 0xFF, sizeof(ui8MAC));
+    memset(ui8SerialNumber, 0xFF, 16);
+    memset(ui8MAC, 0xFF, 6);
 
     I2C_Params_init(&params);
     params.transferCallbackFxn = NULL;
@@ -486,10 +486,10 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
 
     /* Read the globally unique serial number from EPROM */
-    //if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC)) {
-    //	System_printf("Read Serial Number Failed!\n");
-    //	System_flush();
-    //}
+    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC)) {
+    	System_printf("Read Serial Number Failed!\n");
+    	System_flush();
+    }
 
     /* Set default system parameters */
     InitSysDefaults(&g_sysParms);
