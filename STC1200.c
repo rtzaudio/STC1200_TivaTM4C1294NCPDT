@@ -145,14 +145,14 @@ int main(void)
     Error_Block eb;
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
-    //AT24MAC_Object macObject;
+    AT24MAC_Object macObject;
 
     /* First, read the AT24MAC EEPROM to get the 48-bit MAC address
      * and 128-bit serial number GUID. The MAC is needed prior to
      * initializing the TI-RTOS Ethernet driver so we can use this
      * MAC address for our Ethernet hardware interface.
      */
-    //AT24MAC_init(&macObject);
+    AT24MAC_init(&macObject);
     //AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
 
     /* Now call all the board initialization functions for TI-RTOS */
