@@ -146,6 +146,10 @@ int main(void)
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
 
+    /* default GUID values */
+    memset(g_sysData.ui8SerialNumber, 0xFF, 16);
+    memset(g_sysData.ui8MAC, 0xFF, 6);
+
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
     Board_initGPIO();
@@ -153,7 +157,7 @@ int main(void)
     Board_initSPI();
     Board_initSDSPI();
     Board_initUART();
-    Board_initEMAC();
+    //Board_initEMAC();
 
     /* Default hardware initialization */
     Hardware_init();
@@ -464,6 +468,19 @@ int SysParamsRead(SYSPARMS* sp)
 }
 
 //*****************************************************************************
+// This is a hook into the NDK stack to allow delaying execution of the NDK
+// stack task until after we load the MAC address from the AT24MAC serial
+// EPROM part. This hook blocks on a semaphore until after we're able to call
+// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
+// to delay execution until we load the MAC from EPROM.
+//*****************************************************************************
+
+void NDKStackBeginHook(void)
+{
+    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
+}
+
+//*****************************************************************************
 // This function attempts to ready the unique serial number
 // from the I2C
 //*****************************************************************************
@@ -476,7 +493,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 	Task_Params taskParams;
     CommandMessage msgCmd;
 
-    /* Read the globally unique serial number from EPROM. We are also
+    /* Step 1 - Read the globally unique serial number from EPROM. We are also
      * reading the 6-byte MAC address from the AT24MAC serial EPROM.
      */
     if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
@@ -484,6 +501,14 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     	System_printf("Read Serial Number Failed!\n");
     	System_flush();
     }
+
+    /* Step 2 - Don't initialize EMAC layer until after reading MAC address above! */
+    Board_initEMAC();
+
+    /* Step 3 - Now allow the NDK task blocked by NDKStackBeginHook() to run */
+    Semaphore_post(g_semaNDKStartup);
+
+#if 0
     else
     {
         uint32_t ulUser0, ulUser1;
@@ -494,28 +519,42 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
         if ((ulUser0 == 0xffffffff) && (ulUser1 == 0xffffffff))
         {
             /* Combine MAC address into two 32-bit words */
-            ulUser0 = (((uint32_t)g_sysData.ui8MAC[0] << 0) & 0xff) |
-                      (((uint32_t)g_sysData.ui8MAC[1] << 8) & 0xff) |
-                      (((uint32_t)g_sysData.ui8MAC[2] << 16) & 0xff);
+            ulUser0 = ((((uint32_t)g_sysData.ui8MAC[0] & 0xff) << 0)) |
+                      ((((uint32_t)g_sysData.ui8MAC[1] & 0xff) << 8)) |
+                      ((((uint32_t)g_sysData.ui8MAC[2] & 0xff) << 16));
 
-            ulUser1 = (((uint32_t)g_sysData.ui8MAC[3] << 0) & 0xff) |
-                      (((uint32_t)g_sysData.ui8MAC[4] << 8) & 0xff) |
-                      (((uint32_t)g_sysData.ui8MAC[5] << 16) & 0xff);
+            ulUser1 = ((((uint32_t)g_sysData.ui8MAC[3] & 0xff) << 0)) |
+                      ((((uint32_t)g_sysData.ui8MAC[4] & 0xff) << 8)) |
+                      ((((uint32_t)g_sysData.ui8MAC[5] & 0xff) << 16));
 
             System_printf("Updating MAC address in user flash!\n");
             System_flush();
 
-            /* Save the two MAC address words into flash */
-            FlashUserSet(ulUser0, ulUser1);
-            FlashUserSave();
+            /* Save the two MAC address words into the special user
+             * flash area. There are four words available, but we only
+             * need the first two words to store the six byte MAC address.
+             */
+            if (!FlashUserSet(ulUser0, ulUser1))
+            {
+                System_printf("FlashUserSet failed updating MAC address!\n");
+                System_flush();
+            }
 
-            System_printf("Reboot with new MAC address in flash!\n");
+            /* NOTE - THIS IS A ONE TIME PERMANENT WRITE OPERATION!!! */
+            if (!FlashUserSave())
+            {
+                System_printf("FlashUserSave failed updating MAC address!\n");
+                System_flush();
+            }
+
+            System_printf("MAC ADDRESS PERMANENTLY WRITTEN TO USER FLASH!\n");
             System_flush();
 
             /* REBOOT BY JUMPING TO BOOTLOADER! */
-            ((void (*)(void))0x0000)();
+            SysCtlReset();
         }
     }
+#endif
 
     /* Set default system parameters */
     InitSysDefaults(&g_sysParms);

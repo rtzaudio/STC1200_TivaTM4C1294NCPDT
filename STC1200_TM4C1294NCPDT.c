@@ -62,6 +62,13 @@
 
 #include "STC1200_TM4C1294NCPDT.h"
 
+#include "STC1200.h"
+
+/* Global STC-1200 System data */
+extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
+
+
 #ifndef TI_DRIVERS_UART_DMA
 #define TI_DRIVERS_UART_DMA 0
 #endif
@@ -236,8 +243,31 @@ const EMAC_Config EMAC_config[] = {
 /*
  *  ======== STC1200_initEMAC ========
  */
+
+/* Don't call Board_initEMAC() in main(). Instead call it in a task after you get the MAC address.
+ *
+ * You have a couple options to delay the starting of the NDK stack:
+ * 1. Do not graphically generate it. Instead supply the thread yourself and start it after calling Board_initEMAC().
+ * 2. Add a startup hook function into the stack via the .cfg file. Have that function block on a semaphore.
+ * Post the semaphore after you call Board_initEMAC(). The hook is called very early in the stack thread,
+ * well before the MAC address is referenced.
+ *
+ * .cfg file
+ *  Global.stackBeginHook = "&myNDKStackBeginHook";
+ *
+ * .c file
+ *  void myNDKStackBeginHook()
+ *  {
+ *      Semaphore_pend(mySem, BIOS_WAIT_FOREVER);
+ *  }
+ *
+ */
+
 void STC1200_initEMAC(void)
 {
+    memcpy(macAddress, g_sysData.ui8MAC, 6);
+
+#if 0
     uint32_t ulUser0, ulUser1;
 
     /* Get the MAC address */
@@ -262,6 +292,7 @@ void STC1200_initEMAC(void)
              macAddress[4] == 0xff && macAddress[5] == 0xff) {
         System_abort("Change the macAddress variable to match your boards MAC sticker");
     }
+#endif
 
     // Enable peripheral EPHY0
     SysCtlPeripheralEnable(SYSCTL_PERIPH_EPHY0);
