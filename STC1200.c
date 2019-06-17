@@ -83,6 +83,7 @@
 #include <inc/hw_memmap.h>
 #include <inc/hw_gpio.h>
 #include <driverlib/eeprom.h>
+#include <driverlib/flash.h>
 #include <driverlib/sysctl.h>
 #include <driverlib/gpio.h>
 #include <driverlib/pin_map.h>
@@ -101,7 +102,6 @@
 #include "Board.h"
 #include "CLITask.h"
 #include "AD9837.h"
-#include "AT24MAC.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
@@ -145,15 +145,6 @@ int main(void)
     Error_Block eb;
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
-    AT24MAC_Object macObject;
-
-    /* First, read the AT24MAC EEPROM to get the 48-bit MAC address
-     * and 128-bit serial number GUID. The MAC is needed prior to
-     * initializing the TI-RTOS Ethernet driver so we can use this
-     * MAC address for our Ethernet hardware interface.
-     */
-    AT24MAC_init(&macObject);
-    AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
@@ -486,9 +477,32 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CommandMessage msgCmd;
 
     /* Read the globally unique serial number from EPROM */
-    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC)) {
+    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
+    {
     	System_printf("Read Serial Number Failed!\n");
     	System_flush();
+    }
+    else
+    {
+        uint8_t macAddr[8];
+        uint32_t ulUser0, ulUser1;
+
+        /* Get the MAC address */
+        FlashUserGet(&ulUser0, &ulUser1);
+
+        if ((ulUser0 != 0xffffffff) && (ulUser1 != 0xffffffff))
+        {
+            /* Convert the 24/24 split MAC address from NV ram into a 32/16 split MAC
+             * address needed to program the hardware registers, then program the MAC
+             * address into the Ethernet Controller registers.
+             */
+            macAddr[0] = ((ulUser0 >>  0) & 0xff);
+            macAddr[1] = ((ulUser0 >>  8) & 0xff);
+            macAddr[2] = ((ulUser0 >> 16) & 0xff);
+            macAddr[3] = ((ulUser1 >>  0) & 0xff);
+            macAddr[4] = ((ulUser1 >>  8) & 0xff);
+            macAddr[5] = ((ulUser1 >> 16) & 0xff);
+        }
     }
 
     /* Set default system parameters */
