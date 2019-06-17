@@ -65,6 +65,10 @@ extern "C" {
 #define PIN_LOW				    ( 0)
 #define PIN_HIGH			    (~0)
 
+/* Board specific I2C addresses */
+#define AT24MAC_EPROM_ADDR      (0xA0 >> 1)
+#define AT24MAC_EPROM_EXT_ADDR  (0xB0 >> 1)
+
 /*** Hardware Constants ****************************************************/
 
 /* QEI-0 is tape roller encoder */

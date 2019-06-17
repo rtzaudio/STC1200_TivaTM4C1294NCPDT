@@ -313,7 +313,7 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 
     txByte = 0x80;
 
-    i2cTransaction.slaveAddress = Board_AT24MAC402_GUID128_ADDR;
+    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
     i2cTransaction.writeBuf     = &txByte;
     i2cTransaction.writeCount   = 1;
     i2cTransaction.readBuf      = ui8SerialNumber;
@@ -335,7 +335,7 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 
     txByte = 0x9A;
 
-    i2cTransaction.slaveAddress = Board_AT24MAC402_MAC48_ADDR;
+    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
     i2cTransaction.writeBuf     = &txByte;
     i2cTransaction.writeCount   = 1;
     i2cTransaction.readBuf      = ui8MAC;
@@ -476,7 +476,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 	Task_Params taskParams;
     CommandMessage msgCmd;
 
-    /* Read the globally unique serial number from EPROM */
+    /* Read the globally unique serial number from EPROM. We are also
+     * reading the 6-byte MAC address from the AT24MAC serial EPROM.
+     */
     if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
     {
     	System_printf("Read Serial Number Failed!\n");
@@ -484,24 +486,34 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     }
     else
     {
-        uint8_t macAddr[8];
         uint32_t ulUser0, ulUser1;
 
         /* Get the MAC address */
         FlashUserGet(&ulUser0, &ulUser1);
 
-        if ((ulUser0 != 0xffffffff) && (ulUser1 != 0xffffffff))
+        if ((ulUser0 == 0xffffffff) && (ulUser1 == 0xffffffff))
         {
-            /* Convert the 24/24 split MAC address from NV ram into a 32/16 split MAC
-             * address needed to program the hardware registers, then program the MAC
-             * address into the Ethernet Controller registers.
-             */
-            macAddr[0] = ((ulUser0 >>  0) & 0xff);
-            macAddr[1] = ((ulUser0 >>  8) & 0xff);
-            macAddr[2] = ((ulUser0 >> 16) & 0xff);
-            macAddr[3] = ((ulUser1 >>  0) & 0xff);
-            macAddr[4] = ((ulUser1 >>  8) & 0xff);
-            macAddr[5] = ((ulUser1 >> 16) & 0xff);
+            /* Combine MAC address into two 32-bit words */
+            ulUser0 = (((uint32_t)g_sysData.ui8MAC[0] << 0) & 0xff) |
+                      (((uint32_t)g_sysData.ui8MAC[1] << 8) & 0xff) |
+                      (((uint32_t)g_sysData.ui8MAC[2] << 16) & 0xff);
+
+            ulUser1 = (((uint32_t)g_sysData.ui8MAC[3] << 0) & 0xff) |
+                      (((uint32_t)g_sysData.ui8MAC[4] << 8) & 0xff) |
+                      (((uint32_t)g_sysData.ui8MAC[5] << 16) & 0xff);
+
+            System_printf("Updating MAC address in user flash!\n");
+            System_flush();
+
+            /* Save the two MAC address words into flash */
+            FlashUserSet(ulUser0, ulUser1);
+            FlashUserSave();
+
+            System_printf("Reboot with new MAC address in flash!\n");
+            System_flush();
+
+            /* REBOOT BY JUMPING TO BOOTLOADER! */
+            ((void (*)(void))0x0000)();
         }
     }
 

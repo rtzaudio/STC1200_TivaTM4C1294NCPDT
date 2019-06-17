@@ -139,11 +139,6 @@ extern "C" {
 
 #define Board_gpioButtonCallbacks	STC1200_gpioPortMCallbacks
 
-/* Board specific I2C addresses */
-#define Board_AT24MAC402_EPROM_ADDR     (0xA0 >> 1)
-#define Board_AT24MAC402_GUID128_ADDR   (0xB0 >> 1)
-#define Board_AT24MAC402_MAC48_ADDR     (0xB1 >> 1)
-
 #ifdef __cplusplus
 }
 #endif
