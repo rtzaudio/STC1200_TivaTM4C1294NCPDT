@@ -31,9 +31,13 @@ typedef struct AT24MAC_Transaction {
 } AT24MAC_Transaction;
 
 /* I2C Device addresses */
-#define AT24MAC_EPROM_ADDR      (0xA0 >> 1)
-#define AT24MAC_GUID128_ADDR    (0xB0 >> 1)
-#define AT24MAC_MAC48_ADDR      (0xB1 >> 1)
+#define AT24MAC_DEV_EPROM      (0xA0 >> 1)
+#define AT24MAC_DEV_EPROM_EXT  (0xB0 >> 1)
+
+/* Extended EPROM address offsets */
+
+#define AT24MAC_ADDR_SER128     0x80    /* 128-bit serial num address */
+#define AT24MAC_ADDR_MAC48      0x9A    /* 48-bit MAC address address */
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 

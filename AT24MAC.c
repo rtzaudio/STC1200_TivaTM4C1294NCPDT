@@ -33,6 +33,7 @@
 #include "driverlib/sysctl.h"
 
 #include "AT24MAC.h"
+#include "libti2cit.h"
 
 /*
  * Specific I2C CMD MACROs that are not defined in I2C.h are defined here. Their
@@ -127,6 +128,7 @@ void AT24MAC_init(AT24MAC_Object* object)
 // Perform an I2C transaction to the slave.
 //*****************************************************************************
 
+#if 0
 bool AT24MAC_transfer(AT24MAC_Object* object, AT24MAC_Transaction* transaction)
 {
     size_t i;
@@ -333,6 +335,31 @@ bool AT24MAC_transfer(AT24MAC_Object* object, AT24MAC_Transaction* transaction)
 
     return true;
 }
+#endif
+
+bool AT24MAC_transfer(AT24MAC_Object* object, AT24MAC_Transaction* transaction)
+{
+    uint8_t rc;
+
+    /* Check if anything needs to be written or read */
+    if ((!transaction->writeCount) && (!transaction->readCount))
+        return false;
+
+    rc = libti2cit_m_sync_send(object->baseAddr,
+                               transaction->slaveAddress,
+                               transaction->writeCount,
+                               transaction->writeBuf);
+    if (rc != 0)
+        return false;
+
+    rc = libti2cit_m_sync_recv(object->baseAddr,
+                               transaction->readCount,
+                               transaction->readBuf);
+    if (rc != 0)
+        return false;
+
+    return true;
+}
 
 //*****************************************************************************
 // Read the 128-bit serial number and 48-bit MAC address from the EEPROM.
@@ -355,9 +382,9 @@ bool AT24MAC_GUID_read(AT24MAC_Object* object,
      * this sixteen bytes of serial number data.
      */
 
-    txByte = 0x80;
+    txByte = AT24MAC_ADDR_SER128;
 
-    i2cTransaction.slaveAddress = AT24MAC_GUID128_ADDR;
+    i2cTransaction.slaveAddress = 0xB0;     //AT24MAC_DEV_EPROM_EXT;
     i2cTransaction.writeBuf     = &txByte;
     i2cTransaction.writeCount   = 1;
     i2cTransaction.readBuf      = ui8SerialNum;
@@ -374,9 +401,9 @@ bool AT24MAC_GUID_read(AT24MAC_Object* object,
      * and the IEEE Registration Authority has assigned FCC23Dh as the Atmel OUI.
      */
 
-    txByte = 0x9A;
+    txByte = AT24MAC_ADDR_MAC48;
 
-    i2cTransaction.slaveAddress = AT24MAC_MAC48_ADDR;
+    i2cTransaction.slaveAddress = 0xB0; //AT24MAC_DEV_EPROM_EXT;
     i2cTransaction.writeBuf     = &txByte;
     i2cTransaction.writeCount   = 1;
     i2cTransaction.readBuf      = ui8MAC;

@@ -153,7 +153,7 @@ int main(void)
      * MAC address for our Ethernet hardware interface.
      */
     AT24MAC_init(&macObject);
-    //AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
+    AT24MAC_GUID_read(&macObject, g_sysData.ui8SerialNumber, g_sysData.ui8MAC);
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
