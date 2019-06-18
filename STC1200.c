@@ -505,7 +505,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Step 2 - Don't initialize EMAC layer until after reading MAC address above! */
     Board_initEMAC();
 
-    /* Step 3 - Now allow the NDK task blocked by NDKStackBeginHook() to run */
+    /* Step 3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
 
 #if 0
@@ -772,30 +772,32 @@ void gpioButtonStopHwi(unsigned int index)
 //*****************************************************************************
 // Helper Functions
 //*****************************************************************************
-
-int GetHexStr(char* textbuf, uint8_t* databuf, int len)
+#if 0
+int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
 {
     char *p = textbuf;
     uint8_t *d;
     uint32_t i;
     int32_t l;
 
+    const uint32_t wordSize = 4;
+
     /* Null output text buffer initially */
     *textbuf = 0;
 
     /* Make sure buffer length is not zero */
-    if (!len)
+    if (!datalen)
         return 0;
 
     /* Read data bytes in reverse order so we print most significant byte first */
-    d = databuf + (len-1);
+    d = databuf + (datalen-1);
 
-    for (i=0; i < len; i++)
+    for (i=0; i < datalen; i++)
     {
         l = sprintf(p, "%02X", *d--);
         p += l;
 
-        if (((i % 2) == 1) && (i != (len-1)))
+        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
         {
             l = sprintf(p, "-");
             p += l;
@@ -804,5 +806,32 @@ int GetHexStr(char* textbuf, uint8_t* databuf, int len)
 
     return strlen(textbuf);
 }
+#else
+int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
+{
+    char fmt[8];
+    uint32_t i;
+    int32_t l;
+
+    const uint32_t wordSize = 4;
+
+    *textbuf = 0;
+    strcpy(fmt, "%02X");
+
+    for (i=0; i < datalen; i++)
+    {
+        l = sprintf(textbuf, fmt, *databuf++);
+        textbuf += l;
+
+        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
+        {
+            l = sprintf(textbuf, "-");
+            textbuf += l;
+        }
+    }
+
+    return strlen(textbuf);
+}
+#endif
 
 // End-Of-File

@@ -137,7 +137,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     /*  Format the 64 bit GUID as a string */
     GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
 
-    sprintf(mac, "%02X-%02X-%02X-%02X-%02X-%02X",
+    sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
             g_sysData.ui8MAC[0], g_sysData.ui8MAC[1], g_sysData.ui8MAC[2],
             g_sysData.ui8MAC[3], g_sysData.ui8MAC[4], g_sysData.ui8MAC[5]);
 
@@ -152,7 +152,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
     html("  <div id=\"top\">\r\n");
-    html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
+    //html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
     html("    <h1>STC-1200</h1>\r\n");
     html("    <p>Tape Machine Services</p>\r\n");
     html("  </div>\r\n");
@@ -181,7 +181,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     System_sprintf(buf,  "    <p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
     html(buf);
 
-    System_sprintf(buf,  "    <p>Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
+    System_sprintf(buf,  "    <p>Roller Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
     html(buf);
 
     html("    </div>\r\n");
@@ -211,7 +211,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
     html("  <div id=\"top\">\r\n");
-    html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
+//    html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
     html("    <h1>STC-1200</h1>\r\n");
     html("    <p>Tape Machine Services</p>\r\n");
     html("  </div>\r\n");
