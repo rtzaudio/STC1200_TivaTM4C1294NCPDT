@@ -93,8 +93,10 @@ static void SPIWrite(int16_t value)
 
     /*Select the AD9837 chip select */
     GPIO_write(Board_AD9732_FSYNC, PIN_LOW);
+
     /* Send the SPI transaction */
     SPI_transfer(handle, &transaction);
+
     /* Release the chip select to high */
     GPIO_write(Board_AD9732_FSYNC, PIN_HIGH);
 }
@@ -231,21 +233,25 @@ void AD9837_selectPhaseReg(enum PHASEREG reg)
 
 void AD9837_setFreqAdjustMode(enum FREQADJUSTMODE newMode)
 {
-  // Start by clearing the bits in question.
-  configReg &= ~0x3000;
-  // Now, adjust the bits to match the truth table above.
-  switch(newMode)
-  {
+    // Start by clearing the bits in question.
+    configReg &= ~0x3000;
+
+    // Now, adjust the bits to match the truth table above.
+    switch(newMode)
+    {
     case COARSE:  // D13:12 = 01
-      configReg |= 0x1000;
-    break;
+        configReg |= 0x1000;
+        break;
+
     case FINE:    // D13:12 = 00
-    break;
+        break;
+
     case FULL:    // D13:12 = 1x (we use 10)
-      configReg |= 0x2000;
-    break;
-  }
-  SPIWrite(configReg);
+        configReg |= 0x2000;
+        break;
+    }
+
+    SPIWrite(configReg);
 }
 
 // The phase shift value is 12 bits long; it gets routed to the proper phase
@@ -253,15 +259,16 @@ void AD9837_setFreqAdjustMode(enum FREQADJUSTMODE newMode)
 
 void AD9837_adjustPhaseShift(enum PHASEREG reg, uint16_t newPhase)
 {
-  // First, let's blank the top four bits. Just because it's the right thing
-  //  to do, you know?
-  newPhase &= ~0xF000;
-  // Now, we need to set the top three bits to properly route the data.
-  //  D15:D13 = 110 for PHASE0...
-  if (reg == PHASE0) newPhase |= 0xC000;
-  // ... and D15:D13 = 111 for PHASE1.
-  else               newPhase |= 0xE000;
-  SPIWrite(newPhase);
+    // First, let's blank the top four bits.
+    newPhase &= ~0xF000;
+
+    // Now, we need to set the top three bits to properly route the data.
+    if (reg == PHASE0)
+        newPhase |= 0xC000;     //  D15:D13 = 110 for PHASE0...
+    else
+        newPhase |= 0xE000;     // ... and D15:D13 = 111 for PHASE1.
+
+    SPIWrite(newPhase);
 }
 
 // Okay, now we're going to handle frequency adjustments. This is a little
@@ -275,7 +282,9 @@ void AD9837_adjustPhaseShift(enum PHASEREG reg, uint16_t newPhase)
 
 void AD9837_adjustFreqMode32(enum FREQREG reg, enum FREQADJUSTMODE mode, uint32_t newFreq)
 {
+    // Set the mode
     AD9837_setFreqAdjustMode(mode);
+
     // Now, we can just call the normal 32-bit write.
     AD9837_adjustFreq32(reg, newFreq);
 }
@@ -285,8 +294,11 @@ void AD9837_adjustFreqMode32(enum FREQREG reg, enum FREQADJUSTMODE mode, uint32_
 
 void AD9837_adjustFreqMode16(enum FREQREG reg, enum FREQADJUSTMODE mode, uint16_t newFreq)
 {
-    AD9837_setFreqAdjustMode(mode);  // Set the mode
-    AD9837_adjustFreq16(reg, newFreq); // Call the known-mode write.
+    // Set the mode
+    AD9837_setFreqAdjustMode(mode);
+
+    // Call the known-mode write.
+    AD9837_adjustFreq16(reg, newFreq);
 }
 
 // Adjust the contents of the register, but assume that the write mode is
@@ -296,27 +308,39 @@ void AD9837_adjustFreqMode16(enum FREQREG reg, enum FREQADJUSTMODE mode, uint16_
 
 void AD9837_adjustFreq32(enum FREQREG reg, uint32_t newFreq)
 {
-  // We need to split the 32-bit input into two 16-bit values, blank the top
-  //  two bits of those values, and set the top two bits according to the
-  //  value of reg.
-  // Start by acquiring the low 16-bits...
-  uint16_t temp = (uint16_t)newFreq;
-  // ...and blanking the first two bits.
-  temp &= ~0xC000;
-  // Now, set the top two bits according to the reg parameter.
-  if (reg==FREQ0) temp |= 0x4000;
-  else            temp |= 0x8000;
-  // Now, we can write temp out to the device.
-  SPIWrite(temp);
-  // Okay, that's the lower 14 bits. Now let's grab the upper 14.
-  temp = (uint16_t)(newFreq>>14);
-  // ...and now, we can just repeat the process.
-  temp &= ~0xC000;
-  // Now, set the top two bits according to the reg parameter.
-  if (reg==FREQ0) temp |= 0x4000;
-  else            temp |= 0x8000;
-  // Now, we can write temp out to the device.
-  SPIWrite(temp);
+    // We need to split the 32-bit input into two 16-bit values, blank the top
+    //  two bits of those values, and set the top two bits according to the
+    //  value of reg.
+    // Start by acquiring the low 16-bits...
+
+    uint16_t temp = (uint16_t)newFreq;
+
+    // ...and blanking the first two bits.
+    temp &= ~0xC000;
+
+    // Now, set the top two bits according to the reg parameter.
+    if (reg == FREQ0)
+        temp |= 0x4000;
+    else
+        temp |= 0x8000;
+
+    // Now, we can write temp out to the device.
+    SPIWrite(temp);
+
+    // Okay, that's the lower 14 bits. Now let's grab the upper 14.
+    temp = (uint16_t)(newFreq>>14);
+
+    // ...and now, we can just repeat the process.
+    temp &= ~0xC000;
+
+    // Now, set the top two bits according to the reg parameter.
+    if (reg == FREQ0)
+        temp |= 0x4000;
+    else
+        temp |= 0x8000;
+
+    // Now, we can write temp out to the device.
+    SPIWrite(temp);
 }
 
 // Adjust the coarse or fine register, depending on the current mode. Note that
@@ -349,7 +373,7 @@ void AD9837_adjustFreq16(enum FREQREG reg, uint16_t newFreq)
 uint32_t AD9837_freqCalc(float desiredFrequency)
 {
     // 12.0 Mhz clock
-    return (uint32_t) (desiredFrequency / 0.044703f);
+    return (uint32_t)(desiredFrequency / 0.044703f);
 }
 
 /* End-Of-File */
