@@ -83,20 +83,19 @@ static uint16_t    configReg;
 
 static void SPIWrite(int16_t value)
 {
-    //uint8_t data[2];
     uint16_t ulReply;
     SPI_Transaction transaction;
-
-    //data[1] = (uint8_t)((value & 0xFF00) >> 8);
-    //data[0] = (uint8_t)((value & 0x00FF) >> 0);
 
     /* Write AD9837 Control Word Bits */
     transaction.count = 1;
     transaction.txBuf = (Ptr)&value;
     transaction.rxBuf = (Ptr)&ulReply;
 
+    /*Select the AD9837 chip select */
     GPIO_write(Board_AD9732_FSYNC, PIN_LOW);
+    /* Send the SPI transaction */
     SPI_transfer(handle, &transaction);
+    /* Release the chip select to high */
     GPIO_write(Board_AD9732_FSYNC, PIN_HIGH);
 }
 
@@ -135,6 +134,7 @@ void AD9837_reset()
   uint32_t defaultFreq = AD9837_freqCalc(9600.0);
 
   SPIWrite(AD9837_CTRLRESET);
+  Task_sleep(200);
   SPIWrite(0x0000);
   Task_sleep(100);
 
@@ -145,8 +145,6 @@ void AD9837_reset()
   AD9837_adjustPhaseShift(PHASE1, 0x0000);
 
   AD9837_setMode(SQUARE);
-
-  //SPIWrite(0x0000);
 }
 
 // Set the mode of the part. The mode (trinagle, sine, or square) is set by
