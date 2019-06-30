@@ -198,7 +198,8 @@ void InitSysDefaults(SYSPARMS* p)
     p->jog_vel_far  = JOG_VEL_FAR;          /* 0 for DTC default velocity   */
     p->jog_vel_mid  = JOG_VEL_MID;          /* vel for mid distance locate  */
     p->jog_vel_near = JOG_VEL_NEAR;         /* vel for near distance locate */
-
+    /** Master Reference Clock */
+    p->ref_freq     = DEFAULT_REF_FREQ;     /* default ref clock 9600.0 Hz  */
 }
 
 //*****************************************************************************

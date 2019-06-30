@@ -80,6 +80,7 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
+#include "Utils.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
 

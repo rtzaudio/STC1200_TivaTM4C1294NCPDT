@@ -93,10 +93,8 @@ static void SPIWrite(int16_t value)
 
     /*Select the AD9837 chip select */
     GPIO_write(Board_AD9732_FSYNC, PIN_LOW);
-
     /* Send the SPI transaction */
     SPI_transfer(handle, &transaction);
-
     /* Release the chip select to high */
     GPIO_write(Board_AD9732_FSYNC, PIN_HIGH);
 }

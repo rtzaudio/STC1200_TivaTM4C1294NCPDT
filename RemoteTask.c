@@ -96,7 +96,7 @@ extern SYSPARMS g_sysParms;
 /* Static Function Prototypes */
 static void HandleButtonPress(uint32_t flags);
 static void HandleJogwheelPress(uint32_t flags);
-static void HandleJogwheelMotion(uint32_t flags);
+static void HandleJogwheelMotion(uint32_t velocity, int direction);
 
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void HandleDigitPress(size_t index);
@@ -266,7 +266,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             if (msg.opcode == OP_JOGWHEEL_MOTION)
             {
                 /* Jog wheel was turned */
-                HandleJogwheelMotion(msg.param1.U);
+                HandleJogwheelMotion(msg.param1.U, msg.param2.I);
             }
             break;
 
@@ -393,7 +393,7 @@ void HandleJogwheelPress(uint32_t flags)
 }
 
 
-void HandleJogwheelMotion(uint32_t flags)
+void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
 
 }

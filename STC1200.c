@@ -344,6 +344,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     AD9837_init();
     AD9837_reset();
 
+    /* Set default reference frequency */
+    g_sysData.ref_freq = g_sysParms.ref_freq;
+
     /*
      * Create the various system tasks
      */

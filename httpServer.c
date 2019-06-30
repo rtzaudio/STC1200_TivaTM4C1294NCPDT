@@ -82,6 +82,7 @@
 /* STC1200 Board Header file */
 #include "STC1200.h"
 #include "Board.h"
+#include "Utils.h"
 #include "RemoteTask.h"
 #include "RAMPMessage.h"
 #include "IPCServer.h"

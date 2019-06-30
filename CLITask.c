@@ -115,7 +115,7 @@ MK_CMD(help);
 /* The dispatch table */
 #define CMD(func, params, help) {#func, cmd_ ## func, params, help}
 
-cmd_t dsp_table[CMDS] = {
+cmd_t dispatch[CMDS] = {
     CMD(ipaddr, "", "Displays IP address"),
     CMD(macaddr, "", "Displays MAC address"),
     CMD(sernum, "", "Displays serial number"),
@@ -130,18 +130,17 @@ cmd_t dsp_table[CMDS] = {
 #define MAX_CHARS   80
 
 /*** Static Data Items ***/
-
 static UART_Handle s_handleUart;
 static const char *delim = " \n(,);";
 static char cmdbuf[MAX_CHARS+3];
 
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
-
 /*** Function Prototypes ***/
-
 static void parse(char *cmd);
 static arg_t *args_parse(const char *s);
+
+/*** External Data Items ***/
+extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
 
 //*****************************************************************************
 //
@@ -232,14 +231,11 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
     uint8_t ch;
     int cnt = 0;
 
-    /* Now begin the main program command task processing loop */
-
     CLI_printf(VT100_HOME);
     CLI_printf(VT100_CLS);
 
     CLI_printf("STC-1200 v%d.%02d.%03d\n\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("Enter 'help' to view a list valid commands\n\n");
-    CLI_putc('>');
+    CLI_puts("Enter 'help' to view a list valid commands\n\n> ");
 
     while (true)
     {
@@ -293,7 +289,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 
 void parse(char *cmd)
 {
-    const char* tok = strtok(cmd,delim);
+    const char* tok = strtok(cmd, delim);
 
     if (!tok)
         return;
@@ -302,9 +298,9 @@ void parse(char *cmd)
 
     while(i--)
     {
-        cmd_t cur = dsp_table[i];
+        cmd_t cur = dispatch[i];
 
-        if (!strcmp(tok,cur.name))
+        if (!strcmp(tok, cur.name))
         {
             arg_t *args = args_parse(cur.args);
 
@@ -313,12 +309,13 @@ void parse(char *cmd)
 
             cur.func(args);
 
-            free(args);
+            if (args)
+                free(args);
             return;
         }
     }
 
-    puts("Command Not Found");
+    CLI_puts("Command Not Found\n");
 }
 
 #define ESCAPE { free(args); CLI_puts("Bad Argument(s)\n"); return NULL; }
@@ -405,7 +402,7 @@ void cmd_help(arg_t *args)
 
     while(i--)
     {
-        cmd_t cmd=dsp_table[i];
+        cmd_t cmd=dispatch[i];
         snprintf(tmp,100,"%s(%s)", cmd.name, cmd.args);
         CLI_printf("%10s\t- %s\n", tmp, cmd.doc);
     }

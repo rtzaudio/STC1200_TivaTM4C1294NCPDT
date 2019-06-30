@@ -30,8 +30,8 @@
  */
 #define FIRMWARE_VER        1           /* firmware version */
 #define FIRMWARE_REV        3           /* firmware revision */
-#define FIRMWARE_BUILD      2           /* firmware build number */
-#define FIRMWARE_MIN_BUILD  2           /* min build req'd to force reset */
+#define FIRMWARE_BUILD      3           /* firmware build number */
+#define FIRMWARE_MIN_BUILD  3           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
 #error "STC build option FIRMWARE_MIN_BUILD set incorrectly"
@@ -43,6 +43,8 @@
 //*****************************************************************************
 // SYSTEM RUN-TIME CONFIG PARAMETERS STORED IN EPROM
 //*****************************************************************************
+
+#define DEFAULT_REF_FREQ    9600.0f
 
 typedef struct _SYSPARMS
 {
@@ -59,6 +61,8 @@ typedef struct _SYSPARMS
     uint32_t    jog_vel_far;        /* 0 = use DTC default shuttle velocity */
     uint32_t    jog_vel_mid;        /* vel for mid distance from locate point */
     uint32_t    jog_vel_near;       /* vel for near distance from locate point */
+    /* NCO reference freq */
+    float       ref_freq;           /* default reference freq */
 } SYSPARMS;
 
 //*****************************************************************************
@@ -99,6 +103,7 @@ typedef struct _SYSDATA
     bool        shiftRecButton;             /* true if shifted REC button */
     bool        shiftAltButton;             /* true if shifted ALT button */
     /* Locate and Position data */
+    float       ref_freq;                   /* master ref freq 9600 Hz    */
     TAPETIME    tapeTime;                   /* current tape time position */
     size_t      cueIndex;                   /* current cue table index    */
     CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
