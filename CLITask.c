@@ -65,6 +65,7 @@
 
 #include <file.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
@@ -77,15 +78,70 @@
 
 #include "STC1200.h"
 #include "Board.h"
+#include "Utils.h"
 #include "CLITask.h"
 
-/* External Data Items */
+//*****************************************************************************
+// Type Definitions
+//*****************************************************************************
 
-/* Global Data Items */
+typedef union {
+    char  *s;
+    char   c;
+    float  f;
+} arg_t;
+
+typedef struct {
+    const char* name;
+    void (*func)(arg_t*);
+    const char* args;
+    const char* doc;
+} cmd_t;
+
+#define MK_CMD(x) void cmd_ ## x (arg_t*)
+
+//*****************************************************************************
+// CLI Function Handle Declarations
+//*****************************************************************************
+
+#define CMDS 5
+
+MK_CMD(ipaddr);
+MK_CMD(macaddr);
+MK_CMD(sernum);
+MK_CMD(cls);
+MK_CMD(help);
+
+/* The dispatch table */
+#define CMD(func, params, help) {#func, cmd_ ## func, params, help}
+
+cmd_t dsp_table[CMDS] = {
+    CMD(ipaddr, "", "Displays IP address"),
+    CMD(macaddr, "", "Displays MAC address"),
+    CMD(sernum, "", "Displays serial number"),
+    CMD(cls, "", "Clear the screen"),
+    CMD(help, "", "Display this help")
+};
+
+//*****************************************************************************
+// Static and External Data Items
+//*****************************************************************************
+
+#define MAX_CHARS   80
+
+/*** Static Data Items ***/
 
 static UART_Handle s_handleUart;
+static const char *delim = " \n(,);";
+static char cmdbuf[MAX_CHARS+3];
 
-/* Static Function Prototypes */
+extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
+
+/*** Function Prototypes ***/
+
+static void parse(char *cmd);
+static arg_t *args_parse(const char *s);
 
 //*****************************************************************************
 //
@@ -111,7 +167,7 @@ int CLI_init(void)
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
-    s_handleUart = UART_open(Board_UART_RS232_COM2, &uartParams);
+    s_handleUart = UART_open(Board_UART_RS232_COM1, &uartParams);
 
     if (s_handleUart == NULL)
         System_abort("Error initializing UART\n");
@@ -123,15 +179,47 @@ int CLI_init(void)
 //
 //*****************************************************************************
 
+Bool CLI_startup(void)
+{
+    Error_Block eb;
+    Task_Params taskParams;
+
+    Error_init(&eb);
+
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = 1500;
+    taskParams.priority  = 2;
+    taskParams.arg0      = 0;
+    taskParams.arg1      = 0;
+
+    Task_create((Task_FuncPtr)CLITaskFxn, &taskParams, &eb);
+
+    return TRUE;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void CLI_putc(int ch)
+{
+    UART_write(s_handleUart, &ch, 1);
+}
+
+void CLI_puts(char* s)
+{
+    int l = strlen(s);
+    UART_write(s_handleUart, s, l);
+}
+
 void CLI_printf(const char *fmt, ...)
 {
     va_list arg;
     static char buf[128];
-
     va_start(arg, fmt);
     System_vsnprintf(buf, sizeof(buf)-1, fmt, arg);
     va_end(arg);
-
     UART_write(s_handleUart, buf, strlen(buf));
 }
 
@@ -141,18 +229,185 @@ void CLI_printf(const char *fmt, ...)
 
 Void CLITaskFxn(UArg arg0, UArg arg1)
 {
-    uint8_t rxBuf[16];
+    uint8_t ch;
+    int cnt = 0;
 
     /* Now begin the main program command task processing loop */
 
+    CLI_printf(VT100_HOME);
+    CLI_printf(VT100_CLS);
+
+    CLI_printf("STC-1200 v%d.%02d.%03d\n\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    CLI_puts("Enter 'help' to view a list valid commands\n\n");
+    CLI_putc('>');
+
     while (true)
     {
-        /* Read the preamble MSB for the frame start */
-        if (UART_read(s_handleUart, &rxBuf[0], 1) == 1)
+        /* Read a character from the console */
+        if (UART_read(s_handleUart, &ch, 1) == 1)
         {
-        	UART_write(s_handleUart, &rxBuf[0], 1);
-            continue;
+            if (ch == CRET)
+            {
+                if (cnt)
+                {
+                    CLI_putc(CRET);
+                    CLI_putc(LF);
+                    parse(cmdbuf);
+                    cmdbuf[0] = 0;
+                    cnt = 0;
+                }
+                CLI_putc(CRET);
+                CLI_putc(LF);
+                CLI_putc('>');
+                CLI_putc(' ');
+            }
+            else if (ch == BKSPC)
+            {
+                if (cnt)
+                {
+                    cmdbuf[--cnt] = 0;
+                    CLI_putc(BKSPC);
+                    CLI_putc(' ');
+                    CLI_putc(BKSPC);
+                }
+            }
+            else
+            {
+                if (cnt < MAX_CHARS)
+                {
+                    if (isalnum((int)ch))
+                    {
+                        cmdbuf[cnt++] = ch;
+                        cmdbuf[cnt] = 0;
+                        CLI_putc((int)ch);
+                    }
+                }
+            }
         }
+    }
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void parse(char *cmd)
+{
+    const char* tok = strtok(cmd,delim);
+
+    if (!tok)
+        return;
+
+    int i = CMDS;
+
+    while(i--)
+    {
+        cmd_t cur = dsp_table[i];
+
+        if (!strcmp(tok,cur.name))
+        {
+            arg_t *args = args_parse(cur.args);
+
+            if (args == NULL && strlen(cur.args))
+                return;//Error in argument parsing
+
+            cur.func(args);
+
+            free(args);
+            return;
+        }
+    }
+
+    puts("Command Not Found");
+}
+
+#define ESCAPE { free(args); CLI_puts("Bad Argument(s)\n"); return NULL; }
+
+arg_t *args_parse(const char *s)
+{
+    int argc = strlen(s);
+
+    arg_t *args = malloc(sizeof(arg_t)*argc);
+
+    int i;
+
+    for(i=0; i < argc; ++i)
+    {
+        char *tok;
+
+        switch(s[i])
+        {
+            case 's':
+                args[i].s = strtok(NULL,delim);
+                if (!args[i].s)
+                    ESCAPE;
+                break;
+
+            case 'c':
+                tok = strtok(NULL,delim);
+                if (!tok)
+                    ESCAPE;
+                args[i].c = tok[0];
+                if (!islower(args[i].c))
+                    ESCAPE;
+                break;
+
+            case 'f':
+                tok = strtok(NULL,delim);
+                if (sscanf(tok,"%f", &args[i].f)!=1)
+                    ESCAPE;
+                break;
+        }
+    }
+
+    return args;
+}
+#undef ESCAPE
+
+//*****************************************************************************
+// CLI Command Handlers
+//*****************************************************************************
+
+void cmd_ipaddr(arg_t *args)
+{
+    CLI_printf("%s", g_sysData.ipAddr);
+}
+
+void cmd_macaddr(arg_t *args)
+{
+    char mac[32];
+    sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
+            g_sysData.ui8MAC[0], g_sysData.ui8MAC[1], g_sysData.ui8MAC[2],
+            g_sysData.ui8MAC[3], g_sysData.ui8MAC[4], g_sysData.ui8MAC[5]);
+    CLI_printf("%s", mac);
+}
+
+void cmd_sernum(arg_t *args)
+{
+    char serialnum[64];
+    /*  Format the 64 bit GUID as a string */
+    GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
+    CLI_printf("%s", serialnum);
+}
+
+void cmd_cls(arg_t *args)
+{
+    CLI_puts(VT100_CLS);
+    CLI_puts(VT100_HOME);
+}
+
+void cmd_help(arg_t *args)
+{
+    char tmp[100];
+    int i=CMDS;
+
+    CLI_puts("\nAvailable Commands:\n\n");
+
+    while(i--)
+    {
+        cmd_t cmd=dsp_table[i];
+        snprintf(tmp,100,"%s(%s)", cmd.name, cmd.args);
+        CLI_printf("%10s\t- %s\n", tmp, cmd.doc);
     }
 }
 

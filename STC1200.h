@@ -122,12 +122,5 @@ typedef struct CommandMessage {
 //*****************************************************************************
 
 int main(void);
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
-void EnableClockDivOutput(uint32_t div);
-Void CommandTaskFxn(UArg arg0, UArg arg1);
-void InitSysDefaults(SYSPARMS* p);
-int SysParamsRead(SYSPARMS* sp);
-int SysParamsWrite(SYSPARMS* sp);
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen);
 
 #endif /* __STC1200_H */

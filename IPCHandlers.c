@@ -80,7 +80,6 @@
 #include "RAMPServer.h"
 #include "LocateTask.h"
 #include "PositionTask.h"
-#include "CLITask.h"
 
 /* External Data Items */
 extern SYSDATA g_sysData;
@@ -138,7 +137,6 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
     {
     case OP_NOTIFY_BUTTON:
         param1 = msg->param1.U;
-        //CLI_printf("BUTTON: %02x ", param1);
         if (param1 & S_STOP) {
             LocateAbort();
         } else if (param1 & S_PLAY) {

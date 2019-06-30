@@ -101,6 +101,7 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "CLITask.h"
+#include "Utils.h"
 #include "AD9837.h"
 
 /* Enable div-clock output if non-zero */
@@ -125,13 +126,12 @@ Mailbox_Handle g_mailboxCommand = NULL;
 Event_Handle g_eventQEI;
 
 /* Static Function Prototypes */
+static void Hardware_init();
+static Void CommandTaskFxn(UArg arg0, UArg arg1);
 static void gpioButtonResetHwi(unsigned int index);
 static void gpioButtonSearchHwi(unsigned int index);
 static void gpioButtonCueHwi(unsigned int index);
-
 static void gpioButtonStopHwi(unsigned int index);
-static void Hardware_init();
-
 #if (DIV_CLOCK_ENABLED > 0)
 static void EnableClockDivOutput(uint32_t div);
 #endif
@@ -280,194 +280,6 @@ void EnableClockDivOutput(uint32_t div)
 #endif
 
 //*****************************************************************************
-// This function reads the unique 128-serial number and 48-bit MAC address
-// via I2C from the AT24MAC402 serial EPROM.
-//*****************************************************************************
-
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
-{
-    bool            ret;
-    uint8_t         txByte;
-    I2C_Handle      handle;
-    I2C_Params      params;
-    I2C_Transaction i2cTransaction;
-
-    /* default is all FF's  in case read fails*/
-    memset(ui8SerialNumber, 0xFF, 16);
-    memset(ui8MAC, 0xFF, 6);
-
-    I2C_Params_init(&params);
-    params.transferCallbackFxn = NULL;
-    params.transferMode = I2C_MODE_BLOCKING;
-    params.bitRate = I2C_100kHz;
-
-    handle = I2C_open(Board_I2C_AT24MAC402, &params);
-
-    if (!handle) {
-        System_printf("I2C did not open\n");
-        System_flush();
-        return 0;
-    }
-
-    /* Note the Upper bit of the word address must be set
-     * in order to read the serial number. Thus 80H would
-     * set the starting address to zero prior to reading
-     * this sixteen bytes of serial number data.
-     */
-
-    txByte = 0x80;
-
-    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
-    i2cTransaction.writeBuf     = &txByte;
-    i2cTransaction.writeCount   = 1;
-    i2cTransaction.readBuf      = ui8SerialNumber;
-    i2cTransaction.readCount    = 16;
-
-    ret = I2C_transfer(handle, &i2cTransaction);
-
-    if (!ret)
-    {
-        System_printf("Unsuccessful I2C transfer\n");
-        System_flush();
-    }
-
-    /* Now read the 6-byte 48-bit MAC at address 0x9A. The EUI-48 address
-     * contains six or eight bytes. The first three bytes of the  UI read-only
-     * address field are called the Organizationally Unique Identifier (OUI)
-     * and the IEEE Registration Authority has assigned FCC23Dh as the Atmel OUI.
-     */
-
-    txByte = 0x9A;
-
-    i2cTransaction.slaveAddress = AT24MAC_EPROM_EXT_ADDR;
-    i2cTransaction.writeBuf     = &txByte;
-    i2cTransaction.writeCount   = 1;
-    i2cTransaction.readBuf      = ui8MAC;
-    i2cTransaction.readCount    = 6;
-
-    ret = I2C_transfer(handle, &i2cTransaction);
-
-    if (!ret)
-    {
-        System_printf("Unsuccessful I2C transfer\n");
-        System_flush();
-    }
-
-    I2C_close(handle);
-
-    return ret;
-}
-
-//*****************************************************************************
-// Set default runtime values
-//*****************************************************************************
-
-void InitSysDefaults(SYSPARMS* p)
-{
-    /** Default servo parameters **/
-    p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    p->build        = FIRMWARE_BUILD;
-    p->debug        = 0;                    /* debug mode 0=off             */
-    p->searchBlink  = TRUE;
-    /** Remote Parameters **/
-    p->showLongTime = FALSE;
-    /** Locator Parameters **/
-    p->jog_vel_far  = JOG_VEL_FAR;          /* 0 for DTC default velocity   */
-    p->jog_vel_mid  = JOG_VEL_MID;          /* vel for mid distance locate  */
-    p->jog_vel_near = JOG_VEL_NEAR;         /* vel for near distance locate */
-
-}
-
-//*****************************************************************************
-// Write system parameters from our global settings buffer to EEPROM.
-//
-// Returns:  0 = Success
-//          -1 = Error writing EEPROM data
-//*****************************************************************************
-
-int SysParamsWrite(SYSPARMS* sp)
-{
-    int32_t rc = 0;
-
-    /* Initialize the version, build# and magic# */
-    sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    sp->build   = FIRMWARE_BUILD;
-    sp->magic   = MAGIC;
-
-    /* Store the configuration parameters to EPROM */
-    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSPARMS));
-
-    System_printf("Writing System Parameters %d\n", rc);
-    System_flush();
-
-    return rc;
- }
-
-//*****************************************************************************
-// Read system parameters into our global settings buffer from EEPROM.
-//
-// Returns:  0 = Sucess
-//          -1 = Error reading flash
-//
-//*****************************************************************************
-
-int SysParamsRead(SYSPARMS* sp)
-{
-    InitSysDefaults(sp);
-
-    /* Read the configuration parameters from EPROM */
-    EEPROMRead((uint32_t *)sp, 0, sizeof(SYSPARMS));
-
-    /* Does the magic number match? If not, set defaults and
-     * store to initialize the system default parameters.
-     */
-    if (sp->magic != MAGIC)
-    {
-        System_printf("ERROR Reading System Parameters - Using Defaults...\n");
-        System_flush();
-
-        InitSysDefaults(sp);
-
-        SysParamsWrite(sp);
-
-        return -1;
-    }
-
-    /* If firmware is different version, the reset system defaults
-     * and store as system default parameters.
-     */
-    if (sp->version != MAKEREV(FIRMWARE_VER, FIRMWARE_REV))
-    {
-        System_printf("WARNING New Firmware Version - Using Defaults...\n");
-        System_flush();
-
-        InitSysDefaults(sp);
-
-        SysParamsWrite(sp);
-
-        return -1;
-    }
-
-    /* If stored build number is less that minimum build number required,
-     * then reset and store system defaults. This is to avoid loading old
-     * configuration parameters store from an earlier build version.
-     */
-    if (sp->build < FIRMWARE_MIN_BUILD)
-    {
-        System_printf("WARNING New Firmware BUILD - Resetting Defaults...\n");
-        System_flush();
-
-        InitSysDefaults(sp);
-
-        SysParamsWrite(sp);
-
-        return -1;
-    }
-
-    return 0;
-}
-
-//*****************************************************************************
 // This is a hook into the NDK stack to allow delaying execution of the NDK
 // stack task until after we load the MAC address from the AT24MAC serial
 // EPROM part. This hook blocks on a semaphore until after we're able to call
@@ -508,53 +320,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Step 3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
 
-#if 0
-    else
-    {
-        uint32_t ulUser0, ulUser1;
-
-        /* Get the MAC address */
-        FlashUserGet(&ulUser0, &ulUser1);
-
-        if ((ulUser0 == 0xffffffff) && (ulUser1 == 0xffffffff))
-        {
-            /* Combine MAC address into two 32-bit words */
-            ulUser0 = ((((uint32_t)g_sysData.ui8MAC[0] & 0xff) << 0)) |
-                      ((((uint32_t)g_sysData.ui8MAC[1] & 0xff) << 8)) |
-                      ((((uint32_t)g_sysData.ui8MAC[2] & 0xff) << 16));
-
-            ulUser1 = ((((uint32_t)g_sysData.ui8MAC[3] & 0xff) << 0)) |
-                      ((((uint32_t)g_sysData.ui8MAC[4] & 0xff) << 8)) |
-                      ((((uint32_t)g_sysData.ui8MAC[5] & 0xff) << 16));
-
-            System_printf("Updating MAC address in user flash!\n");
-            System_flush();
-
-            /* Save the two MAC address words into the special user
-             * flash area. There are four words available, but we only
-             * need the first two words to store the six byte MAC address.
-             */
-            if (!FlashUserSet(ulUser0, ulUser1))
-            {
-                System_printf("FlashUserSet failed updating MAC address!\n");
-                System_flush();
-            }
-
-            /* NOTE - THIS IS A ONE TIME PERMANENT WRITE OPERATION!!! */
-            if (!FlashUserSave())
-            {
-                System_printf("FlashUserSave failed updating MAC address!\n");
-                System_flush();
-            }
-
-            System_printf("MAC ADDRESS PERMANENTLY WRITTEN TO USER FLASH!\n");
-            System_flush();
-
-            /* REBOOT BY JUMPING TO BOOTLOADER! */
-            SysCtlReset();
-        }
-    }
-#endif
 
     /* Set default system parameters */
     InitSysDefaults(&g_sysParms);
@@ -597,6 +362,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     /* Startup the MIDI services tasks */
     Midi_Server_startup();
+
+    /* Startup the CLI on COM1 */
+    CLI_startup();
 
     /* Setup the callback Hwi handler for each button */
 
@@ -768,70 +536,5 @@ void gpioButtonStopHwi(unsigned int index)
     g_sysData.searchCancel = TRUE;
     Hwi_restore(key);
 }
-
-//*****************************************************************************
-// Helper Functions
-//*****************************************************************************
-#if 0
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
-{
-    char *p = textbuf;
-    uint8_t *d;
-    uint32_t i;
-    int32_t l;
-
-    const uint32_t wordSize = 4;
-
-    /* Null output text buffer initially */
-    *textbuf = 0;
-
-    /* Make sure buffer length is not zero */
-    if (!datalen)
-        return 0;
-
-    /* Read data bytes in reverse order so we print most significant byte first */
-    d = databuf + (datalen-1);
-
-    for (i=0; i < datalen; i++)
-    {
-        l = sprintf(p, "%02X", *d--);
-        p += l;
-
-        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
-        {
-            l = sprintf(p, "-");
-            p += l;
-        }
-    }
-
-    return strlen(textbuf);
-}
-#else
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
-{
-    char fmt[8];
-    uint32_t i;
-    int32_t l;
-
-    const uint32_t wordSize = 4;
-
-    *textbuf = 0;
-    strcpy(fmt, "%02X");
-
-    for (i=0; i < datalen; i++)
-    {
-        l = sprintf(textbuf, fmt, *databuf++);
-        textbuf += l;
-
-        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
-        {
-            l = sprintf(textbuf, "-");
-            textbuf += l;
-        }
-    }
-
-    return strlen(textbuf);
-}
-#endif
 
 // End-Of-File

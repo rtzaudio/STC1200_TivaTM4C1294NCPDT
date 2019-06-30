@@ -76,7 +76,7 @@
 #include "STC1200.h"
 #include "MidiTask.h"
 #include "IPCCommands.h"
-#include "CLITask.h"
+//#include "CLITask.h"
 
 /* External Data Items */
 
@@ -249,73 +249,73 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
         {
             if (rc < -1)
             {
-                CLI_printf("MidiRxError %d\n", rc);
+                //CLI_printf("MidiRxError %d\n", rc);
             }
         }
         else
     	{
-            CLI_printf("MMC(%d)-", g_midi.deviceID);
+            //CLI_printf("MMC(%d)-", g_midi.deviceID);
 
     		switch(rxBuffer[0])
     		{
                 case MCC_STOP:
-                    CLI_printf("STOP\n");
+                    //CLI_printf("STOP\n");
                     Transport_Stop();
                     break;
 
                 case MCC_PLAY:
-                    CLI_printf("PLAY\n");
+                    //CLI_printf("PLAY\n");
                     Transport_Play(0);
                     break;
 
                 case MCC_DEFERRED_PLAY:
-                    CLI_printf("DEF-PLAY\n");
+                    //CLI_printf("DEF-PLAY\n");
                     break;
 
                 case MCC_FAST_FORWARD:
                     Transport_Fwd(0, 0);
-                    CLI_printf("FFWD\n");
+                    //CLI_printf("FFWD\n");
                     break;
 
                 case MCC_REWIND:
                     Transport_Rew(0, 0);
-                    CLI_printf("REW\n");
+                    //CLI_printf("REW\n");
                     break;
 
                 case MCC_RECORD_STROBE:
-                    CLI_printf("REC-STROBE\n");
+                    //CLI_printf("REC-STROBE\n");
                     break;
 
                 case MCC_RECORD_EXIT:
-                    CLI_printf("REC-EXIT\n");
+                    //CLI_printf("REC-EXIT\n");
                     break;
 
                 case MCC_RECORD_PAUSE:
-                    CLI_printf("REC-PAUSE\n");
+                    //CLI_printf("REC-PAUSE\n");
                     break;
 
                 case MCC_PAUSE:
-                    CLI_printf("PAUSE\n");
+                    //CLI_printf("PAUSE\n");
                     break;
 
                 case MCC_EJECT:
-                    CLI_printf("EJECT\n");
+                    //CLI_printf("EJECT\n");
                     break;
 
                 case MCC_CHASE:
-                    CLI_printf("CHASE\n");
+                    //CLI_printf("CHASE\n");
                     break;
 
                 case MCC_COMMAND_ERROR_RESET:
-                    CLI_printf("CMD ERROR RESET\n");
+                    //CLI_printf("CMD ERROR RESET\n");
                     break;
 
                 case MCC_MMC_RESET:
-                    CLI_printf("RESET\n");
+                    //CLI_printf("RESET\n");
                     break;
 
                 default:
-                    CLI_printf("UNKNOWN %02x\n", rxBuffer[0]);
+                    //CLI_printf("UNKNOWN %02x\n", rxBuffer[0]);
                     break;
     		}
     	}

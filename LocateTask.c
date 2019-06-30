@@ -317,7 +317,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     /* Get current transport mode & speed from DTC */
     Transport_GetMode(&g_sysData.transportMode, &g_sysData.tapeSpeed);
 
-    CLI_printf("\n\nSTC-1200 Starting (mode %x)\n\n", g_sysData.transportMode);
+    //CLI_printf("\n\nSTC-1200 Starting (mode %x)\n\n", g_sysData.transportMode);
 
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -433,21 +433,21 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			    /* Determine which direction we need to go initially */
 
-			    CLI_printf("\nBEGIN LOCATE[%u] ", cue_index);
+			    //CLI_printf("\nBEGIN LOCATE[%u] ", cue_index);
 
 			    if (g_sysData.cuePoint[cue_index].ipos > g_sysData.tapePosition)
 		        {
-                    CLI_printf("FWD > ");
+                    //CLI_printf("FWD > ");
 		            dir = DIR_FWD;
 		        }
 		        else if (g_sysData.cuePoint[cue_index].ipos < g_sysData.tapePosition)
 		        {
-                    CLI_printf("REW < ");
+                    //CLI_printf("REW < ");
 		            dir = DIR_REW;
 		        }
 		        else
 		        {
-                    CLI_printf("AT ZERO!!\n");
+                    //CLI_printf("AT ZERO!!\n");
                     cancel = TRUE;
 		            dir = DIR_ZERO;
 		            break;
@@ -457,24 +457,24 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			    if (abs_dist > 9000)
                 {
-                    CLI_printf("FAR");
+                    //CLI_printf("FAR");
                     shuttle_vel = JOG_VEL_FAR;
                     state = LOCATE_SHUTTLE_FAR;
                 }
                 else if (abs_dist > 3000)
                 {
-                    CLI_printf("MID");
+                    //CLI_printf("MID");
                     shuttle_vel = JOG_VEL_MID;
                     state = LOCATE_SHUTTLE_MID;
                 }
                 else
                 {
-                    CLI_printf("NEAR");
+                    //CLI_printf("NEAR");
                     shuttle_vel = JOG_VEL_NEAR;
                     state = LOCATE_SHUTTLE_NEAR;
                 }
 
-                CLI_printf(" d=%d, t=%d\n", cue_dist, (int32_t)time);
+                //CLI_printf(" d=%d, t=%d\n", cue_dist, (int32_t)time);
 
                 /* Start the transport in either FWD or REV direction
 		         * based on the cue point and current location. We set
@@ -495,7 +495,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 	                if (velocity > 35.0f)
 	                {
-                        CLI_printf("SHUTTLE FAR BRAKE STATE d=%d\n", cue_dist);
+                        //CLI_printf("SHUTTLE FAR BRAKE STATE d=%d\n", cue_dist);
 
 	                    state = LOCATE_BRAKE_STATE;
 	                }
@@ -510,7 +510,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                     if (velocity > 35.0f)
                     {
-                        CLI_printf("SHUTTLE MID BRAKE STATE d=%d\n", cue_dist);
+                        //CLI_printf("SHUTTLE MID BRAKE STATE d=%d\n", cue_dist);
 
                         state = LOCATE_BRAKE_STATE;
                     }
@@ -521,7 +521,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                 if (time < 30.0f)
                 {
-                    CLI_printf("SHUTTLE NEAR BRAKE STATE d=%d\n", cue_dist);
+                    //CLI_printf("SHUTTLE NEAR BRAKE STATE d=%d\n", cue_dist);
 
                     state = LOCATE_BRAKE_VELOCITY;
                 }
@@ -529,11 +529,11 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             case LOCATE_BRAKE_STATE:
 
-                CLI_printf("CHECK BRAKE STATE: d=%d, t=%d, v=%u\n", abs_dist, (int32_t)time, (uint32_t)velocity);
+                //CLI_printf("CHECK BRAKE STATE: d=%d, t=%d, v=%u\n", abs_dist, (int32_t)time, (uint32_t)velocity);
 
                 if (velocity > 30.0f)
                 {
-                    CLI_printf("BEGIN DYNAMIC BRAKE: v=%u\n", (uint32_t)velocity);
+                    //CLI_printf("BEGIN DYNAMIC BRAKE: v=%u\n", (uint32_t)velocity);
 
                     Transport_Stop();
 
@@ -541,7 +541,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 }
                 else
                 {
-                    CLI_printf("BEGIN COAST BRAKE: v=%u\n", (uint32_t)velocity);
+                    //CLI_printf("BEGIN COAST BRAKE: v=%u\n", (uint32_t)velocity);
 
                     /* Begin low speed shuttle */
                     if (dir == DIR_FWD)
@@ -562,7 +562,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			    if (velocity > 40.0f)
 			        break;
 
-			    CLI_printf("BEGIN SLOW SHUTTLE d=%d, t=%d, v=%u\n", cue_dist, (int32_t)time, (uint32_t)velocity);
+			    //CLI_printf("BEGIN SLOW SHUTTLE d=%d, t=%d, v=%u\n", cue_dist, (int32_t)time, (uint32_t)velocity);
 
                 /* Begin low speed shuttle */
                 if (dir == DIR_FWD)
@@ -586,7 +586,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     if (cue_from < cue_dist)
                     {
-                        CLI_printf("OVERSHOOT FWD: %d, %d\n", cue_dist, cue_from);
+                        //CLI_printf("OVERSHOOT FWD: %d, %d\n", cue_dist, cue_from);
                         g_sysData.searchProgress = 100;
                         Transport_Stop();
                         cancel = TRUE;
@@ -597,7 +597,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     if (cue_from > cue_dist)
                     {
-                        CLI_printf("OVERSHOOT REW: %d, %d\n", cue_dist, cue_from);
+                        //CLI_printf("OVERSHOOT REW: %d, %d\n", cue_dist, cue_from);
                         g_sysData.searchProgress = 100;
                         Transport_Stop();
                         cancel = TRUE;
@@ -610,7 +610,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     g_sysData.searchProgress = 100;
                     Transport_Stop();
                     cancel = TRUE;
-                    CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
+                    //CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
                 }
                 break;
 
@@ -687,7 +687,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 break;
 	    }
 
-	    CLI_printf("SEARCH END\n");
+	    //CLI_printf("SEARCH END\n");
 
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -707,12 +707,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	        {
                 if (cue_flags & CF_AUTO_REC)
                 {
-                    CLI_printf("AUTO-RECORD\n");
+                    //CLI_printf("AUTO-RECORD\n");
                     Transport_Play(M_RECORD);
                 }
                 else
                 {
-                    CLI_printf("AUTO-PLAY\n");
+                    //CLI_printf("AUTO-PLAY\n");
                     Transport_Play(0);
                 }
 	        }
