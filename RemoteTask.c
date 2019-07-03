@@ -117,7 +117,7 @@ Bool Remote_Task_startup(void)
 
     Task_Params_init(&taskParams);
 
-    taskParams.stackSize = 1500;
+    taskParams.stackSize = 2048;
     taskParams.priority  = 10;
     taskParams.arg0      = 0;
     taskParams.arg1      = 0;
@@ -395,7 +395,16 @@ void HandleJogwheelPress(uint32_t flags)
 
 void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
-
+    if (direction > 0)
+    {
+        if (g_sysData.ref_freq < 10000.0f)
+            g_sysData.ref_freq += 0.1f;
+    }
+    else
+    {
+        if (g_sysData.ref_freq > 1000.0f)
+            g_sysData.ref_freq -= 0.1f;
+    }
 }
 
 //*****************************************************************************

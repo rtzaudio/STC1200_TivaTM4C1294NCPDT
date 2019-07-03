@@ -169,6 +169,10 @@ void DrawMenu(void)
     len = sprintf(buf, "MENU");
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
 
+    y += (height * 2);
+    len = sprintf(buf, "Ref=%.2f", g_sysData.ref_freq);
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+
     y = SCREEN_HEIGHT - height - 1;
 
     /* Display the IP address */

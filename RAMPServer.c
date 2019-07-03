@@ -232,7 +232,7 @@ Bool RAMP_Server_init(void)
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
-    taskParams.stackSize = 700;
+    taskParams.stackSize = 800;
     taskParams.priority  = 8;
     taskParams.arg0      = (UArg)&g_svr;
     taskParams.arg1      = 0;
@@ -240,7 +240,7 @@ Bool RAMP_Server_init(void)
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
-    taskParams.stackSize = 700;
+    taskParams.stackSize = 800;
     taskParams.priority  = 8;
     taskParams.arg0      = (UArg)&g_svr;
     taskParams.arg1      = 0;
