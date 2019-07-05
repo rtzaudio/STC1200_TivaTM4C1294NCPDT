@@ -44,7 +44,9 @@
 // SYSTEM RUN-TIME CONFIG PARAMETERS STORED IN EPROM
 //*****************************************************************************
 
-#define DEFAULT_REF_FREQ    9600.0f
+#define REF_FREQ            9600.0f
+#define REF_FREQ_MIN        1000.0f
+#define REF_FREQ_MAX        18000.0f
 
 typedef struct _SYSPARMS
 {
@@ -103,6 +105,7 @@ typedef struct _SYSDATA
     bool        shiftRecButton;             /* true if shifted REC button */
     bool        shiftAltButton;             /* true if shifted ALT button */
     /* Locate and Position data */
+    bool        varispeedMode;              /* jog wheel varispeed active */
     float       ref_freq;                   /* master ref freq 9600 Hz    */
     TAPETIME    tapeTime;                   /* current tape time position */
     size_t      cueIndex;                   /* current cue table index    */

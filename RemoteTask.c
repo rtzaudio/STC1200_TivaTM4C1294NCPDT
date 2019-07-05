@@ -61,6 +61,7 @@
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
+#include <ti/drivers/SPI.h>
 #include <ti/drivers/UART.h>
 
 #include <file.h>
@@ -79,6 +80,7 @@
 
 /* PMX42 Board Header file */
 #include "Board.h"
+#include "AD9837.h"
 #include "STC1200.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
@@ -367,6 +369,9 @@ void HandleButtonPress(uint32_t flags)
 
 void HandleJogwheelPress(uint32_t flags)
 {
+    g_sysData.ref_freq = REF_FREQ;
+
+#if 0
     uint32_t cue_flags = 0;
 
     size_t index = g_sysData.cueIndex;
@@ -390,21 +395,50 @@ void HandleJogwheelPress(uint32_t flags)
     case REMOTE_MODE_STORE:
         break;
     }
+#endif
 }
-
 
 void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
+    float freq;
+    float step;
+
+    if (velocity >= 12)
+        step = 1000.0f;
+    else if (velocity >= 8)
+        step = 500.0f;
+    else if (velocity >= 5)
+        step = 100.0f;
+    else if (velocity >= 3)
+        step = 10.0f;
+    else
+        step = 1.0f;
+
+    freq = g_sysData.ref_freq;
+
     if (direction > 0)
     {
-        if (g_sysData.ref_freq < 10000.0f)
-            g_sysData.ref_freq += 0.1f;
+        if ((freq + step) < REF_FREQ_MAX)
+            freq += step;
+        else
+            freq = REF_FREQ_MAX;
     }
     else
     {
-        if (g_sysData.ref_freq > 1000.0f)
-            g_sysData.ref_freq -= 0.1f;
+        if ((freq - step) > REF_FREQ_MIN)
+            freq -= step;
+        else
+            freq = REF_FREQ_MIN;
     }
+
+    /* Calculate the 32-bit frequency divisor */
+    uint32_t freqCalc = AD9837_freqCalc(freq);
+
+    /* Program the DSS ref clock with new value */
+    AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+    AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+    g_sysData.ref_freq = freq;
 }
 
 //*****************************************************************************
@@ -571,29 +605,14 @@ void HandleDigitPress(size_t index)
         switch(g_sysData.editState)
         {
         case EDIT_BEGIN:
+        case EDIT_TENS:
             g_sysData.digitCount = 0;
-            g_sysData.editState  = EDIT_MINUTES;
+            g_sysData.editState  = EDIT_SECS;
             g_sysData.editTime.flags = F_PLUS;
-            g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
+            g_sysData.editTime.tens = (uint8_t)atoi(g_sysData.digitBuf);
             break;
 
-        case EDIT_MINUTES:
-            n = atoi(g_sysData.digitBuf);
-
-            /* validate mins value */
-            if (n > 59)
-                n = 59;
-
-            g_sysData.editTime.mins = (uint8_t)n;
-
-            if (g_sysData.digitCount > 1)
-            {
-                g_sysData.digitCount = 0;
-                g_sysData.editState  = EDIT_SECONDS;
-            }
-            break;
-
-        case EDIT_SECONDS:
+        case EDIT_SECS:
             n = atoi(g_sysData.digitBuf);
 
             /* validate secs value */
@@ -605,14 +624,29 @@ void HandleDigitPress(size_t index)
             if (g_sysData.digitCount > 1)
             {
                 g_sysData.digitCount = 0;
-                g_sysData.editState  = EDIT_TENTHS;
+                g_sysData.editState  = EDIT_MINS;
             }
             break;
 
-        case EDIT_TENTHS:
-            g_sysData.editTime.tens = (uint8_t)atoi(g_sysData.digitBuf);
+        case EDIT_MINS:
+            n = atoi(g_sysData.digitBuf);
+
+            /* validate mins value */
+            if (n > 59)
+                n = 59;
+
+            g_sysData.editTime.mins = (uint8_t)n;
+
+            if (g_sysData.digitCount > 1)
+            {
+                g_sysData.digitCount = 0;
+                g_sysData.editState  = EDIT_HOUR;
+            }
+            break;
+
+        case EDIT_HOUR:
             g_sysData.digitCount = 0;
-            g_sysData.editState  = EDIT_BEGIN;
+            g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
 
             /* Exit EDIT mode back to previous state */
             HandleSetMode(REMOTE_MODE_EDIT);
@@ -640,8 +674,8 @@ void HandleDigitPress(size_t index)
 }
 
 /*****************************************************************************
- * This functions set the appropriate LOC button LED bit flag on and
- * clears all other LOC button LED bits so only one LED is on.
+ * This function set the appropriate LOC button LED bit flag on and clears
+ * all other LOC button LED bits so only one LOC LED is on at a time.
  *****************************************************************************/
 
 void SetLocateButtonLED(size_t index)

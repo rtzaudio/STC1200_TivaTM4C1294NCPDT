@@ -199,7 +199,7 @@ void InitSysDefaults(SYSPARMS* p)
     p->jog_vel_mid  = JOG_VEL_MID;          /* vel for mid distance locate  */
     p->jog_vel_near = JOG_VEL_NEAR;         /* vel for near distance locate */
     /** Master Reference Clock */
-    p->ref_freq     = DEFAULT_REF_FREQ;     /* default ref clock 9600.0 Hz  */
+    p->ref_freq     = REF_FREQ;             /* default ref clock 9600.0 Hz  */
 }
 
 //*****************************************************************************

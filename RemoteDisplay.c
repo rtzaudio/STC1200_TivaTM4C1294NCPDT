@@ -579,78 +579,77 @@ void DrawTimeEdit(void)
     switch(g_sysData.editState)
     {
     case EDIT_BEGIN:
+    case EDIT_TENS:
+        if (g_sysData.digitCount)
+        {
+            len = sprintf(buf, "%c _:__:__:%u",
+                     sign,
+                     g_sysData.editTime.tens);
+        }
+        else
+        {
+            len = sprintf(buf, "%c _:__:__:_", sign);
+        }
+        break;
+
+    case EDIT_SECS:
+        if (g_sysData.digitCount)
+        {
+            if (g_sysData.digitCount > 1)
+            {
+                len = sprintf(buf, "%c _:__:%02u:%u",
+                              sign,
+                              g_sysData.editTime.secs,
+                              g_sysData.editTime.tens);
+            }
+            else
+            {
+                len = sprintf(buf, "%c _:__:_%1u:%u",
+                              sign,
+                              g_sysData.editTime.secs,
+                              g_sysData.editTime.tens);
+            }
+        }
+        else
+        {
+            len = sprintf(buf, "%c _:__:__:%u",
+                          sign,
+                          g_sysData.editTime.tens);
+        }
+        break;
+
+    case EDIT_MINS:
+        if (g_sysData.digitCount)
+        {
+            if (g_sysData.digitCount > 1)
+            {
+                len = sprintf(buf, "%c _:%02u:%02u:%u",
+                              sign,
+                              g_sysData.editTime.mins,
+                              g_sysData.editTime.secs,
+                              g_sysData.editTime.tens);
+            }
+            else
+            {
+                len = sprintf(buf, "%c _:_%1u:%02u:%u",
+                              sign,
+                              g_sysData.editTime.mins,
+                              g_sysData.editTime.secs,
+                              g_sysData.editTime.tens);            }
+        }
+        else
+        {
+            len = sprintf(buf, "%c _:__:%02u:%u",
+                          sign,
+                          g_sysData.editTime.secs,
+                          g_sysData.editTime.tens);
+        }
+        break;
+
     case EDIT_HOUR:
         if (g_sysData.digitCount)
         {
-            len = sprintf(buf, "%c %1u:--:--:-",
-                     sign,
-                     g_sysData.editTime.hour);
-        }
-        else
-        {
-            len = sprintf(buf, "%c -:--:--:-", sign);
-        }
-        break;
-
-    case EDIT_MINUTES:
-        if (g_sysData.digitCount)
-        {
-            if (g_sysData.digitCount == 1)
-            {
-                len = sprintf(buf, "%c %1u:-%1u:--:-",
-                              sign,
-                              g_sysData.editTime.hour,
-                              g_sysData.editTime.mins);
-            }
-            else
-            {
-                len = sprintf(buf, "%c %1u:%02u:--:-",
-                              sign,
-                              g_sysData.editTime.hour,
-                              g_sysData.editTime.mins);
-            }
-        }
-        else
-        {
-            len = sprintf(buf, "%c %1u:--:--:-",
-                          sign,
-                          g_sysData.editTime.hour);
-        }
-        break;
-
-    case EDIT_SECONDS:
-        if (g_sysData.digitCount)
-        {
-            if (g_sysData.digitCount == 1)
-            {
-                len = sprintf(buf, "%c %1u:%02u:-%1u:-",
-                              sign,
-                              g_sysData.editTime.hour,
-                              g_sysData.editTime.mins,
-                              g_sysData.editTime.secs);
-            }
-            else
-            {
-                len = sprintf(buf, "%c %1u:%02u:%02u:-",
-                              sign,
-                              g_sysData.editTime.hour,
-                              g_sysData.editTime.mins,
-                              g_sysData.editTime.secs);
-            }
-        }
-        else
-        {
-            len = sprintf(buf, "%c %1u:%02u:--:-",
-                          sign,
-                          g_sysData.editTime.hour,
-                          g_sysData.editTime.mins);
-        }
-        break;
-
-    case EDIT_TENTHS:
-        if (g_sysData.digitCount)
-        {
-            len = sprintf(buf, "%c %1u:%02u:%02u:%1u",
+            len = sprintf(buf, "%c %1u:%02u:%02u:%u",
                           sign,
                           g_sysData.editTime.hour,
                           g_sysData.editTime.mins,
@@ -659,11 +658,11 @@ void DrawTimeEdit(void)
         }
         else
         {
-            len = sprintf(buf, "%c %1u:%02u:%02u:-",
+            len = sprintf(buf, "%c _:%02u:%02u:%u",
                           sign,
-                          g_sysData.editTime.hour,
                           g_sysData.editTime.mins,
-                          g_sysData.editTime.secs);
+                          g_sysData.editTime.secs,
+                          g_sysData.editTime.tens);
         }
         break;
     }
