@@ -103,18 +103,6 @@ extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
 //*****************************************************************************
-//
-//*****************************************************************************
-
-void ClearDisplay()
-{
-    tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
-    GrContextForegroundSetTranslated(&g_context, 0);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-    GrRectFill(&g_context, &rect);
-}
-
-//*****************************************************************************
 // Display the current measurement screen data
 //*****************************************************************************
 
@@ -147,40 +135,12 @@ void DrawScreen(uint32_t uScreenNum)
 //
 //*****************************************************************************
 
-void DrawMenu(void)
+void ClearDisplay()
 {
-    char buf[64];
-    int32_t x, y;
-    int32_t len;
-    //int32_t width;
-    int32_t height;
-
-    /* Set foreground pixel color on to 0x01 */
-    GrContextForegroundSetTranslated(&g_context, 1);
+    tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
+    GrContextForegroundSetTranslated(&g_context, 0);
     GrContextBackgroundSetTranslated(&g_context, 0);
-
-    /* Use fixed system font */
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
-    height = GrStringHeightGet(&g_context);
-
-    x = SCREEN_WIDTH/2;
-    y = height;
-
-    len = sprintf(buf, "MENU");
-    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
-
-    y += (height * 2);
-    len = sprintf(buf, "Ref=%.2f", g_sysData.ref_freq);
-    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
-
-    y = SCREEN_HEIGHT - height - 1;
-
-    /* Display the IP address */
-    if (strlen(g_sysData.ipAddr) == 0)
-        len = sprintf(buf, "IP: (none)");
-    else
-        len = sprintf(buf, "IP:%s", g_sysData.ipAddr);
-    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+    GrRectFill(&g_context, &rect);
 }
 
 //*****************************************************************************
@@ -223,6 +183,46 @@ void DrawAbout(void)
     /* Get the serial number string and display it */
     GetHexStr(buf, g_sysData.ui8SerialNumber, 16);
     GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawMenu(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    //int32_t width;
+    int32_t height;
+
+    /* Set foreground pixel color on to 0x01 */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    /* Use fixed system font */
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    x = SCREEN_WIDTH/2;
+    y = height;
+
+    len = sprintf(buf, "MENU");
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+
+    //y += (height * 2);
+    //len = sprintf(buf, "Ref=%.2f", g_sysData.ref_freq);
+    //GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+
+    y = SCREEN_HEIGHT - height - 1;
+
+    /* Display the IP address */
+    if (strlen(g_sysData.ipAddr) == 0)
+        len = sprintf(buf, "IP: (none)");
+    else
+        len = sprintf(buf, "IP:%s", g_sysData.ipAddr);
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
 }
 
 //*****************************************************************************
@@ -311,7 +311,15 @@ void DrawTimeTop(void)
     GrStringDraw(&g_context, buf, -1, x, y, 1);
 
     /* Draw current tape speed active */
-    len = sprintf(buf, "%s IPS", (g_sysData.tapeSpeed == 30) ? "30" : "15");
+    if (g_sysData.varispeedMode)
+    {
+        len = sprintf(buf, "%u", (uint32_t)g_sysData.ref_freq);
+    }
+    else
+    {
+        len = sprintf(buf, "%s IPS", (g_sysData.tapeSpeed == 30) ? "30" : "15");
+    }
+
     width = GrStringWidthGet(&g_context, buf, len);
     x = (SCREEN_WIDTH - 1) - width;
     GrStringDraw(&g_context, buf, -1, x, y, 1);

@@ -347,6 +347,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Set default reference frequency */
     g_sysData.ref_freq = g_sysParms.ref_freq;
 
+    g_sysData.varispeedMode = false;
+
+
     /*
      * Create the various system tasks
      */

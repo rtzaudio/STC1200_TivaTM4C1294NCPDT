@@ -97,12 +97,11 @@ extern SYSPARMS g_sysParms;
 
 /* Static Function Prototypes */
 static void HandleButtonPress(uint32_t flags);
+static void HandleDigitPress(size_t index);
 static void HandleJogwheelPress(uint32_t flags);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
-
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
-static void HandleDigitPress(size_t index);
-static void HandleSetMode(uint32_t mode);
+static void RemoteSetMode(uint32_t mode);
 //static void BlinkLocateButtonLED(size_t index);
 void ResetDigitBuf(void);
 
@@ -127,6 +126,19 @@ Bool Remote_Task_startup(void)
     Task_create((Task_FuncPtr)RemoteTaskFxn, &taskParams, &eb);
 
     return TRUE;
+}
+
+void Remote_PostSwitchPress(uint32_t mode)
+{
+    RAMP_MSG msg;
+
+    msg.type   = MSG_TYPE_SWITCH;
+    msg.opcode = OP_SWITCH_REMOTE;
+
+    msg.param1.U = mode;
+    msg.param2.U = 0;
+
+    Mailbox_post(g_mailboxRemote, &msg, 100);
 }
 
 //*****************************************************************************
@@ -160,18 +172,49 @@ void ResetDigitBuf(void)
     memset(&g_sysData.digitBuf, 0, sizeof(g_sysData.digitBuf));
 }
 
+/*****************************************************************************
+ * This function set the appropriate LOC button LED bit flag on and clears
+ * all other LOC button LED bits so only one LOC LED is on at a time.
+ *****************************************************************************/
 
-void Remote_PostSwitchPress(uint32_t mode)
+void SetLocateButtonLED(size_t index)
 {
-    RAMP_MSG msg;
+    uint32_t mask = 0;
 
-    msg.type   = MSG_TYPE_SWITCH;
-    msg.opcode = OP_SWITCH_REMOTE;
+    static uint32_t tab[10] = {
+        L_LOC1, L_LOC2, L_LOC3, L_LOC4, L_LOC5,
+        L_LOC6, L_LOC7, L_LOC8, L_LOC9, L_LOC0
+    };
 
-    msg.param1.U = mode;
-    msg.param2.U = 0;
+    mask = tab[index % 10];
 
-    Mailbox_post(g_mailboxRemote, &msg, 100);
+    if (g_sysData.remoteMode == REMOTE_MODE_CUE)
+        mask |= L_CUE;
+    else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
+        mask |= L_STORE;
+    else
+        mask = 0;
+
+    SetButtonLedMask(mask, L_LOC_MASK);
+}
+
+/*****************************************************************************
+ * This function sets or clears button LED bits on the remote.
+ *****************************************************************************/
+
+void SetButtonLedMask(uint32_t setMask, uint32_t clearMask)
+{
+    /* Atomic change bits */
+    uint32_t key = Hwi_disable();
+
+    /* Clear any bits in the clear mask */
+    g_sysData.ledMaskButton &= ~(clearMask);
+
+    /* Set any bits in the set mask */
+    g_sysData.ledMaskButton |= setMask;
+
+    /* Restore interrupts */
+    Hwi_restore(key);
 }
 
 //*****************************************************************************
@@ -196,7 +239,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize LOC-1 memory as return to zero at CUE point 1 */
     g_sysData.remoteModePrev = REMOTE_MODE_CUE;
-    HandleSetMode(REMOTE_MODE_CUE);
+    RemoteSetMode(REMOTE_MODE_CUE);
     HandleDigitPress(0);
 
     ResetDigitBuf();
@@ -279,173 +322,10 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 }
 
 //*****************************************************************************
-// Handle button press events from DRC remote
+// This function sets the current remote operation mode.
 //*****************************************************************************
 
-void HandleButtonPress(uint32_t flags)
-{
-    /* Handle numeric digit/locate buttons */
-    if (flags & SW_LOC1) {
-        HandleDigitPress(0);
-    } else if (flags & SW_LOC2) {
-        HandleDigitPress(1);
-    } else if (flags & SW_LOC3) {
-        HandleDigitPress(2);
-    } else if (flags & SW_LOC4) {
-        HandleDigitPress(3);
-    } else if (flags & SW_LOC5) {
-        HandleDigitPress(4);
-    } else if (flags & SW_LOC6) {
-        HandleDigitPress(5);
-    } else if (flags & SW_LOC7) {
-        HandleDigitPress(6);
-    } else if (flags & SW_LOC8) {
-        HandleDigitPress(7);
-    } else if (flags & SW_LOC9) {
-        HandleDigitPress(8);
-    } else if (flags & SW_LOC0) {
-        HandleDigitPress(9);
-    }
-    else if (flags & SW_CUE)
-    {
-        /* Switch to CUE mode */
-        HandleSetMode(REMOTE_MODE_CUE);
-    }
-    else if (flags & SW_STORE)
-    {
-        /* Switch to STORE mode */
-        HandleSetMode(REMOTE_MODE_STORE);
-    }
-    else if (flags & SW_EDIT)
-    {
-        /* Switch to EDIT mode */
-        HandleSetMode(REMOTE_MODE_EDIT);
-    }
-    else if (flags & SW_MENU)
-    {
-        /* ALT+MENU to zero reset system position */
-        if (g_sysData.shiftAltButton)
-        {
-            /* Reset system position to zero */
-            PositionZeroReset();
-        }
-        else
-        {
-            if (s_uScreenNum == SCREEN_MENU)
-            {
-                s_uScreenNum = SCREEN_TIME;
-                SetButtonLedMask(0, L_MENU);
-            }
-            else
-            {
-                s_uScreenNum = SCREEN_MENU;
-                SetButtonLedMask(L_MENU, 0);
-            }
-        }
-    }
-    else if (flags & SW_AUTO)
-    {
-        /* toggle auto play mode */
-        if (!g_sysData.autoMode)
-        {
-            g_sysData.autoMode = TRUE;
-            SetButtonLedMask(L_AUTO, 0);
-        }
-        else
-        {
-            g_sysData.autoMode = FALSE;
-            SetButtonLedMask(0, L_AUTO);
-        }
-    }
-    else if (flags & SW_ALT)
-    {
-        if (g_sysParms.showLongTime)
-            g_sysParms.showLongTime = false;
-        else
-            g_sysParms.showLongTime = true;
-    }
-}
-
-
-void HandleJogwheelPress(uint32_t flags)
-{
-    g_sysData.ref_freq = REF_FREQ;
-
-#if 0
-    uint32_t cue_flags = 0;
-
-    size_t index = g_sysData.cueIndex;
-
-    switch (g_sysData.remoteMode)
-    {
-    case REMOTE_MODE_CUE:
-
-        SetLocateButtonLED(index);
-
-        if (g_sysData.autoMode)
-            cue_flags |= CF_AUTO_PLAY;
-
-        if (g_sysData.shiftRecButton)
-            cue_flags |= CF_AUTO_REC;
-
-        /* Begin locate search */
-        LocateSearch(index, cue_flags);
-        break;
-
-    case REMOTE_MODE_STORE:
-        break;
-    }
-#endif
-}
-
-void HandleJogwheelMotion(uint32_t velocity, int direction)
-{
-    float freq;
-    float step;
-
-    if (velocity >= 12)
-        step = 1000.0f;
-    else if (velocity >= 8)
-        step = 500.0f;
-    else if (velocity >= 5)
-        step = 100.0f;
-    else if (velocity >= 3)
-        step = 10.0f;
-    else
-        step = 1.0f;
-
-    freq = g_sysData.ref_freq;
-
-    if (direction > 0)
-    {
-        if ((freq + step) < REF_FREQ_MAX)
-            freq += step;
-        else
-            freq = REF_FREQ_MAX;
-    }
-    else
-    {
-        if ((freq - step) > REF_FREQ_MIN)
-            freq -= step;
-        else
-            freq = REF_FREQ_MIN;
-    }
-
-    /* Calculate the 32-bit frequency divisor */
-    uint32_t freqCalc = AD9837_freqCalc(freq);
-
-    /* Program the DSS ref clock with new value */
-    AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-    AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
-
-    g_sysData.ref_freq = freq;
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
-void HandleSetMode(uint32_t mode)
+void RemoteSetMode(uint32_t mode)
 {
     if (mode == REMOTE_MODE_UNDEFINED)
     {
@@ -543,7 +423,95 @@ void HandleSetMode(uint32_t mode)
 }
 
 //*****************************************************************************
-//
+// Handle button press events from DRC remote
+//*****************************************************************************
+
+void HandleButtonPress(uint32_t flags)
+{
+    /* Handle numeric digit/locate buttons */
+    if (flags & SW_LOC1) {
+        HandleDigitPress(0);
+    } else if (flags & SW_LOC2) {
+        HandleDigitPress(1);
+    } else if (flags & SW_LOC3) {
+        HandleDigitPress(2);
+    } else if (flags & SW_LOC4) {
+        HandleDigitPress(3);
+    } else if (flags & SW_LOC5) {
+        HandleDigitPress(4);
+    } else if (flags & SW_LOC6) {
+        HandleDigitPress(5);
+    } else if (flags & SW_LOC7) {
+        HandleDigitPress(6);
+    } else if (flags & SW_LOC8) {
+        HandleDigitPress(7);
+    } else if (flags & SW_LOC9) {
+        HandleDigitPress(8);
+    } else if (flags & SW_LOC0) {
+        HandleDigitPress(9);
+    }
+    else if (flags & SW_CUE)
+    {
+        /* Switch to CUE mode */
+        RemoteSetMode(REMOTE_MODE_CUE);
+    }
+    else if (flags & SW_STORE)
+    {
+        /* Switch to STORE mode */
+        RemoteSetMode(REMOTE_MODE_STORE);
+    }
+    else if (flags & SW_EDIT)
+    {
+        /* Switch to EDIT mode */
+        RemoteSetMode(REMOTE_MODE_EDIT);
+    }
+    else if (flags & SW_MENU)
+    {
+        /* ALT+MENU to zero reset system position */
+        if (g_sysData.shiftAltButton)
+        {
+            /* Reset system position to zero */
+            PositionZeroReset();
+        }
+        else
+        {
+            if (s_uScreenNum == SCREEN_MENU)
+            {
+                s_uScreenNum = SCREEN_TIME;
+                SetButtonLedMask(0, L_MENU);
+            }
+            else
+            {
+                s_uScreenNum = SCREEN_MENU;
+                SetButtonLedMask(L_MENU, 0);
+            }
+        }
+    }
+    else if (flags & SW_AUTO)
+    {
+        /* toggle auto play mode */
+        if (!g_sysData.autoMode)
+        {
+            g_sysData.autoMode = TRUE;
+            SetButtonLedMask(L_AUTO, 0);
+        }
+        else
+        {
+            g_sysData.autoMode = FALSE;
+            SetButtonLedMask(0, L_AUTO);
+        }
+    }
+    else if (flags & SW_ALT)
+    {
+        if (g_sysParms.showLongTime)
+            g_sysParms.showLongTime = false;
+        else
+            g_sysParms.showLongTime = true;
+    }
+}
+
+//*****************************************************************************
+// This handler is called for any digit keys (0-9) pressed on the remote.
 //*****************************************************************************
 
 void HandleDigitPress(size_t index)
@@ -585,7 +553,7 @@ void HandleDigitPress(size_t index)
         CuePointSet(index, g_sysData.tapePosition);
 
         /* Return to previous Cue or default mode */
-        HandleSetMode(g_sysData.remoteModePrev);
+        RemoteSetMode(g_sysData.remoteModePrev);
         SetLocateButtonLED(g_sysData.cueIndex);
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
@@ -649,7 +617,7 @@ void HandleDigitPress(size_t index)
             g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
 
             /* Exit EDIT mode back to previous state */
-            HandleSetMode(REMOTE_MODE_EDIT);
+            RemoteSetMode(REMOTE_MODE_EDIT);
 
             /* Convert H:MM:SS time to total seconds */
             int ipos;
@@ -673,49 +641,108 @@ void HandleDigitPress(size_t index)
     }
 }
 
-/*****************************************************************************
- * This function set the appropriate LOC button LED bit flag on and clears
- * all other LOC button LED bits so only one LOC LED is on at a time.
- *****************************************************************************/
+//*****************************************************************************
+// This handler is called when the user presses the jog wheel down to close
+// the switch within jog wheel encoder.
+//*****************************************************************************
 
-void SetLocateButtonLED(size_t index)
+void HandleJogwheelPress(uint32_t flags)
 {
-    uint32_t mask = 0;
-
-    static uint32_t tab[10] = {
-        L_LOC1, L_LOC2, L_LOC3, L_LOC4, L_LOC5,
-        L_LOC6, L_LOC7, L_LOC8, L_LOC9, L_LOC0
-    };
-
-    mask = tab[index % 10];
-
-    if (g_sysData.remoteMode == REMOTE_MODE_CUE)
-        mask |= L_CUE;
-    else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
-        mask |= L_STORE;
+    if (!g_sysData.varispeedMode)
+    {
+        /* Enable vari-speed mode */
+        g_sysData.varispeedMode = true;
+    }
     else
-        mask = 0;
+    {
+        /* Reset ref frequency to default */
+        g_sysData.ref_freq = REF_FREQ;
+        /* Calculate the 32-bit frequency divisor */
+        uint32_t freqCalc = AD9837_freqCalc(g_sysData.ref_freq);
+        /* Program the DSS ref clock with new value */
+        AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+        AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+        /* Disable vari-speed mode */
+        g_sysData.varispeedMode = false;
+    }
 
-    SetButtonLedMask(mask, L_LOC_MASK);
+#if 0
+    uint32_t cue_flags = 0;
+
+    size_t index = g_sysData.cueIndex;
+
+    switch (g_sysData.remoteMode)
+    {
+    case REMOTE_MODE_CUE:
+
+        SetLocateButtonLED(index);
+
+        if (g_sysData.autoMode)
+            cue_flags |= CF_AUTO_PLAY;
+
+        if (g_sysData.shiftRecButton)
+            cue_flags |= CF_AUTO_REC;
+
+        /* Begin locate search */
+        LocateSearch(index, cue_flags);
+        break;
+
+    case REMOTE_MODE_STORE:
+        break;
+    }
+#endif
 }
 
-/*****************************************************************************
- * This function sets or clears button LED bits on the remote.
- *****************************************************************************/
+//*****************************************************************************
+// This handler is called when the remote jog wheel is turning with the
+// direction and velocity.
+//*****************************************************************************
 
-void SetButtonLedMask(uint32_t setMask, uint32_t clearMask)
+void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
-    /* Atomic change bits */
-    uint32_t key = Hwi_disable();
+    if (g_sysData.varispeedMode)
+    {
+        float freq;
+        float step;
 
-    /* Clear any bits in the clear mask */
-    g_sysData.ledMaskButton &= ~(clearMask);
+        if (velocity >= 12)
+            step = 1000.0f;
+        else if (velocity >= 8)
+            step = 500.0f;
+        else if (velocity >= 5)
+            step = 100.0f;
+        else if (velocity >= 3)
+            step = 10.0f;
+        else
+            step = 1.0f;
 
-    /* Set any bits in the set mask */
-    g_sysData.ledMaskButton |= setMask;
+        freq = g_sysData.ref_freq;
 
-    /* Restore interrupts */
-    Hwi_restore(key);
+        if (direction > 0)
+        {
+            if ((freq + step) < REF_FREQ_MAX)
+                freq += step;
+            else
+                freq = REF_FREQ_MAX;
+        }
+        else
+        {
+            if (step > freq)
+                freq = REF_FREQ_MIN;
+            else if ((freq - step) > REF_FREQ_MIN)
+                freq -= step;
+            else
+                freq = REF_FREQ_MIN;
+        }
+
+        /* Calculate the 32-bit frequency divisor */
+        uint32_t freqCalc = AD9837_freqCalc(freq);
+        /* Program the DSS ref clock with new value */
+        AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+        AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+        g_sysData.ref_freq = freq;
+    }
 }
 
 // End-Of-File
