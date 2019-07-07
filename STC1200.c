@@ -103,6 +103,7 @@
 #include "CLITask.h"
 #include "Utils.h"
 #include "AD9837.h"
+#include "SMPTE.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
@@ -320,12 +321,24 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Step 3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
 
-
     /* Set default system parameters */
     InitSysDefaults(&g_sysParms);
 
     /* Load system configuration from EPROM */
     SysParamsRead(&g_sysParms);
+
+    /* Set default reference frequency */
+    g_sysData.ref_freq = g_sysParms.ref_freq;
+    g_sysData.varispeedMode = false;
+
+    /* Reset the capstan reference clock and set the default
+     * output frequency to 9600Hz to the capstan board. The
+     * AD9837 hardware is located on the SMPTE daughter card.
+     */
+    AD9837_init();
+    AD9837_reset();
+
+    SMPTE_init();
 
     /* Initialize the command line serial debug console port */
     CLI_init();
@@ -336,19 +349,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     /* Initialize the remote task if CFG2 switch is ON */
     if (GPIO_read(Board_DIPSW_CFG2) == 0)
         Remote_Task_startup();
-
-    /* Reset the capstan reference clock and set the default
-     * output frequency to 9600Hz to the capstan board. The
-     * AD9837 hardware is located on the SMPTE daughter card.
-     */
-    AD9837_init();
-    AD9837_reset();
-
-    /* Set default reference frequency */
-    g_sysData.ref_freq = g_sysParms.ref_freq;
-
-    g_sysData.varispeedMode = false;
-
 
     /*
      * Create the various system tasks
@@ -380,11 +380,9 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     GPIO_setCallback(Board_STOP_DETECT_N, gpioButtonStopHwi);
 
     /* Enable keypad button interrupts */
-
     GPIO_enableInt(Board_BTN_RESET);
     GPIO_enableInt(Board_BTN_CUE);
     GPIO_enableInt(Board_BTN_SEARCH);
-
     GPIO_enableInt(Board_STOP_DETECT_N);
 
     /* Now begin the main program command task processing loop */

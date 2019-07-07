@@ -80,6 +80,7 @@
 #include "Board.h"
 #include "Utils.h"
 #include "CLITask.h"
+#include "SMPTE.h"
 
 //*****************************************************************************
 // Type Definitions
@@ -104,11 +105,13 @@ typedef struct {
 // CLI Function Handle Declarations
 //*****************************************************************************
 
-#define CMDS 5
+#define CMDS 7
 
 MK_CMD(ipaddr);
 MK_CMD(macaddr);
 MK_CMD(sernum);
+MK_CMD(stripeon);
+MK_CMD(stripeoff);
 MK_CMD(cls);
 MK_CMD(help);
 
@@ -119,6 +122,8 @@ cmd_t dispatch[CMDS] = {
     CMD(ipaddr, "", "Displays IP address"),
     CMD(macaddr, "", "Displays MAC address"),
     CMD(sernum, "", "Displays serial number"),
+    CMD(stripeon, "", "Start SMPTE time stripe"),
+    CMD(stripeoff, "", "Stop SMPTE time stripe"),
     CMD(cls, "", "Clear the screen"),
     CMD(help, "", "Display this help")
 };
@@ -271,7 +276,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
             {
                 if (cnt < MAX_CHARS)
                 {
-                    if (isalnum((int)ch))
+                    if (isalnum((int)ch) || strchr(delim, (int)ch))
                     {
                         cmdbuf[cnt++] = ch;
                         cmdbuf[cnt] = 0;
@@ -367,7 +372,7 @@ arg_t *args_parse(const char *s)
 
 void cmd_ipaddr(arg_t *args)
 {
-    CLI_printf("%s", g_sysData.ipAddr);
+    CLI_printf("%s\n", g_sysData.ipAddr);
 }
 
 void cmd_macaddr(arg_t *args)
@@ -376,7 +381,7 @@ void cmd_macaddr(arg_t *args)
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
             g_sysData.ui8MAC[0], g_sysData.ui8MAC[1], g_sysData.ui8MAC[2],
             g_sysData.ui8MAC[3], g_sysData.ui8MAC[4], g_sysData.ui8MAC[5]);
-    CLI_printf("%s", mac);
+    CLI_printf("%s\n", mac);
 }
 
 void cmd_sernum(arg_t *args)
@@ -384,7 +389,19 @@ void cmd_sernum(arg_t *args)
     char serialnum[64];
     /*  Format the 64 bit GUID as a string */
     GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
-    CLI_printf("%s", serialnum);
+    CLI_printf("%s\n", serialnum);
+}
+
+void cmd_stripeon(arg_t *args)
+{
+    SMPTE_stripe_start();
+    CLI_puts("SMPTE generator ON\n");
+}
+
+void cmd_stripeoff(arg_t *args)
+{
+    SMPTE_stripe_stop();
+    CLI_puts("SMPTE generator OFF\n");
 }
 
 void cmd_cls(arg_t *args)

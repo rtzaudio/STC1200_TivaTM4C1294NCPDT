@@ -62,9 +62,9 @@ extern "C" {
 #define Board_I2C_AT24MAC402        STC1200_I2C0
 
 #define Board_SPI_SDCARD          	STC1200_SDSPI1
-#define Board_SPI_EXPIO_SSI0       	STC1200_SPI0
-#define Board_SPI_S25FL127        	STC1200_SPI2
-#define Board_SPI_EXPIO_SIO3        STC1200_SPI3
+#define Board_SPI_S25FL127          STC1200_SPI2
+#define Board_SPI_EXPIO_SMPTE  	    STC1200_SPI0
+#define Board_SPI_EXPIO_AD9837      STC1200_SPI3
 
 #if (STC1200_HARDWARE_REV < 2)
 /* REV-A Hardware */
@@ -102,15 +102,19 @@ extern "C" {
 #define Board_LAMP_PLAY				STC1200_LAMP_PLAY
 #define Board_LAMP_FWDREW			STC1200_LAMP_FWDREW
 
-#define Board_EXPIO_PD4				STC1200_EXPIO_PD4
-#define Board_EXPIO_PD5				STC1200_EXPIO_PD5
-#define Board_EXPIO_PP2				STC1200_EXPIO_PP2
-#define Board_EXPIO_PP3				STC1200_EXPIO_PP3
-#define Board_EXPIO_PP4				STC1200_EXPIO_PP4
-#define Board_EXPIO_PP5				STC1200_EXPIO_PP5
-#define Board_EXPIO_PK2				STC1200_EXPIO_PK2
-#define Board_EXPIO_PK3				STC1200_EXPIO_PK3
-#define Board_AD9732_FSYNC          STC1200_AD9732_FSYNC
+/* I/O Expansion Port to SMPTE daughter card */
+#define Board_AD9732_FSYNC          STC1200_EXPIO_PF2_SSI3FS
+#define Board_SMPTE_FS              STC1200_EXPIO_PA3_SSI0FS
+#define Board_SMPTE_CHANGE          STC1200_EXPIO_PP5
+#define Board_SMPTE_FRAMESYNC       STC1200_EXPIO_PP3
+#define Board_SMPTE_DIRECTION       STC1200_EXPIO_PP2
+#define Board_SMPTE_BOOTLOAD        STC1200_EXPIO_PD4
+#define Board_SMPTE_RESET_N         STC1200_EXPIO_PD5
+#define Board_SMPTE_INT_N           STC1200_EXPIO_PK3
+/* Not used on SMPTE expansion connector */
+#define Board_EXPIO_PP4             STC1200_EXPIO_PP4
+#define Board_EXPIO_PK2             STC1200_EXPIO_PK2
+#define Board_EXPIO_PD5             STC1200_EXPIO_PD5
 
 #define Board_RS422_RE_N			STC1200_RS422_RE_N
 #define Board_RS422_DE				STC1200_RS422_DE

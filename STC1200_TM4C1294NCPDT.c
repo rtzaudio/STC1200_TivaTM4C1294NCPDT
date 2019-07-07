@@ -323,7 +323,7 @@ void STC1200_initEMAC(void)
 /*
  * Array of Pin configurations
  * NOTE: The order of the pin configurations must coincide with what was
- *       defined in DK_TM4C129X.h
+ *       defined in STC1200_TM4C1294NCPDT.h
  * NOTE: Pins not used for interrupts should be placed at the end of the
  *       array.  Callback entries can be omitted from callbacks array to
  *       reduce memory usage.
@@ -340,6 +340,8 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
 	GPIOTiva_PM_0 | GPIO_CFG_INPUT | GPIO_CFG_IN_INT_FALLING,
 	/* STC1200_PLAY_DETECT_N */
 	GPIOTiva_PM_1 | GPIO_CFG_INPUT | GPIO_CFG_IN_INT_FALLING,
+    /* STC1200_SMPTE_INT_N */
+    GPIOTiva_PK_3 | GPIO_CFG_INPUT | GPIO_CFG_IN_INT_FALLING,
 	/* STC1200_DIPSW_CFG1 */
 	GPIOTiva_PL_4 | GPIO_CFG_INPUT | GPIO_CFG_IN_PU,
 	/* STC1200_DIPSW_CFG2 */
@@ -397,8 +399,10 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
     GPIOTiva_PL_0 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
     /* STC1200_STAT_LED */
     GPIOTiva_PF_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
-    /* STC1200_AD9732_FSYNC */
+    /* STC1200_EXPIO_PF2_SSI3FS */
     GPIOTiva_PF_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
+    /* STC1200_EXPIO_PA3_SSI0FS*/
+    GPIOTiva_PA_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
 };
 
 /*
@@ -414,6 +418,7 @@ GPIO_CallbackFxn gpioCallbackFunctions[] = {
     NULL,  /* STC1200_BTN_SEARCH */
     NULL,  /* STC1200_STOP_DETECT_N */
     NULL,  /* STC1200_PLAY_DETECT_N */
+    NULL,  /* STC1200_SMPTE_INT_N */
 };
 
 /* The device-specific GPIO_config structure */
@@ -430,6 +435,9 @@ const GPIOTiva_Config GPIOTiva_config = {
  */
 void STC1200_initGPIO(void)
 {
+    // Enable pin PA3 for GPIOOutput
+    GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_3);
+
     // Enable pin PD4 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_4);	
     // Enable pin PD5 for GPIOOutput
@@ -443,6 +451,9 @@ void STC1200_initGPIO(void)
     GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_2);    
     // Enable pin PE3 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_3);
+
+    // Enable pin PF2 for GPIOOutput
+    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
 
     // Enable pin PG0 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTG_BASE, GPIO_PIN_0);
@@ -458,8 +469,8 @@ void STC1200_initGPIO(void)
 
     // Enable pin PK2 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTK_BASE, GPIO_PIN_2);
-    // Enable pin PK3 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTK_BASE, GPIO_PIN_3);
+    // Enable pin PK3 for GPIOInput
+    GPIOPinTypeGPIOInput(GPIO_PORTK_BASE, GPIO_PIN_3);
     // Enable pin PK5 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTK_BASE, GPIO_PIN_5);
     // Enable pin PK7 for GPIOOutput
@@ -502,9 +513,6 @@ void STC1200_initGPIO(void)
     GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_1);
     // Enable pin PQ2 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTQ_BASE, GPIO_PIN_2);
-
-    // Enable pin PF2 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
 
 	/* Once GPIO_init is called, GPIO_config cannot be changed */
     GPIO_init();

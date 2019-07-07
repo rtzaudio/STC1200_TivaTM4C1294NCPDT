@@ -116,7 +116,7 @@ int32_t AD9837_init(void)
     spiParams.dataSize      = 16;
     spiParams.transferCallbackFxn = NULL;
 
-    handle = SPI_open(Board_SPI_EXPIO_SIO3, &spiParams);
+    handle = SPI_open(Board_SPI_EXPIO_AD9837, &spiParams);
 
     if (handle == NULL)
         System_abort("Error initializing SPI0\n");
