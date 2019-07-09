@@ -81,6 +81,8 @@
 #include "Utils.h"
 #include "CLITask.h"
 #include "SMPTE.h"
+#include "IPCMessage.h"
+#include "IPCCommands.h"
 
 //*****************************************************************************
 // Type Definitions
@@ -105,28 +107,38 @@ typedef struct {
 // CLI Function Handle Declarations
 //*****************************************************************************
 
-#define CMDS 7
+//#define CMDS 7
 
 MK_CMD(ipaddr);
 MK_CMD(macaddr);
 MK_CMD(sernum);
-MK_CMD(stripeon);
-MK_CMD(stripeoff);
+MK_CMD(smpte);
 MK_CMD(cls);
 MK_CMD(help);
+MK_CMD(about);
+MK_CMD(stop);
+MK_CMD(play);
+MK_CMD(rew);
+MK_CMD(fwd);
 
 /* The dispatch table */
 #define CMD(func, params, help) {#func, cmd_ ## func, params, help}
 
-cmd_t dispatch[CMDS] = {
+cmd_t dispatch[] = {
     CMD(ipaddr, "", "Displays IP address"),
     CMD(macaddr, "", "Displays MAC address"),
     CMD(sernum, "", "Displays serial number"),
-    CMD(stripeon, "", "Start SMPTE time stripe"),
-    CMD(stripeoff, "", "Stop SMPTE time stripe"),
+    CMD(smpte, "s", "SMPTE generator {start|stop}"),
     CMD(cls, "", "Clear the screen"),
-    CMD(help, "", "Display this help")
+    CMD(help, "", "Display this help"),
+    CMD(about, "", "About the system"),
+    CMD(stop, "", "Transport STOP mode"),
+    CMD(play, "s", "Transport PLAY {rec} mode"),
+    CMD(rew, "s", "Transport REW {lib} mode"),
+    CMD(fwd, "s", "Transport FWD {lib} mode"),
 };
+
+#define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
 
 //*****************************************************************************
 // Static and External Data Items
@@ -136,11 +148,11 @@ cmd_t dispatch[CMDS] = {
 
 /*** Static Data Items ***/
 static UART_Handle s_handleUart;
-static const char *delim = " \n(,);";
-static char cmdbuf[MAX_CHARS+3];
+static const char *delim = " |(,)\n";
+static char s_cmdbuf[MAX_CHARS+3];
 
 /*** Function Prototypes ***/
-static void parse(char *cmd);
+static void parse_cmd(char *buf);
 static arg_t *args_parse(const char *s);
 
 /*** External Data Items ***/
@@ -253,8 +265,10 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                 {
                     CLI_putc(CRET);
                     CLI_putc(LF);
-                    parse(cmdbuf);
-                    cmdbuf[0] = 0;
+
+                    parse_cmd(s_cmdbuf);
+
+                    s_cmdbuf[0] = 0;
                     cnt = 0;
                 }
                 CLI_putc(CRET);
@@ -266,7 +280,8 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
             {
                 if (cnt)
                 {
-                    cmdbuf[--cnt] = 0;
+                    s_cmdbuf[--cnt] = 0;
+
                     CLI_putc(BKSPC);
                     CLI_putc(' ');
                     CLI_putc(BKSPC);
@@ -278,8 +293,9 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                 {
                     if (isalnum((int)ch) || strchr(delim, (int)ch))
                     {
-                        cmdbuf[cnt++] = ch;
-                        cmdbuf[cnt] = 0;
+                        s_cmdbuf[cnt++] = ch;
+                        s_cmdbuf[cnt] = 0;
+
                         CLI_putc((int)ch);
                     }
                 }
@@ -292,25 +308,25 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 //
 //*****************************************************************************
 
-void parse(char *cmd)
+void parse_cmd(char *buf)
 {
-    const char* tok = strtok(cmd, delim);
+    const char* tok = strtok(buf, delim);
 
     if (!tok)
         return;
 
-    int i = CMDS;
+    int i = NUM_CMDS;
 
     while(i--)
     {
         cmd_t cur = dispatch[i];
 
-        if (!strcmp(tok, cur.name))
+        if (!strncmp(tok, cur.name, strlen(tok)))
         {
             arg_t *args = args_parse(cur.args);
 
-            if (args == NULL && strlen(cur.args))
-                return;//Error in argument parsing
+            //if (args == NULL && strlen(cur.args))
+            //    return;//Error in argument parsing
 
             cur.func(args);
 
@@ -323,7 +339,7 @@ void parse(char *cmd)
     CLI_puts("Command Not Found\n");
 }
 
-#define ESCAPE { free(args); CLI_puts("Bad Argument(s)\n"); return NULL; }
+#define ESCAPE { free(args); return NULL; }
 
 arg_t *args_parse(const char *s)
 {
@@ -370,6 +386,33 @@ arg_t *args_parse(const char *s)
 // CLI Command Handlers
 //*****************************************************************************
 
+void cmd_help(arg_t *args)
+{
+    char tmp[100];
+    int i = NUM_CMDS;
+
+    CLI_puts("\nAvailable Commands:\n\n");
+
+    while(i--)
+    {
+        cmd_t cmd=dispatch[i];
+        snprintf(tmp, 100, "%s(%s)", cmd.name, cmd.args);
+        CLI_printf("%10s\t %s\n", tmp, cmd.doc);
+    }
+}
+
+void cmd_about(arg_t *args)
+{
+    CLI_printf("STC-1200 v%d.%02d.%03d\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    CLI_puts("Copyright (C) 2019, RTZ Professional Audio, LLC.\n");
+}
+
+void cmd_cls(arg_t *args)
+{
+    CLI_puts(VT100_CLS);
+    CLI_puts(VT100_HOME);
+}
+
 void cmd_ipaddr(arg_t *args)
 {
     CLI_printf("%s\n", g_sysData.ipAddr);
@@ -392,37 +435,77 @@ void cmd_sernum(arg_t *args)
     CLI_printf("%s\n", serialnum);
 }
 
-void cmd_stripeon(arg_t *args)
+void cmd_smpte(arg_t *args)
 {
-    SMPTE_stripe_start();
-    CLI_puts("SMPTE generator ON\n");
-}
-
-void cmd_stripeoff(arg_t *args)
-{
-    SMPTE_stripe_stop();
-    CLI_puts("SMPTE generator OFF\n");
-}
-
-void cmd_cls(arg_t *args)
-{
-    CLI_puts(VT100_CLS);
-    CLI_puts(VT100_HOME);
-}
-
-void cmd_help(arg_t *args)
-{
-    char tmp[100];
-    int i=CMDS;
-
-    CLI_puts("\nAvailable Commands:\n\n");
-
-    while(i--)
+    if (!args)
     {
-        cmd_t cmd=dispatch[i];
-        snprintf(tmp,100,"%s(%s)", cmd.name, cmd.args);
-        CLI_printf("%10s\t- %s\n", tmp, cmd.doc);
+        CLI_puts("Missing Argument\n");
+        return;
     }
+
+    CLI_puts("SMPTE generator ");
+
+    if (strcmp(args->s, "start") == 0)
+    {
+        SMPTE_stripe_start();
+        CLI_puts("START\n");
+    }
+    else
+    {
+        SMPTE_stripe_stop();
+        CLI_puts("STOP\n");
+    }
+}
+
+void cmd_stop(arg_t *args)
+{
+    CLI_puts("STOP\n");
+    Transport_PostButtonPress(S_STOP);
+}
+
+void cmd_play(arg_t *args)
+{
+    uint32_t mask = S_PLAY;
+
+    if (args)
+    {
+        if (strcmp(args->s, "rec") == 0)
+            mask |= S_REC;
+    }
+
+    CLI_printf("PLAY%s\n", (mask & S_REC) ? "-REC" : "");
+
+    Transport_PostButtonPress(mask);
+}
+
+void cmd_fwd(arg_t *args)
+{
+    uint32_t mask = 0;
+
+    if (args)
+    {
+        if (strcmp(args->s, "lib") == 0)
+            mask |= M_LIBWIND;
+    }
+
+    CLI_printf("FWD%s\n", (mask & S_REC) ? "-LIB" : "");
+
+    Transport_Fwd(0, mask);
+}
+
+void cmd_rew(arg_t *args)
+{
+    uint32_t mask = 0;
+
+    if (args)
+    {
+        if (strcmp(args->s, "lib") == 0)
+            mask |= M_LIBWIND;
+    }
+
+    CLI_printf("REW%s\n", (mask & M_LIBWIND) ? "-LIB" : "");
+
+    Transport_Rew(0, mask);
 }
 
 // End-Of-File

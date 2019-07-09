@@ -229,7 +229,7 @@ uint32_t CuePointGet(size_t index, int* ipos)
  * Return the tape time from the cue point absolute position.
  *****************************************************************************/
 
-void CuePointGetTime(size_t index, TAPETIME* tapeTime)
+void CuePointTimeGet(size_t index, TAPETIME* tapeTime)
 {
     memset(tapeTime, 0, sizeof(TAPETIME));
 

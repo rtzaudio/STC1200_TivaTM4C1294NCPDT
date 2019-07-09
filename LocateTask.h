@@ -73,7 +73,7 @@ uint32_t CuePointGet(size_t index, int* ipos);
 void CuePointSet(size_t index, int ipos);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);
-void CuePointGetTime(size_t index, TAPETIME* tapeTime);
+void CuePointTimeGet(size_t index, TAPETIME* tapeTime);
 
 void LocateAbort(void);
 Bool LocateCancel(void);
