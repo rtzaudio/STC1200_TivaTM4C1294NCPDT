@@ -148,8 +148,9 @@ cmd_t dispatch[] = {
 
 /*** Static Data Items ***/
 static UART_Handle s_handleUart;
-static const char *delim = " |(,)\n";
+static const char *s_delim = " |()\n";
 static char s_cmdbuf[MAX_CHARS+3];
+static char s_cmdprev[MAX_CHARS+3];
 
 /*** Function Prototypes ***/
 static void parse_cmd(char *buf);
@@ -265,9 +266,11 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                 {
                     CLI_putc(CRET);
                     CLI_putc(LF);
-
+                    /* save command for previous recall */
+                    strcpy(s_cmdprev, s_cmdbuf);
+                    /* parse new command and execute */
                     parse_cmd(s_cmdbuf);
-
+                    /* reset the command buffer */
                     s_cmdbuf[0] = 0;
                     cnt = 0;
                 }
@@ -287,11 +290,18 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                     CLI_putc(BKSPC);
                 }
             }
+            else if (ch == CTL_Z)
+            {
+                /* restore previous command */
+                strcpy(s_cmdbuf, s_cmdprev);
+                cnt = strlen(s_cmdbuf);
+                CLI_printf("%s", s_cmdbuf);
+            }
             else
             {
                 if (cnt < MAX_CHARS)
                 {
-                    if (isalnum((int)ch) || strchr(delim, (int)ch))
+                    if (isalnum((int)ch) || strchr(s_delim, (int)ch))
                     {
                         s_cmdbuf[cnt++] = ch;
                         s_cmdbuf[cnt] = 0;
@@ -310,7 +320,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 
 void parse_cmd(char *buf)
 {
-    const char* tok = strtok(buf, delim);
+    const char* tok = strtok(buf, s_delim);
 
     if (!tok)
         return;
@@ -356,13 +366,13 @@ arg_t *args_parse(const char *s)
         switch(s[i])
         {
             case 's':
-                args[i].s = strtok(NULL,delim);
+                args[i].s = strtok(NULL,s_delim);
                 if (!args[i].s)
                     ESCAPE;
                 break;
 
             case 'c':
-                tok = strtok(NULL,delim);
+                tok = strtok(NULL,s_delim);
                 if (!tok)
                     ESCAPE;
                 args[i].c = tok[0];
@@ -371,7 +381,7 @@ arg_t *args_parse(const char *s)
                 break;
 
             case 'f':
-                tok = strtok(NULL,delim);
+                tok = strtok(NULL,s_delim);
                 if (sscanf(tok,"%f", &args[i].f)!=1)
                     ESCAPE;
                 break;
@@ -488,7 +498,7 @@ void cmd_fwd(arg_t *args)
             mask |= M_LIBWIND;
     }
 
-    CLI_printf("FWD%s\n", (mask & S_REC) ? "-LIB" : "");
+    CLI_printf("FWD%s\n", (mask & M_LIBWIND) ? "-LIB" : "");
 
     Transport_Fwd(0, mask);
 }

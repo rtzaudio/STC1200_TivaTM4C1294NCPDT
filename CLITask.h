@@ -41,6 +41,7 @@
 #define SYN     0x16
 #define ESC     0x1B
 #define CTL_X   0x18
+#define CTL_Z   0x1A
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
