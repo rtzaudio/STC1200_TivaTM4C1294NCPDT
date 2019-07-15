@@ -107,8 +107,6 @@ typedef struct {
 // CLI Function Handle Declarations
 //*****************************************************************************
 
-//#define CMDS 7
-
 MK_CMD(ipaddr);
 MK_CMD(macaddr);
 MK_CMD(sernum);
@@ -120,6 +118,7 @@ MK_CMD(stop);
 MK_CMD(play);
 MK_CMD(rew);
 MK_CMD(fwd);
+MK_CMD(speed);
 
 /* The dispatch table */
 #define CMD(func, params, help) {#func, cmd_ ## func, params, help}
@@ -136,6 +135,7 @@ cmd_t dispatch[] = {
     CMD(play, "s", "Transport PLAY {rec} mode"),
     CMD(rew, "s", "Transport REW {lib} mode"),
     CMD(fwd, "s", "Transport FWD {lib} mode"),
+    CMD(speed, "", "Display tape speed"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -516,6 +516,11 @@ void cmd_rew(arg_t *args)
     CLI_printf("REW%s\n", (mask & M_LIBWIND) ? "-LIB" : "");
 
     Transport_Rew(0, mask);
+}
+
+void cmd_speed(arg_t *args)
+{
+    CLI_printf("%u IPS\n", g_sysData.tapeSpeed);
 }
 
 // End-Of-File
