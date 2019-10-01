@@ -221,8 +221,6 @@ void Hardware_init()
 
     /* Enables Floating Point Hardware Unit */
     FPUEnable();
-    /* Allows the FPU to be used inside interrupt service routines */
-    //FPULazyStackingEnable();
 
     /* Initialize a 1 BPP off-screen OLED display buffer that we draw into */
     GrOffScreenMonoInit();

@@ -125,7 +125,8 @@ void PositionZeroReset(void)
 void PositionToTapeTime(int tapePosition, TAPETIME* tapeTime)
 {
     /* Get the current encoder position */
-    float position = fabsf((float)tapePosition);
+    //float position = fabsf((float)tapePosition);
+    float position = (float)tapePosition;
 
     /* Calculate the number of revolutions from the position */
     //float revolutions = position / ROLLER_TICKS_PER_REV_F;
@@ -177,10 +178,12 @@ void TapeTimeToPosition(TAPETIME* tapeTime, int* tapePosition)
 
 void SecondsToTapeTime(float time, TAPETIME* p)
 {
-    uint32_t dayclock = (uint32_t)time % SECS_DAY;
+    float ftime = fabsf(time);
+
+    uint32_t dayclock = (uint32_t)ftime % SECS_DAY;
 
     float intpart;
-    float fractpart = modff(time, &intpart);
+    float fractpart = modff(ftime, &intpart);
 
     p->hour  = (uint8_t)(dayclock / 3600);
     p->mins  = (uint8_t)((dayclock % 3600) / 60);
@@ -212,7 +215,6 @@ void TapeTimeToSeconds(TAPETIME* p, float* time)
 
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
-	uint8_t flags;
 	uint32_t rcount = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
@@ -294,6 +296,9 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Convert absolute tape position to signed relative position */
     	g_sysData.tapePosition = POSITION_TO_INT(g_sysData.tapePositionAbs);
 
+        /* Get the tape time member values */
+        PositionToTapeTime(g_sysData.tapePosition, &g_sysData.tapeTime);
+
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,
     	 * then we assume tape is moving and set the motion indicator outputs accordingly.
@@ -305,6 +310,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	}
     	else
     	{
+
 			/* Position Changed - Update the previous position */
 			g_sysData.tapePositionPrev = g_sysData.tapePosition;
 
@@ -321,6 +327,9 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 				GPIO_write(Board_MOTION_REW, PIN_LOW);
 				GPIO_write(Board_MOTION_FWD, PIN_HIGH);
 			}
+
+			/* Signal the TCP worker thread that position has changed */
+            Event_post(g_eventPosChange, Event_Id_00);
 
 	    	//System_printf("%d\n", g_sysData.tapePosition);
 	    	//System_flush();
@@ -349,29 +358,16 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
     	if (++rcount >= 10)
     	{
-    		flags = rcount = 0;
-
-			/* Set display flags to indicate proper direction sign */
-			if (g_sysData.tapePosition < 0)
-				flags &= ~(F_PLUS);
-			else
-				flags |= F_PLUS;
+    		rcount = 0;
 
 			/* Blink 7-seg display during searches */
 			if (g_sysParms.searchBlink)
 			{
                 if (g_sysData.searching)
-                    flags |= F_BLINK;
+                    g_sysData.tapeTime.flags |= F_BLINK;
                 else
-                    flags &= ~(F_BLINK);
+                    g_sysData.tapeTime.flags &= ~(F_BLINK);
 			}
-
-			/* Get the tape time member values */
-			PositionToTapeTime(g_sysData.tapePosition, &g_sysData.tapeTime);
-
-			/* Convert the total seconds value into binary HH:MM:SS values */
-			//btime(seconds, flags, &g_sysData.tapeTime);
-			g_sysData.tapeTime.flags = flags;
 
 			/* Refresh the 7-segment display with the new values */
 			Write7SegDisplay(uartHandle, &g_sysData.tapeTime);

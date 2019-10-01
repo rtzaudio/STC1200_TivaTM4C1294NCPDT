@@ -40,12 +40,13 @@
  * to the 7-segment ATMega88 display processor.
  */
 typedef struct _TAPETIME {
-    uint8_t hour;   /* hour    */
-    uint8_t mins;   /* minutes */
-    uint8_t secs;   /* seconds */
-    uint8_t tens;   /* 0.1 secs */
-    uint8_t frame;  /* smpte frame# */
-    uint8_t flags;	/* flags   */
+    uint8_t     hour;       /* hour (0-1)      */
+    uint8_t     mins;       /* minutes (0-59)  */
+    uint8_t     secs;       /* seconds  (0-59) */
+    uint8_t     tens;       /* tens secs (0-9) */
+    uint8_t     frame;      /* smpte frame#    */
+    uint8_t     flags;	    /* display flags   */
+    uint16_t    align;      /* word alignment  */
 } TAPETIME;
 
 /* TAPETIME.flags */

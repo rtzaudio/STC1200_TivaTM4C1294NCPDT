@@ -87,7 +87,7 @@
 //#include "RAMPServer.h"
 //#include "IPCServer.h"
 #include "STC1200.h"
-#include "STC1200_TcpMessage.h"
+#include "STC1200TCP.h"
 
 /* Global STC-1200 System data */
 extern SYSDATA g_sysData;
@@ -154,7 +154,7 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
     else
         NtIPN2Str(0, g_sysData.ipAddr);
 
-    System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
+    //System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
 }
 
 //*****************************************************************************
@@ -192,14 +192,14 @@ Void tcpHandler(UArg arg0, UArg arg1)
 
     if (status == -1) {
         System_printf("Error: bind failed.\n");
-        goto shutdown;
+            goto shutdown;
     }
 
     status = listen(server, NUMTCPWORKERS);
 
     if (status == -1) {
         System_printf("Error: listen failed.\n");
-        goto shutdown;
+            goto shutdown;
     }
 
     if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
@@ -209,7 +209,8 @@ Void tcpHandler(UArg arg0, UArg arg1)
 
     while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
     {
-        System_printf("tcpHandler: Creating thread clientfd = %d\n", clientfd);
+        //System_printf("tcpHandler: Creating thread clientfd = %d\n", clientfd);
+        //System_flush();
 
         /* Init the Error_Block */
         Error_init(&eb);
@@ -222,7 +223,8 @@ Void tcpHandler(UArg arg0, UArg arg1)
         taskHandle = Task_create((Task_FuncPtr)tcpWorker, &taskParams, &eb);
 
         if (taskHandle == NULL) {
-            System_printf("Error: Failed to create new Task\n");
+            //System_printf("Error: Failed to create new Task\n");
+            //System_flush();
             close(clientfd);
         }
 
@@ -231,8 +233,11 @@ Void tcpHandler(UArg arg0, UArg arg1)
     }
 
     System_printf("Error: accept failed.\n");
+    System_flush();
 
 shutdown:
+
+    System_flush();
 
     if (server > 0) {
         close(server);
@@ -246,42 +251,82 @@ shutdown:
 Void tcpWorker(UArg arg0, UArg arg1)
 {
     int         clientfd = (int)arg0;
-    int         bytesRcvd;
     int         bytesSent;
     int         bytesToSend;
-    uint32_t    flags[2];
+    uint8_t*    textbuf;
+    bool        connected = true;
 
-    System_printf("tcpWorker: start clientfd = 0x%x\n", clientfd);
+    static STC_STATE_MSG stateMsg;
 
-    /* Get point to display buffer & length to send */
-    uint8_t *textbuf = GrGetScreenBuffer(5);
-    int textlen = 1024 + 8;
+    System_printf("tcpWorker: CONNECT clientfd = 0x%x\n", clientfd);
+    System_flush();
 
-    bytesToSend = textlen;
+    /* Send initial tape time update packet */
+    Event_post(g_eventPosChange, Event_Id_00);
 
-    while ((bytesSent = send(clientfd, textbuf, bytesToSend, 0)) > 0)
+    while (connected)
     {
-        if (bytesSent < bytesToSend)
-        {
+        /* Wait for a position change event from the tape roller position task */
+        UInt events = Event_pend(g_eventPosChange, Event_Id_NONE, Event_Id_00, 2500);
+
+        /* Get the tape time member values */
+        PositionToTapeTime(g_sysData.tapePosition, &stateMsg.tapeTime);
+
+        int textlen = sizeof(STC_STATE_MSG);
+
+        uint32_t transportMode = g_sysData.transportMode;
+
+        /* If locate is active, set search bit flag */
+        if (g_sysData.searching)
+            transportMode |= STC_M_SEARCH;
+
+        stateMsg.length             = (uint32_t)textlen;
+        stateMsg.ledMaskButton      = g_sysData.ledMaskButton;
+        stateMsg.ledMaskTransport   = g_sysData.ledMaskTransport;
+        stateMsg.transportMode      = transportMode;
+        stateMsg.tapeSpeed          = g_sysData.tapeSpeed;
+        stateMsg.tapeDirection      = (g_sysData.tapeDirection > 0) ?  1 : 0;
+        stateMsg.tapePosition       = g_sysData.tapePosition;
+        stateMsg.searchProgress     = g_sysData.searchProgress;
+
+        /* Prepare to start sending state message buffer */
+
+        bytesToSend = textlen;
+
+        textbuf = (uint8_t*)&stateMsg;
+
+        do {
+
+            if ((bytesSent = send(clientfd, textbuf, bytesToSend, 0)) <= 0)
+            {
+                connected = false;
+                break;
+            }
+
             bytesToSend -= bytesSent;
+
             textbuf += bytesSent;
-            continue;
-        }
 
-        if ((bytesRcvd = recv(clientfd, &flags, 8, 0)) <= 0)
-        {
-            System_printf("Error: tpc recv failed.\n");
-            break;
-        }
-
-        if (bytesRcvd == 8)
-        {
-            System_printf("Button: %04x:%04x\n", flags[1], flags[0]);
-            System_flush();
-        }
+        } while (bytesToSend > 0);
     }
 
-    System_printf("tcpWorker stop clientfd = 0x%x\n", clientfd);
+    System_printf("tcpWorker DISCONNECT clientfd = 0x%x\n", clientfd);
+    System_flush();
 
     close(clientfd);
 }
+
+
+#if 0
+if ((bytesRcvd = recv(clientfd, &flags, 8, 0)) <= 0)
+{
+    System_printf("Error: tpc recv failed.\n");
+    break;
+}
+
+if (bytesRcvd == 8)
+{
+    System_printf("Button: %04x:%04x\n", flags[1], flags[0]);
+    System_flush();
+}
+#endif
