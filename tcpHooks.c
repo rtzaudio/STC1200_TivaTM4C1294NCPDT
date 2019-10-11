@@ -93,10 +93,10 @@
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
-#define TCPPACKETSIZE   256
 #define NUMTCPWORKERS   3
 
-#define TCPPORT         1200
+#define STC_STAT_PORT   1200
+#define STC_CMD_PORT    1201
 
 #ifdef CYASSL_TIRTOS
 #define TCPHANDLERSTACK 8704
@@ -107,8 +107,10 @@ extern SYSPARMS g_sysParms;
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
 
 /* Prototypes */
-Void tcpHandler(UArg arg0, UArg arg1);
-Void tcpWorker(UArg arg0, UArg arg1);
+Void tcpStateHandler(UArg arg0, UArg arg1);
+Void tcpStateWorker(UArg arg0, UArg arg1);
+Void tcpCmdandler(UArg arg0, UArg arg1);
+Void tcpCmdWorker(UArg arg0, UArg arg1);
 void netOpenHook(void);
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 
@@ -135,17 +137,21 @@ void netOpenHook(void)
 
     taskParams.stackSize = TCPHANDLERSTACK;
     taskParams.priority  = 1;
-    taskParams.arg0      = TCPPORT;
+    taskParams.arg0      = STC_STAT_PORT;
 
-    taskHandle = Task_create((Task_FuncPtr)tcpHandler, &taskParams, &eb);
+    taskHandle = Task_create((Task_FuncPtr)tcpStateHandler, &taskParams, &eb);
 
     if (taskHandle == NULL) {
-        System_printf("netOpenHook: Failed to create tcpHandler Task\n");
+        System_printf("netOpenHook: Failed to create tcpStateHandler Task\n");
     }
 
     System_flush();
 #endif
 }
+
+// This handler is called when the DHCP client is assigned an
+// address from a DHCP server. We store this in our runtime data
+// structure for use later.
 
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 {
@@ -161,7 +167,7 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 // Creates new Task to handle new TCP connections.
 //*****************************************************************************
 
-Void tcpHandler(UArg arg0, UArg arg1)
+Void tcpStateHandler(UArg arg0, UArg arg1)
 {
     int                status;
     int                clientfd;
@@ -209,7 +215,7 @@ Void tcpHandler(UArg arg0, UArg arg1)
 
     while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
     {
-        //System_printf("tcpHandler: Creating thread clientfd = %d\n", clientfd);
+        //System_printf("tcpStateHandler: Creating thread clientfd = %d\n", clientfd);
         //System_flush();
 
         /* Init the Error_Block */
@@ -220,7 +226,7 @@ Void tcpHandler(UArg arg0, UArg arg1)
         taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
 
-        taskHandle = Task_create((Task_FuncPtr)tcpWorker, &taskParams, &eb);
+        taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
 
         if (taskHandle == NULL) {
             //System_printf("Error: Failed to create new Task\n");
@@ -248,7 +254,7 @@ shutdown:
 // Task to handle TCP connection. There can be multiple TCP workers running.
 //*****************************************************************************
 
-Void tcpWorker(UArg arg0, UArg arg1)
+Void tcpStateWorker(UArg arg0, UArg arg1)
 {
     int         clientfd = (int)arg0;
     int         bytesSent;
@@ -258,7 +264,7 @@ Void tcpWorker(UArg arg0, UArg arg1)
 
     static STC_STATE_MSG stateMsg;
 
-    System_printf("tcpWorker: CONNECT clientfd = 0x%x\n", clientfd);
+    System_printf("tcpStateWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
     /* Send initial tape time update packet */
@@ -310,7 +316,7 @@ Void tcpWorker(UArg arg0, UArg arg1)
         } while (bytesToSend > 0);
     }
 
-    System_printf("tcpWorker DISCONNECT clientfd = 0x%x\n", clientfd);
+    System_printf("tcpStateWorker DISCONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
     close(clientfd);
@@ -330,3 +336,91 @@ if (bytesRcvd == 8)
     System_flush();
 }
 #endif
+
+//*****************************************************************************
+// Creates new Task to handle new TCP connections.
+//*****************************************************************************
+
+Void tcpCmdHandler(UArg arg0, UArg arg1)
+{
+    int                status;
+    int                clientfd;
+    int                server;
+    struct sockaddr_in localAddr;
+    struct sockaddr_in clientAddr;
+    int                optval;
+    int                optlen = sizeof(optval);
+    socklen_t          addrlen = sizeof(clientAddr);
+    Task_Handle        taskHandle;
+    Task_Params        taskParams;
+    Error_Block        eb;
+
+    server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+
+    if (server == -1) {
+        System_printf("Error: socket not created.\n");
+        goto shutdown;
+    }
+
+    memset(&localAddr, 0, sizeof(localAddr));
+
+    localAddr.sin_family      = AF_INET;
+    localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    localAddr.sin_port        = htons(arg0);
+
+    status = bind(server, (struct sockaddr *)&localAddr, sizeof(localAddr));
+
+    if (status == -1) {
+        System_printf("Error: bind failed.\n");
+            goto shutdown;
+    }
+
+    status = listen(server, NUMTCPWORKERS);
+
+    if (status == -1) {
+        System_printf("Error: listen failed.\n");
+            goto shutdown;
+    }
+
+    if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
+        System_printf("Error: setsockopt failed\n");
+        goto shutdown;
+    }
+
+    while ((clientfd = accept(server, (struct sockaddr *)&clientAddr, &addrlen)) != -1)
+    {
+        //System_printf("tcpStateHandler: Creating thread clientfd = %d\n", clientfd);
+        //System_flush();
+
+        /* Init the Error_Block */
+        Error_init(&eb);
+
+        /* Initialize the defaults and set the parameters. */
+        Task_Params_init(&taskParams);
+        taskParams.arg0      = (UArg)clientfd;
+        taskParams.stackSize = 1280;
+
+        taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
+
+        if (taskHandle == NULL) {
+            //System_printf("Error: Failed to create new Task\n");
+            //System_flush();
+            close(clientfd);
+        }
+
+        /* addrlen is a value-result param, must reset for next accept call */
+        addrlen = sizeof(clientAddr);
+    }
+
+    System_printf("Error: accept failed.\n");
+    System_flush();
+
+shutdown:
+
+    System_flush();
+
+    if (server > 0) {
+        close(server);
+    }
+}
+
