@@ -84,35 +84,34 @@
 
 /* PMX42 Board Header file */
 #include "Board.h"
-//#include "RAMPServer.h"
-//#include "IPCServer.h"
 #include "STC1200.h"
 #include "STC1200TCP.h"
+#include "IPCCommands.h"
+#include "IPCMessage.h"
+
+/* Configuration Constants and Definitions */
+#define NUMTCPWORKERS       4
+
+#ifdef CYASSL_TIRTOS
+#define TCPHANDLERSTACK     8704
+#else
+#define TCPHANDLERSTACK     1024
+#endif
 
 /* Global STC-1200 System data */
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
-#define NUMTCPWORKERS   3
-
-#define STC_STAT_PORT   1200
-#define STC_CMD_PORT    1201
-
-#ifdef CYASSL_TIRTOS
-#define TCPHANDLERSTACK 8704
-#else
-#define TCPHANDLERSTACK 1024
-#endif
-
-extern void NtIPN2Str(uint32_t IPAddr, char *str);
-
-/* Prototypes */
-Void tcpStateHandler(UArg arg0, UArg arg1);
-Void tcpStateWorker(UArg arg0, UArg arg1);
-Void tcpCmdandler(UArg arg0, UArg arg1);
-Void tcpCmdWorker(UArg arg0, UArg arg1);
+/* Static Function Prototypes */
 void netOpenHook(void);
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
+Void tcpStateHandler(UArg arg0, UArg arg1);
+Void tcpStateWorker(UArg arg0, UArg arg1);
+Void tcpCommandHandler(UArg arg0, UArg arg1);
+Void tcpCommandWorker(UArg arg0, UArg arg1);
+
+/* External Function Prototypes */
+extern void NtIPN2Str(uint32_t IPAddr, char *str);
 
 //*****************************************************************************
 // NDK network open hook used to initialize IPv6
@@ -120,7 +119,6 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);
 
 void netOpenHook(void)
 {
-#if 1
     Task_Handle taskHandle;
     Task_Params taskParams;
     Error_Block eb;
@@ -128,16 +126,16 @@ void netOpenHook(void)
     /* Make sure Error_Block is initialized */
     Error_init(&eb);
 
-    /*
-     *  Create the Task that farms out incoming TCP connections.
-     *  arg0 will be the port that this task listens to.
+    /* Create the task that listens for incoming TCP connections
+     * to handle streaming transport state info. The parameter arg0
+     * will be the port that this task listens on.
      */
 
     Task_Params_init(&taskParams);
 
     taskParams.stackSize = TCPHANDLERSTACK;
     taskParams.priority  = 1;
-    taskParams.arg0      = STC_STAT_PORT;
+    taskParams.arg0      = STC_PORT_STATE;
 
     taskHandle = Task_create((Task_FuncPtr)tcpStateHandler, &taskParams, &eb);
 
@@ -145,8 +143,24 @@ void netOpenHook(void)
         System_printf("netOpenHook: Failed to create tcpStateHandler Task\n");
     }
 
+    /* Create the Task that listens for incoming TCP connections
+     * to handle command/response requests. The parameter arg0 will
+     * be the port that this task listens on.
+     */
+
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = TCPHANDLERSTACK;
+    taskParams.priority  = 1;
+    taskParams.arg0      = STC_PORT_COMMAND;
+
+    taskHandle = Task_create((Task_FuncPtr)tcpCommandHandler, &taskParams, &eb);
+
+    if (taskHandle == NULL) {
+        System_printf("netOpenHook: Failed to create tcpCommandHandler Task\n");
+    }
+
     System_flush();
-#endif
 }
 
 // This handler is called when the DHCP client is assigned an
@@ -164,7 +178,7 @@ void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 }
 
 //*****************************************************************************
-// Creates new Task to handle new TCP connections.
+// LISTENER CREATES TRANSPORT STATE STREAMING WORKER TASK FOR NEW CONNECTIONS.
 //*****************************************************************************
 
 Void tcpStateHandler(UArg arg0, UArg arg1)
@@ -207,6 +221,8 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
         System_printf("Error: listen failed.\n");
             goto shutdown;
     }
+
+    optval = 1000;
 
     if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
         System_printf("Error: setsockopt failed\n");
@@ -251,7 +267,8 @@ shutdown:
 }
 
 //*****************************************************************************
-// Task to handle TCP connection. There can be multiple TCP workers running.
+// STREAMS TRANSPORT STATE CHANGE INFO TO CLIENT. THERE CAN BE MULTIPLE
+// STREAMING STATE WORKER THREADS RUNNING.
 //*****************************************************************************
 
 Void tcpStateWorker(UArg arg0, UArg arg1)
@@ -267,7 +284,9 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     System_printf("tcpStateWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
-    /* Send initial tape time update packet */
+    /* Set initially to send tape time update packet
+     * since the client just connected.
+     */
     Event_post(g_eventPosChange, Event_Id_00);
 
     while (connected)
@@ -322,26 +341,11 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     close(clientfd);
 }
 
-
-#if 0
-if ((bytesRcvd = recv(clientfd, &flags, 8, 0)) <= 0)
-{
-    System_printf("Error: tpc recv failed.\n");
-    break;
-}
-
-if (bytesRcvd == 8)
-{
-    System_printf("Button: %04x:%04x\n", flags[1], flags[0]);
-    System_flush();
-}
-#endif
-
 //*****************************************************************************
-// Creates new Task to handle new TCP connections.
+// LISTENER CREATES COMMAND/RESPONSE WORKER TASK FOR NEW CONNECTIONS.
 //*****************************************************************************
 
-Void tcpCmdHandler(UArg arg0, UArg arg1)
+Void tcpCommandHandler(UArg arg0, UArg arg1)
 {
     int                status;
     int                clientfd;
@@ -382,6 +386,8 @@ Void tcpCmdHandler(UArg arg0, UArg arg1)
             goto shutdown;
     }
 
+    optval = 1000;
+
     if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
         System_printf("Error: setsockopt failed\n");
         goto shutdown;
@@ -400,7 +406,7 @@ Void tcpCmdHandler(UArg arg0, UArg arg1)
         taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
 
-        taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
+        taskHandle = Task_create((Task_FuncPtr)tcpCommandWorker, &taskParams, &eb);
 
         if (taskHandle == NULL) {
             //System_printf("Error: Failed to create new Task\n");
@@ -424,3 +430,64 @@ shutdown:
     }
 }
 
+//*****************************************************************************
+// HANDLES COMMAND/RESPONSE REQUESTS FROM CLIENT. THERE CAN BE MULTIPLE
+// COMMAND HANDLER WORKER THREADS RUNNING.
+//*****************************************************************************
+
+Void tcpCommandWorker(UArg arg0, UArg arg1)
+{
+    int         clientfd = (int)arg0;
+    int         bytesSent;
+    int         bytesRcvd;
+
+    STC_COMMAND_MSG cmd;
+
+    System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
+    System_flush();
+
+    while (TRUE)
+    {
+        if ((bytesRcvd = recv(clientfd, &cmd, sizeof(STC_COMMAND_MSG), 0)) <= 0)
+        {
+            System_printf("Error: tpc recv failed %d.\n", bytesRcvd);
+            break;
+        }
+
+        switch(cmd.command)
+        {
+        case STC_CMD_STOP:
+            Transport_PostButtonPress(S_STOP);
+            break;
+
+        case STC_CMD_PLAY:
+            Transport_PostButtonPress(S_PLAY);
+            break;
+
+        case STC_CMD_REW:
+            Transport_PostButtonPress(S_REW);
+            break;
+
+        case STC_CMD_FWD:
+            Transport_PostButtonPress(S_FWD);
+            break;
+
+        case STC_CMD_LIFTER:
+            Transport_PostButtonPress(S_LDEF);
+            break;
+        }
+
+        if ((bytesSent = send(clientfd, &cmd, sizeof(STC_COMMAND_MSG), 0)) <= 0)
+        {
+            System_printf("Error: tpc send failed %d.\n", bytesSent);
+            break;
+        }
+    }
+
+    System_printf("tcpCommandWorker DISCONNECT clientfd = 0x%x\n", clientfd);
+    System_flush();
+
+    close(clientfd);
+}
+
+// End-Of-File

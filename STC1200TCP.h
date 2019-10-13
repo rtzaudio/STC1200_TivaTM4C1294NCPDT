@@ -26,7 +26,9 @@
 #define uint32_t	UINT32
 #endif
 
+// =========================================================================
 // General purpose time structure for tape position
+// =========================================================================
 
 typedef struct _TAPETIME {
     uint8_t     hour;       /* hour (0-1)      */
@@ -44,6 +46,13 @@ typedef struct _TAPETIME {
 #define F_TAPETIME_BLANK	0x80	    /* blank the entire display  */
 
 #endif /* _WINDOWS */
+
+// =========================================================================
+// TCP/IP Port Numbers for STC remote server
+// =========================================================================
+
+#define STC_PORT_STATE      1200        /* streaming transport state   */
+#define STC_PORT_COMMAND    1201        /* transport cmd/response port */
 
 // =========================================================================
 // STC state update message structure. This message streams from the STC
@@ -81,7 +90,7 @@ typedef struct _STC_STATE_MSG {
 #define STC_MODE_MASK       0x07
 
 // =========================================================================
-// DRC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
+// STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
 // =========================================================================
 
 #if 0
@@ -153,5 +162,21 @@ typedef struct _STC_STATE_MSG {
 #define SW_LOC_MASK     (SW_LOC1|SW_LOC2|SW_LOC3|SW_LOC4|SW_LOC5| \
                          SW_LOC6|SW_LOC7|SW_LOC8|SW_LOC9|SW_LOC0)
 #endif
+
+// =========================================================================
+// STC COMMAND/RESPONSE Messages
+// =========================================================================
+
+typedef struct _STC_COMMAND_MSG {
+    uint16_t    length;                 /* size of this msg structure */
+    uint8_t     command;
+    uint8_t     flags;
+} STC_COMMAND_MSG;
+
+#define STC_CMD_STOP    1
+#define STC_CMD_PLAY    2
+#define STC_CMD_REW     3
+#define STC_CMD_FWD     4
+#define STC_CMD_LIFTER  5
 
 #pragma pack(pop)
