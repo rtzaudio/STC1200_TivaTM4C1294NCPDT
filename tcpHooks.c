@@ -441,20 +441,22 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         bytesSent;
     int         bytesRcvd;
 
-    STC_COMMAND_MSG cmd;
+    STC_COMMAND_MSG msg;
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
     while (TRUE)
     {
-        if ((bytesRcvd = recv(clientfd, &cmd, sizeof(STC_COMMAND_MSG), 0)) <= 0)
+        if ((bytesRcvd = recv(clientfd, &msg, sizeof(STC_COMMAND_MSG), 0)) <= 0)
         {
             System_printf("Error: tpc recv failed %d.\n", bytesRcvd);
             break;
         }
 
-        switch(cmd.command)
+        System_printf("TRANSPORT CMD %d", msg.command);
+
+        switch(msg.command)
         {
         case STC_CMD_STOP:
             Transport_PostButtonPress(S_STOP);
@@ -477,7 +479,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
         }
 
-        if ((bytesSent = send(clientfd, &cmd, sizeof(STC_COMMAND_MSG), 0)) <= 0)
+        if ((bytesSent = send(clientfd, &msg, sizeof(STC_COMMAND_MSG), 0)) <= 0)
         {
             System_printf("Error: tpc send failed %d.\n", bytesSent);
             break;

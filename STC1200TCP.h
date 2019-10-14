@@ -164,19 +164,25 @@ typedef struct _STC_STATE_MSG {
 #endif
 
 // =========================================================================
-// STC COMMAND/RESPONSE Messages
+// STC TCP/IP COMMAND/RESPONSE MESSAGES
 // =========================================================================
 
 typedef struct _STC_COMMAND_MSG {
-    uint16_t    length;                 /* size of this msg structure */
+    uint16_t    length;             /* size of this msg structure */
     uint8_t     command;
     uint8_t     flags;
 } STC_COMMAND_MSG;
 
+/* Commands for STC_COMMAND_MSG.command */
 #define STC_CMD_STOP    1
 #define STC_CMD_PLAY    2
 #define STC_CMD_REW     3
 #define STC_CMD_FWD     4
 #define STC_CMD_LIFTER  5
+
+/* Bit Flags for STC_COMMAND_MSG.flags */
+#define STC_FLG_NOSLOW  0x01        /* no auto slow shuttle mode  */
+#define STC_FLG_LIBWIND 0x02        /* shuttle library wind flag  */
+#define STC_FLG_RECORD  0x80        /* upper bit indicates record */
 
 #pragma pack(pop)
