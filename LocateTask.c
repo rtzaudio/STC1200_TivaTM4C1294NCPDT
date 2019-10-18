@@ -241,6 +241,16 @@ void CuePointTimeGet(size_t index, TAPETIME* tapeTime)
     }
 }
 
+/*****************************************************************************
+ * Sets locator to CUE or STORE mode
+ *****************************************************************************/
+
+Bool LocateSetMode(int mode)
+{
+    RemoteSetMode((mode == 1) ? REMOTE_MODE_STORE : REMOTE_MODE_CUE);
+    return TRUE;
+}
+
 //*****************************************************************************
 // Cue up a locate request to the locator. The cue point index is specified
 // in param1. Cue point 65 is single point for cue/search buttons on machine.

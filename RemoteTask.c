@@ -101,7 +101,6 @@ static void HandleDigitPress(size_t index);
 static void HandleJogwheelPress(uint32_t flags);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
-static void RemoteSetMode(uint32_t mode);
 //static void BlinkLocateButtonLED(size_t index);
 void ResetDigitBuf(void);
 
@@ -420,6 +419,9 @@ void RemoteSetMode(uint32_t mode)
 
         SetLocateButtonLED(g_sysData.cueIndex);
     }
+
+    /* Signal the TCP worker thread switch press event */
+    Event_post(g_eventTransport, Event_Id_02);
 }
 
 //*****************************************************************************

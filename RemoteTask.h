@@ -43,6 +43,8 @@ uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask);
 
 void Remote_PostSwitchPress(uint32_t mode);
 
+void RemoteSetMode(uint32_t mode);
+
 /* RemoteDisplay.c */
 void ClearDisplay(void);
 void DrawScreen(uint32_t uScreenNum);

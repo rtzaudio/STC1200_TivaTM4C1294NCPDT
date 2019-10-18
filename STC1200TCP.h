@@ -80,12 +80,14 @@ typedef struct _STC_STATE_MSG {
 #define STC_MODE_PLAY       2           /* servo play mode            */
 #define STC_MODE_FWD        3           /* servo forward mode         */
 #define STC_MODE_REW        4           /* servo rewind mode          */
+#define STC_MODE_THREAD     5           /* tape thread mode in halt   */
 
  /* Transport mode modifier bit flags */
 #define STC_M_NOSLOW        0x0020      /* no auto slow shuttle mode  */
 #define STC_M_LIBWIND       0x0040      /* shuttle library wind flag  */
 #define STC_M_RECORD        0x0080      /* upper bit indicates record */
 #define STC_M_SEARCH        0x0100      /* search active bit flag     */
+#define STC_M_LIFTERS       0x0200      /* tape lifter engaged        */
 
 #define STC_MODE_MASK       0x07
 
@@ -93,96 +95,59 @@ typedef struct _STC_STATE_MSG {
 // STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
 // =========================================================================
 
-#if 0
-/*
- * U7 is for transport control switches and button LEDs.
+/* U7 is for transport control switches and button LEDs.
  * 5-bits for output LED's and 5-bits for pushbutton switch inputs.
  */
 
 /* U7 PORT-A (Output) Transport Control Button LED's */
-#define L_REC           0x01            // REC button LED
-#define L_PLAY          0x02            // PLAY button LED
-#define L_REW           0x04            // REW button LED
-#define L_FWD           0x08            // FWD button LED
-#define L_STOP          0x10            // STOP button LED
-
-/* U7 PORT-B (Input) Transport Push Button Switch Bits */
-#define SW_REC          0x01            // REC button switch
-#define SW_PLAY         0x02            // PLAY button switch
-#define SW_REW          0x04            // REW button switch
-#define SW_FWD          0x08            // FWD button switch
-#define SW_STOP         0x10            // STOP button switch
+#define STC_L_REC           0x01            // REC button LED
+#define STC_L_PLAY          0x02            // PLAY button LED
+#define STC_L_REW           0x04            // REW button LED
+#define STC_L_FWD           0x08            // FWD button LED
+#define STC_L_STOP          0x10            // STOP button LED
 
 /* U11 PORT-A (Output) LED Bits */
-#define L_LOC1          (0x01 << 0)     // LOC1 button LED
-#define L_LOC2          (0x02 << 0)     // LOC2 button LED
-#define L_LOC3          (0x04 << 0)     // LOC3 button LED
-#define L_LOC4          (0x08 << 0)     // LOC4 button LED
-#define L_LOC5          (0x10 << 0)     // LOC5 button LED
-#define L_LOC6          (0x20 << 0)     // LOC6 button LED
-#define L_LOC7          (0x40 << 0)     // LOC7 button LED
-#define L_LOC8          (0x80 << 0)     // LOC8 button LED
+#define STC_L_LOC1          (0x01 << 0)     // LOC1 button LED
+#define STC_L_LOC2          (0x02 << 0)     // LOC2 button LED
+#define STC_L_LOC3          (0x04 << 0)     // LOC3 button LED
+#define STC_L_LOC4          (0x08 << 0)     // LOC4 button LED
+#define STC_L_LOC5          (0x10 << 0)     // LOC5 button LED
+#define STC_L_LOC6          (0x20 << 0)     // LOC6 button LED
+#define STC_L_LOC7          (0x40 << 0)     // LOC7 button LED
+#define STC_L_LOC8          (0x80 << 0)     // LOC8 button LED
 
 /* U11 PORT-B (Output) LED Bits */
-#define L_LOC0          (0x01 << 8)     // LOC0 button LED
-#define L_LOC9          (0x02 << 8)     // LOC9 button LED
-#define L_MENU          (0x04 << 8)     // SET button LED
-#define L_EDIT          (0x08 << 8)     // ESC button LED
-#define L_STORE         (0x10 << 8)     // PREV button LED
-#define L_ALT           (0x20 << 8)     // MENU button LED
-#define L_AUTO          (0x40 << 8)     // NEXT button LED
-#define L_CUE           (0x80 << 8)     // EDIT button LED
+#define STC_L_LOC0          (0x01 << 8)     // LOC0 button LED
+#define STC_L_LOC9          (0x02 << 8)     // LOC9 button LED
+#define STC_L_MENU          (0x04 << 8)     // SET button LED
+#define STC_L_EDIT          (0x08 << 8)     // ESC button LED
+#define STC_L_STORE         (0x10 << 8)     // PREV button LED
+#define STC_L_ALT           (0x20 << 8)     // MENU button LED
+#define STC_L_AUTO          (0x40 << 8)     // NEXT button LED
+#define STC_L_CUE           (0x80 << 8)     // EDIT button LED
 
-#define L_LOC_MASK      (L_LOC1|L_LOC2|L_LOC3| L_LOC4| L_LOC5| \
-                         L_LOC6|L_LOC7| L_LOC8|L_LOC9|L_LOC0)
-/*
- * U10 is two 8-bit INPUT ports for reading button switches.
- */
-
-/* U10 PORT-A (Input) Pushbutton Switch Bits */
-#define SW_LOC1         (0x01 << 0)     // LOC1 button switch
-#define SW_LOC2         (0x02 << 0)     // LOC2 button switch
-#define SW_LOC3         (0x04 << 0)     // LOC3 button switch
-#define SW_LOC4         (0x08 << 0)     // LOC4 button switch
-#define SW_LOC5         (0x10 << 0)     // LOC5 button switch
-#define SW_LOC6         (0x20 << 0)     // LOC6 button switch
-#define SW_LOC7         (0x40 << 0)     // LOC7 button switch
-#define SW_LOC8         (0x80 << 0)     // LOC8 button switch
-
-/* U10 PORT-B (Input) Pushbutton Switch Bits */
-#define SW_LOC0         (0x01 << 8)     // LOC0 button switch
-#define SW_LOC9         (0x02 << 8)     // LOC9 button switch
-#define SW_MENU         (0x04 << 8)     // MENU button switch
-#define SW_EDIT         (0x08 << 8)     // EDIT button switch
-#define SW_STORE        (0x10 << 8)     // STORE button switch
-#define SW_ALT          (0x20 << 8)     // ALT button switch
-#define SW_AUTO         (0x40 << 8)     // AUTO button switch
-#define SW_CUE          (0x80 << 8)     // CUE button switch
-
-#define SW_LOC_MASK     (SW_LOC1|SW_LOC2|SW_LOC3|SW_LOC4|SW_LOC5| \
-                         SW_LOC6|SW_LOC7|SW_LOC8|SW_LOC9|SW_LOC0)
-#endif
+#define STC_L_LOC_MASK      (STC_L_LOC1|STC_L_LOC2|STC_L_LOC3|STC_L_LOC4| \
+                             STC_L_LOC5|STC_L_LOC6|STC_L_LOC7|STC_L_LOC8| \
+                             STC_L_LOC9|STC_L_LOC0)
 
 // =========================================================================
-// STC TCP/IP COMMAND/RESPONSE MESSAGES
+// STC COMMAND/RESPONSE Messages
 // =========================================================================
 
-typedef struct _STC_COMMAND_MSG {
-    uint16_t    length;             /* size of this msg structure */
-    uint8_t     command;
-    uint8_t     flags;
-} STC_COMMAND_MSG;
+typedef struct _STC_COMMAND_HDR {
+    uint16_t    hdrlen;				/* size of this msg structure */
+    uint16_t    command;			/* the command ID to execute  */
+    uint16_t    param0;				/* optional paramaters field  */
+    uint16_t    param1;				/* optional paramaters field  */
+	uint16_t    msglen;				/* trailing msg len, 0=none   */
+} STC_COMMAND_HDR;
 
-/* Commands for STC_COMMAND_MSG.command */
-#define STC_CMD_STOP    1
-#define STC_CMD_PLAY    2
-#define STC_CMD_REW     3
-#define STC_CMD_FWD     4
-#define STC_CMD_LIFTER  5
-
-/* Bit Flags for STC_COMMAND_MSG.flags */
-#define STC_FLG_NOSLOW  0x01        /* no auto slow shuttle mode  */
-#define STC_FLG_LIBWIND 0x02        /* shuttle library wind flag  */
-#define STC_FLG_RECORD  0x80        /* upper bit indicates record */
+#define STC_CMD_STOP			1
+#define STC_CMD_PLAY			2       /* param0 1=record */
+#define STC_CMD_REW				3
+#define STC_CMD_FWD				4
+#define STC_CMD_LIFTER			5
+#define STC_CMD_LOCATE			6       /* param0 1=autoplay, 2=autorec    */
+#define STC_CMD_LOCATE_MODE		7       /* param0 0=cue-mode, 1=store-mode */
 
 #pragma pack(pop)

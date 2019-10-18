@@ -88,6 +88,7 @@
 #include "STC1200TCP.h"
 #include "IPCCommands.h"
 #include "IPCMessage.h"
+#include "RemoteTask.h"
 
 /* Configuration Constants and Definitions */
 #define NUMTCPWORKERS       4
@@ -287,12 +288,12 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     /* Set initially to send tape time update packet
      * since the client just connected.
      */
-    Event_post(g_eventPosChange, Event_Id_00);
+    Event_post(g_eventTransport, Event_Id_00);
 
     while (connected)
     {
         /* Wait for a position change event from the tape roller position task */
-        UInt events = Event_pend(g_eventPosChange, Event_Id_NONE, Event_Id_00, 2500);
+        UInt events = Event_pend(g_eventTransport, Event_Id_NONE, Event_Id_00|Event_Id_01|Event_Id_02, 2500);
 
         /* Get the tape time member values */
         PositionToTapeTime(g_sysData.tapePosition, &stateMsg.tapeTime);
@@ -440,15 +441,17 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         clientfd = (int)arg0;
     int         bytesSent;
     int         bytesRcvd;
+    size_t      cuePointIndex;
+    uint32_t    cue_flags;
 
-    STC_COMMAND_MSG msg;
+    STC_COMMAND_HDR msg;
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
     while (TRUE)
     {
-        if ((bytesRcvd = recv(clientfd, &msg, sizeof(STC_COMMAND_MSG), 0)) <= 0)
+        if ((bytesRcvd = recv(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0)) <= 0)
         {
             System_printf("Error: tpc recv failed %d.\n", bytesRcvd);
             break;
@@ -462,10 +465,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Transport_PostButtonPress(S_STOP);
             break;
 
-        case STC_CMD_PLAY:
-            Transport_PostButtonPress(S_PLAY);
-            break;
-
         case STC_CMD_REW:
             Transport_PostButtonPress(S_REW);
             break;
@@ -474,12 +473,40 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Transport_PostButtonPress(S_FWD);
             break;
 
+        case STC_CMD_PLAY:
+            if (msg.param0 == 1)
+                Transport_PostButtonPress(S_PLAY|S_REC);
+            else
+                Transport_PostButtonPress(S_PLAY);
+            break;
+
         case STC_CMD_LIFTER:
             Transport_PostButtonPress(S_LDEF);
             break;
+
+        case STC_CMD_LOCATE:
+
+            if ((cuePointIndex = (size_t)msg.param0) > LAST_CUE_POINT)
+                cuePointIndex = 0;
+
+            if (msg.param1 == 1)
+                cue_flags = CF_AUTO_PLAY;
+            else if (msg.param1 == 2)
+                cue_flags = CF_AUTO_REC;
+            else
+                cue_flags = 0;
+
+            // Start the auto-locator for the cue point index given
+            LocateSearch(cuePointIndex, cue_flags);
+            break;
+
+        case STC_CMD_LOCATE_MODE:
+            /* 1=store-mode, 0=cue-mode */
+            LocateSetMode(msg.param1);
+            break;
         }
 
-        if ((bytesSent = send(clientfd, &msg, sizeof(STC_COMMAND_MSG), 0)) <= 0)
+        if ((bytesSent = send(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0)) <= 0)
         {
             System_printf("Error: tpc send failed %d.\n", bytesSent);
             break;

@@ -329,7 +329,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 			}
 
 			/* Signal the TCP worker thread that position has changed */
-            Event_post(g_eventPosChange, Event_Id_00);
+            Event_post(g_eventTransport, Event_Id_00);
 
 	    	//System_printf("%d\n", g_sysData.tapePosition);
 	    	//System_flush();

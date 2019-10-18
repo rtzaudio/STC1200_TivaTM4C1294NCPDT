@@ -269,6 +269,10 @@ void DrawTimeTop(void)
             len = sprintf(buf, "HALT");
             break;
 
+        case MODE_THREAD:
+            len = sprintf(buf, "THREAD");
+            break;
+
         case MODE_STOP:
             len = sprintf(buf, "STOP");
             break;

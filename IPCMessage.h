@@ -49,6 +49,7 @@
 #define MODE_PLAY       2               /* servo play mode              */
 #define MODE_FWD        3               /* servo forward mode           */
 #define MODE_REW        4               /* servo rewind mode            */
+#define MODE_THREAD     5               /* thread tape mode in stop     */
 
 #define M_NOSLOW        0x20            /* no auto slow in shuttle mode */
 #define M_LIBWIND       0x40            /* shuttle library wind flag    */

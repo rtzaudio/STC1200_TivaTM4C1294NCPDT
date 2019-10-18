@@ -170,6 +170,9 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
         break;
     }
 
+    /* Signal the TCP worker a transport switch or LED state changed */
+    Event_post(g_eventTransport, Event_Id_01);
+
     return TRUE;
 }
 
