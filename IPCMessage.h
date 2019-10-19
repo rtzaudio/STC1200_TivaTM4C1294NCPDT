@@ -51,6 +51,7 @@
 #define MODE_REW        4               /* servo rewind mode            */
 #define MODE_THREAD     5               /* thread tape mode in stop     */
 
+#define M_LIFTER        0x10            /* only used for IPC notify     */
 #define M_NOSLOW        0x20            /* no auto slow in shuttle mode */
 #define M_LIBWIND       0x40            /* shuttle library wind flag    */
 #define M_RECORD        0x80            /* upper bit indicates record   */

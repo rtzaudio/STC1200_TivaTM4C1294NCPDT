@@ -309,11 +309,13 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.length             = (uint32_t)textlen;
         stateMsg.ledMaskButton      = g_sysData.ledMaskButton;
         stateMsg.ledMaskTransport   = g_sysData.ledMaskTransport;
+        stateMsg.errorCount         = g_sysData.qei_error_cnt;
         stateMsg.transportMode      = transportMode;
         stateMsg.tapeSpeed          = g_sysData.tapeSpeed;
         stateMsg.tapeDirection      = (g_sysData.tapeDirection > 0) ?  1 : 0;
         stateMsg.tapePosition       = g_sysData.tapePosition;
         stateMsg.searchProgress     = g_sysData.searchProgress;
+        stateMsg.searching          = g_sysData.searching;
 
         /* Prepare to start sending state message buffer */
 

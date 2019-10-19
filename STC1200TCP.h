@@ -63,13 +63,15 @@ typedef struct _TAPETIME {
 typedef struct _STC_STATE_MSG {
     uint32_t    length;                 /* size of this msg structure */
     TAPETIME    tapeTime;               /* current tape time position */
+    uint32_t    errorCount;             /* QEI phase error count      */
     uint32_t    ledMaskButton;          /* DRC remote button LED mask */
     uint32_t    ledMaskTransport;       /* current transport LED mask */
     uint32_t    transportMode;          /* Current transport mode     */
-    uint32_t    tapeSpeed;              /* tape speed (15 or 30)      */
+    int32_t     tapeSpeed;              /* tape speed (15 or 30)      */
     int32_t     tapeDirection;          /* direction 1=fwd, 0=rew     */
     int32_t     tapePosition;           /* signed relative position   */
     int32_t     searchProgress;         /* search progress 0-100%     */
+    int32_t     searching;              /* true if search in progress */
 } STC_STATE_MSG;
 
 /* The lower three bits of STC_STATE_MSG.transportMode are
@@ -83,13 +85,13 @@ typedef struct _STC_STATE_MSG {
 #define STC_MODE_THREAD     5           /* tape thread mode in halt   */
 
  /* Transport mode modifier bit flags */
+#define STC_M_LIFTERS       0x0010      /* tape lifter engaged        */
 #define STC_M_NOSLOW        0x0020      /* no auto slow shuttle mode  */
 #define STC_M_LIBWIND       0x0040      /* shuttle library wind flag  */
 #define STC_M_RECORD        0x0080      /* upper bit indicates record */
 #define STC_M_SEARCH        0x0100      /* search active bit flag     */
-#define STC_M_LIFTERS       0x0200      /* tape lifter engaged        */
 
-#define STC_MODE_MASK       0x07
+#define STC_MODE_MASK       0x07        /* lower 3-bits indicate mode */
 
 // =========================================================================
 // STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
