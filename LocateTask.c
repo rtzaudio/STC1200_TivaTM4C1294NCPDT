@@ -290,15 +290,17 @@ void LocateAbort(void)
     g_sysData.searchCancel = TRUE;
 }
 
-bool LocateIsSearching(void)
+bool IsLocatorSearching(void)
 {
     return g_sysData.searching;
 }
 
-bool IsTransportHaltMode()
+bool IsTransportHaltMode(void)
 {
+    uint32_t mode = (g_sysData.transportMode & MODE_MASK);
+
     /* Abort if transport halted, must be tape out? */
-    if ((g_sysData.transportMode & MODE_MASK) == MODE_HALT)
+    if ((mode == MODE_HALT) || (mode == MODE_THREAD))
         return TRUE;
 
     return FALSE;

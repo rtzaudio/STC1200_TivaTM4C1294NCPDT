@@ -223,7 +223,7 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
             goto shutdown;
     }
 
-    optval = 1000;
+    optval = 100;
 
     if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
         System_printf("Error: setsockopt failed\n");
@@ -277,7 +277,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     int         clientfd = (int)arg0;
     int         bytesSent;
     int         bytesToSend;
-    uint8_t*    textbuf;
+    uint8_t*    buf;
     bool        connected = true;
 
     static STC_STATE_MSG stateMsg;
@@ -321,11 +321,11 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
         bytesToSend = textlen;
 
-        textbuf = (uint8_t*)&stateMsg;
+        buf = (uint8_t*)&stateMsg;
 
         do {
 
-            if ((bytesSent = send(clientfd, textbuf, bytesToSend, 0)) <= 0)
+            if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
             {
                 connected = false;
                 break;
@@ -333,7 +333,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
             bytesToSend -= bytesSent;
 
-            textbuf += bytesSent;
+            buf += bytesSent;
 
         } while (bytesToSend > 0);
     }
@@ -389,7 +389,7 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
             goto shutdown;
     }
 
-    optval = 1000;
+    optval = 100;
 
     if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
         System_printf("Error: setsockopt failed\n");
@@ -442,24 +442,40 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 {
     int         clientfd = (int)arg0;
     int         bytesSent;
+    int         bytesToSend;
     int         bytesRcvd;
+    int         bytesToRecv;
     size_t      cuePointIndex;
     uint32_t    cue_flags;
+    uint8_t*    buf;
+    bool        connected = true;
 
     STC_COMMAND_HDR msg;
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
 
-    while (TRUE)
+    while (connected)
     {
-        if ((bytesRcvd = recv(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0)) <= 0)
-        {
-            System_printf("Error: tpc recv failed %d.\n", bytesRcvd);
-            break;
-        }
+        bytesToRecv = sizeof(STC_COMMAND_HDR);
 
-        System_printf("TRANSPORT CMD %d", msg.command);
+        buf = (uint8_t*)&msg;
+
+        do {
+
+            if ((bytesRcvd = recv(clientfd, buf, bytesToRecv, 0)) <= 0)
+            {
+                System_printf("Error: tpc recv failed %d.\n", bytesRcvd);
+                break;
+            }
+
+            bytesToRecv -= bytesRcvd;
+
+            buf += bytesRcvd;
+
+        } while(bytesToRecv > 0);
+
+        System_printf("RX TRANSPORT CMD %d", msg.command);
 
         switch(msg.command)
         {
@@ -504,15 +520,29 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_LOCATE_MODE:
             /* 1=store-mode, 0=cue-mode */
-            LocateSetMode(msg.param1);
+            RemoteSetMode((msg.param0 == 1) ? REMOTE_MODE_STORE : REMOTE_MODE_CUE);
             break;
         }
 
-        if ((bytesSent = send(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0)) <= 0)
-        {
-            System_printf("Error: tpc send failed %d.\n", bytesSent);
-            break;
-        }
+        bytesToSend = sizeof(STC_COMMAND_HDR);
+
+        buf = (uint8_t*)&msg;
+
+        do {
+
+            if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
+            {
+                System_printf("Error: tpc send failed %d.\n", bytesSent);
+                connected = false;
+                break;
+            }
+
+            bytesToSend -= bytesSent;
+
+            buf += bytesSent;
+
+        } while (bytesToSend > 0);
+
     }
 
     System_printf("tcpCommandWorker DISCONNECT clientfd = 0x%x\n", clientfd);

@@ -181,8 +181,8 @@ void SetLocateButtonLED(size_t index)
     uint32_t mask = 0;
 
     static uint32_t tab[10] = {
-        L_LOC1, L_LOC2, L_LOC3, L_LOC4, L_LOC5,
-        L_LOC6, L_LOC7, L_LOC8, L_LOC9, L_LOC0
+        L_LOC0, L_LOC1, L_LOC2, L_LOC3, L_LOC4,
+        L_LOC5, L_LOC6, L_LOC7, L_LOC8, L_LOC9
     };
 
     mask = tab[index % 10];
@@ -278,7 +278,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 uint32_t mask = xlate_to_dtc_transport_switch_mask(msg.param1.U);
 
                 /* Cancel any search in progress */
-                if (LocateIsSearching())
+                if (IsLocatorSearching())
                 {
                     LocateAbort();
                     Task_sleep(250);
@@ -431,29 +431,27 @@ void RemoteSetMode(uint32_t mode)
 void HandleButtonPress(uint32_t flags)
 {
     /* Handle numeric digit/locate buttons */
-    if (flags & SW_LOC1) {
+    if (flags & SW_LOC0) {
         HandleDigitPress(0);
-    } else if (flags & SW_LOC2) {
+    } else if (flags & SW_LOC1) {
         HandleDigitPress(1);
-    } else if (flags & SW_LOC3) {
+    } else if (flags & SW_LOC2) {
         HandleDigitPress(2);
-    } else if (flags & SW_LOC4) {
+    } else if (flags & SW_LOC3) {
         HandleDigitPress(3);
-    } else if (flags & SW_LOC5) {
+    } else if (flags & SW_LOC4) {
         HandleDigitPress(4);
-    } else if (flags & SW_LOC6) {
+    } else if (flags & SW_LOC5) {
         HandleDigitPress(5);
-    } else if (flags & SW_LOC7) {
+    } else if (flags & SW_LOC6) {
         HandleDigitPress(6);
-    } else if (flags & SW_LOC8) {
+    } else if (flags & SW_LOC7) {
         HandleDigitPress(7);
-    } else if (flags & SW_LOC9) {
+    } else if (flags & SW_LOC8) {
         HandleDigitPress(8);
-    } else if (flags & SW_LOC0) {
+    } else if (flags & SW_LOC9) {
         HandleDigitPress(9);
-    }
-    else if (flags & SW_CUE)
-    {
+    } else if (flags & SW_CUE) {
         /* Switch to CUE mode */
         RemoteSetMode(REMOTE_MODE_CUE);
     }
@@ -520,7 +518,7 @@ void HandleDigitPress(size_t index)
 {
     int n;
     char digit;
-    static char digits[] = { '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' };
+    static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
     if (g_sysData.remoteMode == REMOTE_MODE_CUE)
     {
@@ -556,6 +554,7 @@ void HandleDigitPress(size_t index)
 
         /* Return to previous Cue or default mode */
         RemoteSetMode(g_sysData.remoteModePrev);
+
         SetLocateButtonLED(g_sysData.cueIndex);
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)

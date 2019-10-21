@@ -79,7 +79,7 @@ Bool LocateSetMode(int mode);
 void LocateAbort(void);
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);
-bool LocateIsSearching(void);
+bool IsLocatorSearching(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 

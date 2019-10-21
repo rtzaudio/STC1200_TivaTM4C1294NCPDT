@@ -257,7 +257,7 @@ void DrawTimeTop(void)
      * Draw the current transport mode text on top line
      */
 
-    if (LocateIsSearching())
+    if (IsLocatorSearching())
     {
         len = sprintf(buf, "SEARCH");
     }
@@ -350,7 +350,7 @@ void DrawTimeBottom(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "L:%02u", g_sysData.cueIndex+1);
+    len = sprintf(buf, "L:%02u", g_sysData.cueIndex);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -388,7 +388,7 @@ void DrawTimeBottom(void)
 
     /* Display locate progress bar */
 
-    if (!LocateIsSearching())
+    if (!IsLocatorSearching())
     {
         if (g_sysData.transportMode & M_RECORD)
         {
