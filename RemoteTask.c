@@ -101,7 +101,7 @@ static void HandleDigitPress(size_t index);
 static void HandleJogwheelPress(uint32_t flags);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
-//static void BlinkLocateButtonLED(size_t index);
+static void RemoteSetMode(uint32_t mode);
 void ResetDigitBuf(void);
 
 //*****************************************************************************
@@ -127,7 +127,7 @@ Bool Remote_Task_startup(void)
     return TRUE;
 }
 
-void Remote_PostSwitchPress(uint32_t mode)
+void Remote_PostSwitchPress(uint32_t mode, uint32_t flags)
 {
     RAMP_MSG msg;
 
@@ -135,7 +135,7 @@ void Remote_PostSwitchPress(uint32_t mode)
     msg.opcode = OP_SWITCH_REMOTE;
 
     msg.param1.U = mode;
-    msg.param2.U = 0;
+    msg.param2.U = flags;
 
     Mailbox_post(g_mailboxRemote, &msg, 100);
 }
@@ -428,44 +428,44 @@ void RemoteSetMode(uint32_t mode)
 // Handle button press events from DRC remote
 //*****************************************************************************
 
-void HandleButtonPress(uint32_t flags)
+void HandleButtonPress(uint32_t mask)
 {
     /* Handle numeric digit/locate buttons */
-    if (flags & SW_LOC0) {
+    if (mask & SW_LOC0) {
         HandleDigitPress(0);
-    } else if (flags & SW_LOC1) {
+    } else if (mask & SW_LOC1) {
         HandleDigitPress(1);
-    } else if (flags & SW_LOC2) {
+    } else if (mask & SW_LOC2) {
         HandleDigitPress(2);
-    } else if (flags & SW_LOC3) {
+    } else if (mask & SW_LOC3) {
         HandleDigitPress(3);
-    } else if (flags & SW_LOC4) {
+    } else if (mask & SW_LOC4) {
         HandleDigitPress(4);
-    } else if (flags & SW_LOC5) {
+    } else if (mask & SW_LOC5) {
         HandleDigitPress(5);
-    } else if (flags & SW_LOC6) {
+    } else if (mask & SW_LOC6) {
         HandleDigitPress(6);
-    } else if (flags & SW_LOC7) {
+    } else if (mask & SW_LOC7) {
         HandleDigitPress(7);
-    } else if (flags & SW_LOC8) {
+    } else if (mask & SW_LOC8) {
         HandleDigitPress(8);
-    } else if (flags & SW_LOC9) {
+    } else if (mask & SW_LOC9) {
         HandleDigitPress(9);
-    } else if (flags & SW_CUE) {
+    } else if (mask & SW_CUE) {
         /* Switch to CUE mode */
         RemoteSetMode(REMOTE_MODE_CUE);
     }
-    else if (flags & SW_STORE)
+    else if (mask & SW_STORE)
     {
         /* Switch to STORE mode */
         RemoteSetMode(REMOTE_MODE_STORE);
     }
-    else if (flags & SW_EDIT)
+    else if (mask & SW_EDIT)
     {
         /* Switch to EDIT mode */
         RemoteSetMode(REMOTE_MODE_EDIT);
     }
-    else if (flags & SW_MENU)
+    else if (mask & SW_MENU)
     {
         /* ALT+MENU to zero reset system position */
         if (g_sysData.shiftAltButton)
@@ -487,7 +487,7 @@ void HandleButtonPress(uint32_t flags)
             }
         }
     }
-    else if (flags & SW_AUTO)
+    else if (mask & SW_AUTO)
     {
         /* toggle auto play mode */
         if (!g_sysData.autoMode)
@@ -501,7 +501,7 @@ void HandleButtonPress(uint32_t flags)
             SetButtonLedMask(0, L_AUTO);
         }
     }
-    else if (flags & SW_ALT)
+    else if (mask & SW_ALT)
     {
         if (g_sysParms.showLongTime)
             g_sysParms.showLongTime = false;

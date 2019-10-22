@@ -278,6 +278,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     int         bytesSent;
     int         bytesToSend;
     uint8_t*    buf;
+    size_t      i;
     bool        connected = true;
 
     static STC_STATE_MSG stateMsg;
@@ -306,16 +307,31 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         if (g_sysData.searching)
             transportMode |= STC_M_SEARCH;
 
-        stateMsg.length             = (uint32_t)textlen;
+        int8_t tapedir = 0;
+
+        if (g_sysData.tapeSpeed)
+            tapedir = (g_sysData.tapeDirection > 0) ?  1 : -1;
+
+        stateMsg.length             = textlen;
+        stateMsg.errorCount         = g_sysData.qei_error_cnt;
         stateMsg.ledMaskButton      = g_sysData.ledMaskButton;
         stateMsg.ledMaskTransport   = g_sysData.ledMaskTransport;
-        stateMsg.errorCount         = g_sysData.qei_error_cnt;
-        stateMsg.transportMode      = transportMode;
-        stateMsg.tapeSpeed          = g_sysData.tapeSpeed;
-        stateMsg.tapeDirection      = (g_sysData.tapeDirection > 0) ?  1 : 0;
         stateMsg.tapePosition       = g_sysData.tapePosition;
-        stateMsg.searchProgress     = g_sysData.searchProgress;
+        stateMsg.tapeVelocity       = (uint32_t)g_sysData.tapeTach;
+        stateMsg.transportMode      = (uint16_t)transportMode;
+        stateMsg.tapeDirection      = tapedir;
+        stateMsg.tapeSpeed          = (uint8_t)g_sysData.tapeSpeed;
+        stateMsg.searchProgress     = (uint8_t)g_sysData.searchProgress;
         stateMsg.searching          = g_sysData.searching;
+        stateMsg.monitorFlags       = 0;
+
+        /* Copy the track state info */
+        for (i=0; i < STC_MAX_TRACKS; i++)
+            stateMsg.trackState[i] = g_sysData.trackState[i];
+
+        /* Copy the cue memory status bits */
+        for (i=0; i < STC_MAX_CUES; i++)
+            stateMsg.cueState[i] = (uint8_t)g_sysData.cuePoint[i].flags;
 
         /* Prepare to start sending state message buffer */
 
@@ -440,17 +456,21 @@ shutdown:
 
 Void tcpCommandWorker(UArg arg0, UArg arg1)
 {
+    bool        connected = true;
     int         clientfd = (int)arg0;
     int         bytesSent;
     int         bytesToSend;
     int         bytesRcvd;
     int         bytesToRecv;
-    size_t      cuePointIndex;
-    uint32_t    cue_flags;
     uint8_t*    buf;
-    bool        connected = true;
+    uint32_t    cue_flags;
 
     STC_COMMAND_HDR msg;
+
+    static uint32_t smask[10] = {
+        SW_LOC0, SW_LOC1, SW_LOC2, SW_LOC3, SW_LOC4,
+        SW_LOC5, SW_LOC6, SW_LOC7, SW_LOC8, SW_LOC9
+    };
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
@@ -492,7 +512,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_PLAY:
-            if (msg.param0 == 1)
+            if (msg.param1 == 1)
                 Transport_PostButtonPress(S_PLAY|S_REC);
             else
                 Transport_PostButtonPress(S_PLAY);
@@ -503,24 +523,21 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_LOCATE:
-
-            if ((cuePointIndex = (size_t)msg.param0) > LAST_CUE_POINT)
-                cuePointIndex = 0;
-
-            if (msg.param1 == 1)
+            // Set the cue point flags if specified
+            if (msg.param2 == 1)
                 cue_flags = CF_AUTO_PLAY;
-            else if (msg.param1 == 2)
+            else if (msg.param2 == 2)
                 cue_flags = CF_AUTO_REC;
             else
                 cue_flags = 0;
-
             // Start the auto-locator for the cue point index given
-            LocateSearch(cuePointIndex, cue_flags);
+            if (msg.param1 <= 9)
+                Remote_PostSwitchPress(smask[msg.param1], cue_flags);
             break;
 
         case STC_CMD_LOCATE_MODE:
             /* 1=store-mode, 0=cue-mode */
-            RemoteSetMode((msg.param0 == 1) ? REMOTE_MODE_STORE : REMOTE_MODE_CUE);
+            Remote_PostSwitchPress((msg.param1 == 1) ? SW_STORE : SW_CUE, 0);
             break;
         }
 

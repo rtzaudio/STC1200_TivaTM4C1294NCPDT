@@ -537,52 +537,52 @@ static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
             /*** Mode Buttons ***/
             if (!strcmp("cue", key))
             {
-                Remote_PostSwitchPress(SW_CUE);
+                Remote_PostSwitchPress(SW_CUE, 0);
             }
             else if (!strcmp("store", key))
             {
-                Remote_PostSwitchPress(SW_STORE);
+                Remote_PostSwitchPress(SW_STORE, 0);
             }
             /*** Locate Buttons ***/
             if (!strcmp("loc1", key))
             {
-                Remote_PostSwitchPress(SW_LOC1);
+                Remote_PostSwitchPress(SW_LOC1, 0);
             }
             else if (!strcmp("loc2", key))
             {
-                Remote_PostSwitchPress(SW_LOC2);
+                Remote_PostSwitchPress(SW_LOC2, 0);
             }
             else if (!strcmp("loc3", key))
             {
-                Remote_PostSwitchPress(SW_LOC3);
+                Remote_PostSwitchPress(SW_LOC3, 0);
             }
             else if (!strcmp("loc4", key))
             {
-                Remote_PostSwitchPress(SW_LOC4);
+                Remote_PostSwitchPress(SW_LOC4, 0);
             }
             else if (!strcmp("loc5", key))
             {
-                Remote_PostSwitchPress(SW_LOC5);
+                Remote_PostSwitchPress(SW_LOC5, 0);
             }
             else if (!strcmp("loc6", key))
             {
-                Remote_PostSwitchPress(SW_LOC6);
+                Remote_PostSwitchPress(SW_LOC6, 0);
             }
             else if (!strcmp("loc7", key))
             {
-                Remote_PostSwitchPress(SW_LOC7);
+                Remote_PostSwitchPress(SW_LOC7, 0);
             }
             else if (!strcmp("loc8", key))
             {
-                Remote_PostSwitchPress(SW_LOC8);
+                Remote_PostSwitchPress(SW_LOC8, 0);
             }
             else if (!strcmp("loc9", key))
             {
-                Remote_PostSwitchPress(SW_LOC9);
+                Remote_PostSwitchPress(SW_LOC9, 0);
             }
             else if (!strcmp("loc0", key))
             {
-                Remote_PostSwitchPress(SW_LOC0);
+                Remote_PostSwitchPress(SW_LOC0, 0);
             }
         }
     } while(parseIndex != -1);

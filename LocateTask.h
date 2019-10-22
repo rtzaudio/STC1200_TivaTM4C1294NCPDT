@@ -30,16 +30,16 @@ typedef struct _CUE_POINT {
 } CUE_POINT;
 
 /* Cue Point Flags */
-#define CF_NONE         0x00    /* no cue point stored for location */
-#define CF_ACTIVE       0x01    /* cue point available to search    */
-#define CF_AUTO_PLAY    0x02    /* enter play mode after locate     */
-#define CF_AUTO_REC     0x04    /* enter play + record after locate */
+#define CF_NONE             0x00    /* no cue point stored for location */
+#define CF_ACTIVE           0x01    /* cue point available to search    */
+#define CF_AUTO_PLAY        0x02    /* enter play mode after locate     */
+#define CF_AUTO_REC         0x04    /* enter play + record after locate */
 
 /* This defines the array size that holds all cue point memories. Note
  * one extra cue point is reserved in the buffer space at the end for
  * the transport deck search/cue buttons.
  */
-#define MAX_CUE_POINTS		64
+#define MAX_CUE_POINTS      64
 
 /* We support 64 cue points for the remote, but one extra cue point
  * memory is allocated for the search/cue buttons on the transport
@@ -49,6 +49,8 @@ typedef struct _CUE_POINT {
  * to serve as RTZ until new cue point is stored vie the cue button.
  */
 #define LAST_CUE_POINT      MAX_CUE_POINTS
+
+#define MAX_TRACKS          24
 
 /*** MESSAGE STRUCTURES ****************************************************/
 
@@ -75,7 +77,6 @@ void CuePointClear(size_t index);
 void CuePointClearAll(void);
 void CuePointTimeGet(size_t index, TAPETIME* tapeTime);
 
-Bool LocateSetMode(int mode);
 void LocateAbort(void);
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);
