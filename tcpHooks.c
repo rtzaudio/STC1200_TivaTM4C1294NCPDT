@@ -462,6 +462,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         bytesToSend;
     int         bytesRcvd;
     int         bytesToRecv;
+    size_t      index;
     uint8_t*    buf;
     uint32_t    cue_flags;
 
@@ -538,6 +539,16 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
         case STC_CMD_LOCATE_MODE:
             /* 1=store-mode, 0=cue-mode */
             Remote_PostSwitchPress((msg.param1 == 1) ? SW_STORE : SW_CUE, 0);
+            break;
+
+        case STC_CMD_TRACK_SET_STATE:
+            /* param0 0=index, param1=flags */
+            if ((index = (size_t)msg.param1) < STC_MAX_TRACKS)
+            {
+                g_sysData.trackState[index] = (uint8_t)msg.param2;
+
+                Event_post(g_eventTransport, Event_Id_03);
+            }
             break;
         }
 

@@ -298,6 +298,9 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 g_sysData.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
 
                 HandleButtonPress(msg.param1.U);
+
+                /* Signal the TCP worker thread switch press event */
+                //Event_post(g_eventTransport, Event_Id_02);
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {
@@ -419,9 +422,6 @@ void RemoteSetMode(uint32_t mode)
 
         SetLocateButtonLED(g_sysData.cueIndex);
     }
-
-    /* Signal the TCP worker thread switch press event */
-    Event_post(g_eventTransport, Event_Id_02);
 }
 
 //*****************************************************************************
@@ -508,6 +508,9 @@ void HandleButtonPress(uint32_t mask)
         else
             g_sysParms.showLongTime = true;
     }
+
+    // Notify the software remote of status change
+    Event_post(g_eventTransport, Event_Id_02);
 }
 
 //*****************************************************************************
