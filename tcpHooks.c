@@ -321,6 +321,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.transportMode      = (uint16_t)transportMode;
         stateMsg.tapeDirection      = tapedir;
         stateMsg.tapeSpeed          = (uint8_t)g_sysData.tapeSpeed;
+        stateMsg.tapeSize           = (uint8_t)2;
         stateMsg.searchProgress     = (uint8_t)g_sysData.searchProgress;
         stateMsg.searching          = g_sysData.searching;
         stateMsg.monitorFlags       = 0;
@@ -464,11 +465,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         bytesToRecv;
     size_t      index;
     uint8_t*    buf;
-    uint32_t    cue_flags;
 
     STC_COMMAND_HDR msg;
 
-    static uint32_t smask[10] = {
+    static const uint32_t smask[10] = {
         SW_LOC0, SW_LOC1, SW_LOC2, SW_LOC3, SW_LOC4,
         SW_LOC5, SW_LOC6, SW_LOC7, SW_LOC8, SW_LOC9
     };
@@ -496,7 +496,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         } while(bytesToRecv > 0);
 
-        System_printf("RX TRANSPORT CMD %d", msg.command);
+        // Determine which command to process from the client
 
         switch(msg.command)
         {
@@ -524,16 +524,11 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_LOCATE:
-            // Set the cue point flags if specified
-            if (msg.param2 == 1)
-                cue_flags = CF_AUTO_PLAY;
-            else if (msg.param2 == 2)
-                cue_flags = CF_AUTO_REC;
-            else
-                cue_flags = 0;
             // Start the auto-locator for the cue point index given
             if (msg.param1 <= 9)
-                Remote_PostSwitchPress(smask[msg.param1], cue_flags);
+                Remote_PostSwitchPress(smask[msg.param1], (uint32_t)msg.param2);
+            else
+                LocateSearch(LAST_CUE_POINT,  (uint32_t)msg.param2);
             break;
 
         case STC_CMD_LOCATE_MODE:

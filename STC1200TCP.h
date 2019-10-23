@@ -105,6 +105,7 @@ typedef struct _STC_STATE_MSG {
     uint16_t    transportMode;          /* Current transport mode     */
     int8_t      tapeDirection;          /* dir 1=fwd, 0=idle, -1=rew  */
     uint8_t     tapeSpeed;              /* tape speed (15 or 30)      */
+    uint8_t     tapeSize;               /* tape size 1" or 2"         */
     uint8_t     searchProgress;         /* search progress 0-100%     */
     uint8_t     searching;              /* true if search in progress */
 	uint8_t		monitorFlags;			/* monitor mode flags         */
