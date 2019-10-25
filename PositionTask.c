@@ -120,7 +120,7 @@ void PositionZeroReset(void)
  * Convert absolute encoder position to tape time units.
  *****************************************************************************/
 
-#define INV_ROLLER_TICKS_PER_REV    (1.0f / ROLLER_TICKS_PER_REV_F);
+#define INV_ROLLER_TICKS_PER_REV    (1.0f / ROLLER_TICKS_PER_REV_F)
 
 void PositionToTapeTime(int tapePosition, TAPETIME* tapeTime)
 {

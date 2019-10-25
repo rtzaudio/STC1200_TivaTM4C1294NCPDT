@@ -211,8 +211,9 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_LIFTER			5
 #define STC_CMD_LOCATE			6       /* param0 1=autoplay, 2=autorec    */
 #define STC_CMD_LOCATE_MODE		7       /* param0 0=cue-mode, 1=store-mode */
-#define STC_CMD_LOCATE_CLEAR	8       /* param0 0=index                  */
+#define STC_CMD_CUEPOINT_CLEAR	8       /* param0 0=index                  */
 #define STC_CMD_TRACK_ARM       9       /* param0 0=index                  */
 #define STC_CMD_TRACK_SET_STATE 10      /* param0 0=index, param1=flags    */
+#define STC_CMD_TRACK_GET_STATE 11      /* param0 0=index, param1=flags    */
 
 #pragma pack(pop)

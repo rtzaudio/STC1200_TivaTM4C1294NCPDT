@@ -300,7 +300,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 HandleButtonPress(msg.param1.U, msg.param2.U);
 
                 /* Signal the TCP worker thread switch press event */
-                //Event_post(g_eventTransport, Event_Id_02);
+                Event_post(g_eventTransport, Event_Id_02);
             }
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {

@@ -15,6 +15,7 @@
 
 #include "PositionTask.h"
 #include "LocateTask.h"
+#include "TrackConfig.h"
 
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION

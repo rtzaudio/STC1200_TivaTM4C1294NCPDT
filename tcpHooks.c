@@ -291,10 +291,12 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
      */
     Event_post(g_eventTransport, Event_Id_00);
 
+    const UInt EVENT_MASK = Event_Id_00|Event_Id_01|Event_Id_02|Event_Id_03|Event_Id_04;
+
     while (connected)
     {
         /* Wait for a position change event from the tape roller position task */
-        UInt events = Event_pend(g_eventTransport, Event_Id_NONE, Event_Id_00|Event_Id_01|Event_Id_02, 2500);
+        UInt events = Event_pend(g_eventTransport, Event_Id_NONE, EVENT_MASK, 2500);
 
         /* Get the tape time member values */
         PositionToTapeTime(g_sysData.tapePosition, &stateMsg.tapeTime);
@@ -458,13 +460,14 @@ shutdown:
 Void tcpCommandWorker(UArg arg0, UArg arg1)
 {
     bool        connected = true;
+    bool        notify;
     int         clientfd = (int)arg0;
     int         bytesSent;
     int         bytesToSend;
     int         bytesRcvd;
     int         bytesToRecv;
-    size_t      index;
     uint8_t*    buf;
+    uint32_t    mask;
 
     STC_COMMAND_HDR msg;
 
@@ -498,6 +501,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         // Determine which command to process from the client
 
+        notify = false;
+
         switch(msg.command)
         {
         case STC_CMD_STOP:
@@ -505,11 +510,21 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_REW:
-            Transport_PostButtonPress(S_REW);
+            mask = S_REW;
+            /* simulate REC+FWD for lib wind mode */
+            if (msg.param1 & STC_M_LIBWIND)
+                mask |= S_REC;
+            Transport_PostButtonPress(mask);
+            //Transport_Rew(0, msg.param1);
             break;
 
         case STC_CMD_FWD:
-            Transport_PostButtonPress(S_FWD);
+            mask = S_FWD;
+            /* simulate REC+FWD for lib wind mode */
+            if (msg.param1 & STC_M_LIBWIND)
+                mask |= S_REC;
+            Transport_PostButtonPress(mask);
+            //Transport_Fwd(0, msg.param1);
             break;
 
         case STC_CMD_PLAY:
@@ -536,16 +551,25 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Remote_PostSwitchPress((msg.param1 == 1) ? SW_STORE : SW_CUE, 0);
             break;
 
+        case STC_CMD_CUEPOINT_CLEAR:
+            if (msg.param1 == 0xFFFF)
+                CuePointClearAll();
+            else
+                CuePointClear((size_t)msg.param1);
+            notify = true;
+            break;
+
         case STC_CMD_TRACK_SET_STATE:
             /* param0 0=index, param1=flags */
-            if ((index = (size_t)msg.param1) < STC_MAX_TRACKS)
-            {
-                g_sysData.trackState[index] = (uint8_t)msg.param2;
-
-                Event_post(g_eventTransport, Event_Id_03);
-            }
+            if (msg.param1 == 0xFFFF)
+                Track_SetAll((uint8_t)msg.param2, 0);
+            else
+                Track_SetState((size_t)msg.param1, (uint8_t)msg.param2, 0);
+            notify = true;
             break;
         }
+
+        // Now send the response packet
 
         bytesToSend = sizeof(STC_COMMAND_HDR);
 
@@ -566,6 +590,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         } while (bytesToSend > 0);
 
+        /* Notify refresh of current transport state change */
+
+        if (notify)
+            Event_post(g_eventTransport, Event_Id_03);
     }
 
     System_printf("tcpCommandWorker DISCONNECT clientfd = 0x%x\n", clientfd);

@@ -50,7 +50,7 @@ typedef struct _CUE_POINT {
  */
 #define LAST_CUE_POINT      MAX_CUE_POINTS
 
-#define MAX_TRACKS          24
+//#define MAX_TRACKS          24
 
 /*** MESSAGE STRUCTURES ****************************************************/
 
