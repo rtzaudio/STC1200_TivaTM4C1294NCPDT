@@ -196,13 +196,24 @@ typedef struct _STC_STATE_MSG {
 // STC COMMAND/RESPONSE Messages
 // =========================================================================
 
+#define STC_ALL_TRACKS      ((uint32_t)(-1))
+#define STC_ALL_CUEPOINTS   ((uint32_t)(-1))
+
 typedef struct _STC_COMMAND_HDR {
-    uint16_t    hdrlen;					/* size of this msg structure */
-    uint16_t    command;				/* the command ID to execute  */
+    uint16_t    hdrlen;                 /* size of this msg structure */
+    uint16_t    command;                /* the command ID to execute  */
     uint16_t    status;                 /* return status/error code   */
-    uint16_t    param1;					/* optional paramaters field  */
-    uint16_t    param2;					/* optional paramaters field  */
-	uint16_t    msglen;					/* trailing msg len, 0=none   */
+    union {
+        uint32_t    U;
+        int32_t     I;
+        float       F;
+    } param1;                           /* int, unsigned or float     */
+    union {
+        uint32_t    U;
+        int32_t     I;
+        float       F;
+    }  param2;                          /* int, unsigned or float     */
+    uint16_t    datalen;                /* trailing payload data len  */
 } STC_COMMAND_HDR;
 
 #define STC_CMD_STOP			1
@@ -213,11 +224,13 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_LOCATE			6       /* param1 1=autoplay, 2=autorec    */
 #define STC_CMD_LOCATE_MODE		7       /* param1 0=cue-mode, 1=store-mode */
 #define STC_CMD_CUEPOINT_CLEAR	8       /* param1=index                    */
-#define STC_CMD_TRACK_ARM       9       /* param1=index                    */
-#define STC_CMD_TRACK_SET_STATE 10      /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_GET_STATE 11      /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_MASK_ALL  12      /* param1=setmask, param2=clrmask  */
-#define STC_CMD_TRACK_MODE_ALL  13      /* param1=newmode, param2=0        */
-#define STC_CMD_ZERO_RESET      14      /* param1=0, param2=0              */
+#define STC_CMD_CUEPOINT_GET    9
+#define STC_CMD_CUEPOINT_SET    10
+#define STC_CMD_TRACK_ARM       11      /* param1=index                    */
+#define STC_CMD_TRACK_SET_STATE 12      /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_GET_STATE 13      /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_MASK_ALL  14      /* param1=setmask, param2=clrmask  */
+#define STC_CMD_TRACK_MODE_ALL  15      /* param1=newmode, param2=0        */
+#define STC_CMD_ZERO_RESET      16      /* param1=0, param2=0              */
 
 #pragma pack(pop)

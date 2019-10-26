@@ -466,6 +466,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         bytesToSend;
     int         bytesRcvd;
     int         bytesToRecv;
+    int         ipos;
     uint16_t    status;
     uint8_t*    buf;
     uint32_t    mask;
@@ -500,7 +501,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         } while(bytesToRecv > 0);
 
-        msg.status = status = 0;
+        msg.status  = status = 0;
 
         // Determine which command to process from the client
 
@@ -521,7 +522,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              */
             mask = S_REW;
             /* simulate REC+FWD for lib wind mode */
-            if (msg.param1 & STC_M_LIBWIND)
+            if (msg.param1.U & STC_M_LIBWIND)
                 mask |= S_REC;
             Transport_PostButtonPress(mask);
             //Transport_Rew(0, msg.param1);
@@ -533,7 +534,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              */
             mask = S_FWD;
             /* simulate REC+FWD for lib wind mode */
-            if (msg.param1 & STC_M_LIBWIND)
+            if (msg.param1.U & STC_M_LIBWIND)
                 mask |= S_REC;
             Transport_PostButtonPress(mask);
             //Transport_Fwd(0, msg.param1);
@@ -543,7 +544,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: 1=play+record, 0=play mode
              * param2: not used, zero
              */
-            if (msg.param1 == 1)
+            if (msg.param1.U == 1)
                 Transport_PostButtonPress(S_PLAY|S_REC);
             else
                 Transport_PostButtonPress(S_PLAY);
@@ -561,46 +562,60 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: cue point index (0-9)
              * param2: cue flags, STC_CF_AUTO_PLAY or STC_CF_AUTO_REC
              */
-            if (msg.param1 <= 9)
-                Remote_PostSwitchPress(smask[msg.param1], (uint32_t)msg.param2);
+            if (msg.param1.U <= 9)
+                Remote_PostSwitchPress(smask[msg.param1.U], msg.param2.U);
             else
-                LocateSearch(LAST_CUE_POINT,  (uint32_t)msg.param2);
+                LocateSearch(LAST_CUE_POINT,  msg.param2.U);
             break;
 
         case STC_CMD_LOCATE_MODE:
             /* param1: 1=store-mode, 0=cue-mode
              * param2: not used, zero
              */
-            Remote_PostSwitchPress((msg.param1 == 1) ? SW_STORE : SW_CUE, 0);
+            Remote_PostSwitchPress((msg.param1.U == 1) ? SW_STORE : SW_CUE, 0);
+            break;
+
+        case STC_CMD_CUEPOINT_SET:
+            /* param1: cue point index
+             * param2: not used, zero
+             */
+            CuePointSet((size_t)msg.param1.U, ipos);
+            break;
+
+        case STC_CMD_CUEPOINT_GET:
+            /* param1: cue point index
+             * param2: not used, zero
+             */
+            CuePointGet((size_t)msg.param1.U, &msg.param2.I);
             break;
 
         case STC_CMD_CUEPOINT_CLEAR:
-            /* param1: cue point index, or 0xFFFF for all cue points
+            /* param1: cue point index, or -1 for all cue points
              * param2: not used, zero
              */
-            if (msg.param1 == 0xFFFF)
+            if (msg.param1.U == STC_ALL_CUEPOINTS)
                 CuePointClearAll();
             else
-                CuePointClear((size_t)msg.param1);
+                CuePointClear((size_t)msg.param1.U);
             notify = true;
             break;
 
         case STC_CMD_TRACK_SET_STATE:
-            /* param1: index or 0xFFFF for all tracks
+            /* param1: index or -1 for all tracks
              * param2: track state bits
              */
-            if (msg.param1 == 0xFFFF)
-                Track_SetAll((uint8_t)msg.param2, 0);
+            if (msg.param1.U == STC_ALL_TRACKS)
+                Track_SetAll((uint8_t)msg.param2.U, 0);
             else
-                Track_SetState((size_t)msg.param1, (uint8_t)msg.param2, 0);
+                Track_SetState((size_t)msg.param1.U, (uint8_t)msg.param2.U, 0);
             notify = true;
             break;
 
         case STC_CMD_TRACK_MASK_ALL:
-            /* param1 = setmask,
-             * param2 = clearmask
+            /* param1 = set mask,
+             * param2 = clear mask
              */
-            Track_MaskAll((uint8_t)msg.param1, (uint8_t)msg.param2);
+            Track_MaskAll((uint8_t)msg.param1.U, (uint8_t)msg.param2.U);
             notify = true;
             break;
 
@@ -608,7 +623,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1 = new transport mode
              * param2 = 0
              */
-            Track_ModeAll((uint8_t)msg.param1);
+            Track_ModeAll((uint8_t)msg.param1.U);
             notify = true;
             break;
 
@@ -626,7 +641,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         buf = (uint8_t*)&msg;
 
-        msg.status = status;
+        msg.status  = status;
+        msg.datalen = 0;
 
         do {
 
