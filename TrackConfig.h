@@ -22,6 +22,6 @@
 bool Track_SetState(size_t track, uint8_t mode, uint8_t flags);
 bool Track_GetState(size_t track, uint8_t* modeflags);
 bool Track_SetAll(uint8_t mode, uint8_t flags);
-bool Track_ClearAll(void);
+bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 
 #endif /* _TRACKCONFIG_H_ */

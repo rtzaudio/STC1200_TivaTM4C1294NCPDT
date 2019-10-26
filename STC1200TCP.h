@@ -199,6 +199,7 @@ typedef struct _STC_STATE_MSG {
 typedef struct _STC_COMMAND_HDR {
     uint16_t    hdrlen;					/* size of this msg structure */
     uint16_t    command;				/* the command ID to execute  */
+    uint16_t    status;                 /* return status/error code   */
     uint16_t    param1;					/* optional paramaters field  */
     uint16_t    param2;					/* optional paramaters field  */
 	uint16_t    msglen;					/* trailing msg len, 0=none   */
@@ -209,11 +210,12 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_REW				3
 #define STC_CMD_FWD				4
 #define STC_CMD_LIFTER			5
-#define STC_CMD_LOCATE			6       /* param0 1=autoplay, 2=autorec    */
-#define STC_CMD_LOCATE_MODE		7       /* param0 0=cue-mode, 1=store-mode */
-#define STC_CMD_CUEPOINT_CLEAR	8       /* param0 0=index                  */
-#define STC_CMD_TRACK_ARM       9       /* param0 0=index                  */
-#define STC_CMD_TRACK_SET_STATE 10      /* param0 0=index, param1=flags    */
-#define STC_CMD_TRACK_GET_STATE 11      /* param0 0=index, param1=flags    */
+#define STC_CMD_LOCATE			6       /* param1 1=autoplay, 2=autorec    */
+#define STC_CMD_LOCATE_MODE		7       /* param1 0=cue-mode, 1=store-mode */
+#define STC_CMD_CUEPOINT_CLEAR	8       /* param1=index                    */
+#define STC_CMD_TRACK_ARM       9       /* param1=index                    */
+#define STC_CMD_TRACK_SET_STATE 10      /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_GET_STATE 11      /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_MASK_ALL  12      /* param1=setmask, param2=clrmask  */
 
 #pragma pack(pop)

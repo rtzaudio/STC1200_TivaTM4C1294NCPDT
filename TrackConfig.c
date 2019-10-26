@@ -73,6 +73,8 @@
 
 #include "STC1200.h"
 #include "Board.h"
+#include "STC1200TCP.h"
+#include "TrackConfig.h"
 
 /* Global STC-1200 System data */
 extern SYSDATA g_sysData;
@@ -88,6 +90,8 @@ bool Track_SetState(size_t track, uint8_t mode, uint8_t flags)
         return false;
 
     g_sysData.trackState[track] = mode | flags;
+
+    return true;
 }
 
 bool Track_GetState(size_t track, uint8_t* modeflags)
@@ -113,13 +117,25 @@ bool Track_SetAll(uint8_t mode, uint8_t flags)
     return true;
 }
 
-bool Track_ClearAll(void)
+bool Track_MaskAll(uint8_t setmask, uint8_t clearmask)
 {
     size_t i;
+    uint8_t mode;
+    uint8_t mask;
 
     for (i=0; i < MAX_TRACKS; i++)
     {
-        g_sysData.trackState[i] = (uint8_t)0;
+        mode = g_sysData.trackState[i] & STC_TRACK_MASK;
+        mask = g_sysData.trackState[i] & ~(STC_TRACK_MASK);
+
+        /* Clear any bits in the clear mask */
+        mask &= ~(clearmask);
+
+        /* Set any bits in the set mask */
+        mask |= setmask;
+
+        /* Store the new track flags, mode preserved */
+        g_sysData.trackState[i] = mode | mask;
     }
 
     return true;

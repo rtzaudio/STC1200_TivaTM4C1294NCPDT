@@ -466,6 +466,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         bytesToSend;
     int         bytesRcvd;
     int         bytesToRecv;
+    uint16_t    status;
     uint8_t*    buf;
     uint32_t    mask;
 
@@ -499,6 +500,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         } while(bytesToRecv > 0);
 
+        msg.status = status = 0;
+
         // Determine which command to process from the client
 
         notify = false;
@@ -506,10 +509,16 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
         switch(msg.command)
         {
         case STC_CMD_STOP:
+            /* param1: not used, zero
+             * param2: not used, zero
+             */
             Transport_PostButtonPress(S_STOP);
             break;
 
         case STC_CMD_REW:
+            /* param1: flags STC_M_LIBWIND
+             * param2: not used, zero
+             */
             mask = S_REW;
             /* simulate REC+FWD for lib wind mode */
             if (msg.param1 & STC_M_LIBWIND)
@@ -519,6 +528,9 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_FWD:
+            /* param1: flags STC_M_LIBWIND
+             * param2: not used, zero
+             */
             mask = S_FWD;
             /* simulate REC+FWD for lib wind mode */
             if (msg.param1 & STC_M_LIBWIND)
@@ -528,6 +540,9 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_PLAY:
+            /* param1: 1=play+record, 0=play mode
+             * param2: not used, zero
+             */
             if (msg.param1 == 1)
                 Transport_PostButtonPress(S_PLAY|S_REC);
             else
@@ -535,11 +550,17 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_LIFTER:
+            /* param1: not used, zero
+             * param2: not used, zero
+             */
             Transport_PostButtonPress(S_LDEF);
             break;
 
         case STC_CMD_LOCATE:
             // Start the auto-locator for the cue point index given
+            /* param1: cue point index (0-9)
+             * param2: cue flags, STC_CF_AUTO_PLAY or STC_CF_AUTO_REC
+             */
             if (msg.param1 <= 9)
                 Remote_PostSwitchPress(smask[msg.param1], (uint32_t)msg.param2);
             else
@@ -547,11 +568,16 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_LOCATE_MODE:
-            /* 1=store-mode, 0=cue-mode */
+            /* param1: 1=store-mode, 0=cue-mode
+             * param2: not used, zero
+             */
             Remote_PostSwitchPress((msg.param1 == 1) ? SW_STORE : SW_CUE, 0);
             break;
 
         case STC_CMD_CUEPOINT_CLEAR:
+            /* param1: cue point index, or 0xFFFF for all cue points
+             * param2: not used, zero
+             */
             if (msg.param1 == 0xFFFF)
                 CuePointClearAll();
             else
@@ -560,11 +586,21 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_TRACK_SET_STATE:
-            /* param0 0=index, param1=flags */
+            /* param1: index or 0xFFFF for all tracks
+             * param2: track state bits
+             */
             if (msg.param1 == 0xFFFF)
                 Track_SetAll((uint8_t)msg.param2, 0);
             else
                 Track_SetState((size_t)msg.param1, (uint8_t)msg.param2, 0);
+            notify = true;
+            break;
+
+        case STC_CMD_TRACK_MASK_ALL:
+            /* param1 = setmask,
+             * param2 = clearmask
+             */
+            Track_MaskAll((uint8_t)msg.param1, (uint8_t)msg.param2);
             notify = true;
             break;
         }
@@ -574,6 +610,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
         bytesToSend = sizeof(STC_COMMAND_HDR);
 
         buf = (uint8_t*)&msg;
+
+        msg.status = status;
 
         do {
 
