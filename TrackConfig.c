@@ -110,9 +110,7 @@ bool Track_SetAll(uint8_t mode, uint8_t flags)
     size_t i;
 
     for (i=0; i < MAX_TRACKS; i++)
-    {
         g_sysData.trackState[i] = mode | flags;
-    }
 
     return true;
 }
@@ -127,15 +125,27 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask)
     {
         mode = g_sysData.trackState[i] & STC_TRACK_MASK;
         mask = g_sysData.trackState[i] & ~(STC_TRACK_MASK);
-
         /* Clear any bits in the clear mask */
         mask &= ~(clearmask);
-
         /* Set any bits in the set mask */
         mask |= setmask;
-
         /* Store the new track flags, mode preserved */
         g_sysData.trackState[i] = mode | mask;
+    }
+
+    return true;
+}
+
+bool Track_ModeAll(uint8_t setmode)
+{
+    size_t i;
+    uint8_t mask;
+
+    for (i=0; i < MAX_TRACKS; i++)
+    {
+        mask = g_sysData.trackState[i] & ~(STC_TRACK_MASK);
+        /* Store the new track flags, mode preserved */
+        g_sysData.trackState[i] = setmode | mask;
     }
 
     return true;

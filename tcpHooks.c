@@ -603,6 +603,14 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Track_MaskAll((uint8_t)msg.param1, (uint8_t)msg.param2);
             notify = true;
             break;
+
+        case STC_CMD_TRACK_MODE_ALL:
+            /* param1 = new transport mode
+             * param2 = 0
+             */
+            Track_ModeAll((uint8_t)msg.param1);
+            notify = true;
+            break;
         }
 
         // Now send the response packet
