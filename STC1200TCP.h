@@ -218,5 +218,6 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_TRACK_GET_STATE 11      /* param1=index, param2=flags      */
 #define STC_CMD_TRACK_MASK_ALL  12      /* param1=setmask, param2=clrmask  */
 #define STC_CMD_TRACK_MODE_ALL  13      /* param1=newmode, param2=0        */
+#define STC_CMD_ZERO_RESET      14      /* param1=0, param2=0              */
 
 #pragma pack(pop)

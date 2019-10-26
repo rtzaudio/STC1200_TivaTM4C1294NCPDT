@@ -611,6 +611,13 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Track_ModeAll((uint8_t)msg.param1);
             notify = true;
             break;
+
+        case STC_CMD_ZERO_RESET:
+            /* param1 = 0
+             * param2 = 0
+             */
+            PositionZeroReset();
+            break;
         }
 
         // Now send the response packet
