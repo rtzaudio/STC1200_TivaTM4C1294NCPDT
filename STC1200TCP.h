@@ -62,28 +62,33 @@ typedef struct _TAPETIME {
 // TCP/IP Port Numbers for STC remote server
 // =========================================================================
 
-#define STC_PORT_STATE      1200        /* streaming transport state   */
-#define STC_PORT_COMMAND    1201        /* transport cmd/response port */
+#define STC_PORT_STATE          1200    /* streaming transport state   */
+#define STC_PORT_COMMAND        1201    /* transport cmd/response port */
 
 /* Defines the maximum number of tracks supported by any machine.
  * Some machines may have less, like 16 or 8 track machines.
  */
-#define STC_MAX_TRACKS		24			/* max number of audio tracks  */
+#define STC_MAX_TRACKS		    24      /* max number of audio tracks  */
 
-/* This defines the maximum number of cue point memories. Note
- * one extra cue point is reserved in the buffer space at the end for
- * the transport deck search/cue buttons.
+/* We support 10 cue points for the remote, but three extra cue memories
+ * are reserved for system use. One of these holds the 'home' cue point
+ * associated with the search/cue buttons on the transport deck. This is
+ * a dedicated cue point for the machine operator and is associated with
+ * the RTZ button on the software remote. The home cue point memory is
+ * independent from the remote user cue point memories.
  */
-#define STC_MAX_CUE_POINTS	64
+#define STC_USER_CUE_POINTS     10      /* locate buttons 0-9 cue points    */
+#define STC_SYS_CUE_POINTS      3       /* total system cue point memories  */
+#define STC_MAX_CUE_POINTS      (STC_USER_CUE_POINTS + STC_SYS_CUE_POINTS)
 
-// The home cue point memory for the cue/search buttons on the transport
-#define STC_HOME_CUE_POINT	STC_MAX_CUE_POINTS
-
-/* The STC actually has 64 cue point memories, but only 
- * ten of these are used as they are directly associated to 
- * single locator buttons for quick access.
+/* Two other cue point memories are reserved for the auto-locator
+ * to define the loop start/end cue points for loop mode. These are
+ * stored near the end of the cue point array memory along with the
+ * home cue point memory.
  */
-#define STC_MAX_CUES		10
+#define STC_HOME_CUE_POINT          (MAX_CUE_POINTS - 1)
+#define STC_LOOP_END_CUE_POINT      (MAX_CUE_POINTS - 2)
+#define STC_LOOP_START_CUE_POINT    (MAX_CUE_POINTS - 3)
 
 // =========================================================================
 // STC state update message structure. This message streams from the STC
@@ -110,7 +115,7 @@ typedef struct _STC_STATE_MSG {
     uint8_t     searching;              /* true if search in progress */
 	uint8_t		monitorFlags;			/* monitor mode flags         */
 	uint8_t		trackState[STC_MAX_TRACKS];
-	uint8_t		cueState[STC_MAX_CUES];
+	uint8_t		cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;
 
 /* The lower three bits of STC_STATE_MSG.transportMode are the
@@ -186,6 +191,14 @@ typedef struct _STC_STATE_MSG {
 #define STC_L_ALT           0x2000		/* MENU button LED */
 #define STC_L_AUTO          0x4000		/* NEXT button LED */
 #define STC_L_CUE           0x8000		/* EDIT button LED */
+
+/* The following bit flags are not supported by the DRC remote as it
+ * has less buttons that the DRCWIN application. So, we use the upper
+ * 16-bits of the LED status flags for additional button flags.
+ */
+#define STC_L_LOOP          0x00010000  /* loop mark begin button */
+#define STC_L_MARK_BEGIN    0x00020000  /* loop mark begin button */
+#define STC_L_MARK_END      0x00040000  /* loop mark begin button */
 
 #define STC_L_LOC_MASK      (STC_L_LOC1|STC_L_LOC2|STC_L_LOC3|STC_L_LOC4| \
                              STC_L_LOC5|STC_L_LOC6|STC_L_LOC7|STC_L_LOC8| \

@@ -333,7 +333,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
             stateMsg.trackState[i] = g_sysData.trackState[i];
 
         /* Copy the cue memory status bits */
-        for (i=0; i < STC_MAX_CUES; i++)
+        for (i=0; i < STC_MAX_CUE_POINTS; i++)
             stateMsg.cueState[i] = (uint8_t)g_sysData.cuePoint[i].flags;
 
         /* Prepare to start sending state message buffer */
@@ -587,14 +587,17 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: cue point index
              * param2: not used, zero
              */
-            CuePointSet((size_t)msg.param1.U, ipos, CF_NONE);
+            CuePointSet((size_t)msg.param1.U, msg.param2.I, CF_NONE);
             break;
 
         case STC_CMD_CUEPOINT_GET:
             /* param1: cue point index
              * param2: not used, zero
              */
-            CuePointGet((size_t)msg.param1.U, &msg.param2.I);
+            mask = CuePointGet((size_t)msg.param1.U, &ipos);
+            /* return position in param1, flags in param2 */
+            msg.param1.I = ipos;
+            msg.param2.U = mask;
             break;
 
         case STC_CMD_CUEPOINT_CLEAR:
