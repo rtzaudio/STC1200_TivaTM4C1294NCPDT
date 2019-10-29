@@ -280,7 +280,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 /* Cancel any search in progress */
                 if (IsLocatorSearching())
                 {
-                    LocateAbort();
+                    LocateCancel();
                     Task_sleep(250);
                 }
                 /* Send the transport command button mask to the DTC */

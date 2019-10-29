@@ -32,3 +32,9 @@ web and download free from TI.
 === VERSION 1.03 (09/10/2019) ==============================================
 
 First beta relase of STC-1200 firmware.  
+
+=== VERSION 1.04 (10/27/2019) ==============================================
+
+Support for DRCWIN TCP/IP interface software remote control added. Minor bug
+fixes in the locator and other tasks. Software interface added to support
+future channel switching logic.

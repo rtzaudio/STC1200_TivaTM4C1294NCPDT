@@ -30,9 +30,9 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        3           /* firmware revision */
-#define FIRMWARE_BUILD      3           /* firmware build number */
-#define FIRMWARE_MIN_BUILD  3           /* min build req'd to force reset */
+#define FIRMWARE_REV        4           /* firmware revision */
+#define FIRMWARE_BUILD      1           /* firmware build number */
+#define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
 #error "STC build option FIRMWARE_MIN_BUILD set incorrectly"

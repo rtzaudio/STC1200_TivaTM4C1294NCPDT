@@ -138,19 +138,19 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
     case OP_NOTIFY_BUTTON:
         param1 = msg->param1.U;
         if (param1 & S_STOP) {
-            LocateAbort();
+            LocateCancel();
         } else if (param1 & S_PLAY) {
-            LocateAbort();
+            LocateCancel();
         } else if (param1 & S_REW) {
-            LocateAbort();
+            LocateCancel();
         } else if (param1 & S_FWD) {
-            LocateAbort();
+            LocateCancel();
         } else if (param1 & S_LDEF) {
-            LocateAbort();
+            LocateCancel();
         } else if (param1 & S_TAPEOUT) {
-            LocateAbort();
+            LocateCancel();
         } else if (param1 & S_TAPEIN) {
-            LocateAbort();
+            LocateCancel();
         }
         break;
 

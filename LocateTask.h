@@ -77,10 +77,9 @@ void CuePointClear(size_t index);
 void CuePointClearAll(void);
 void CuePointTimeGet(size_t index, TAPETIME* tapeTime);
 
-void LocateAbort(void);
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);
-bool IsLocatorSearching(void);
+Bool IsLocatorSearching(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 

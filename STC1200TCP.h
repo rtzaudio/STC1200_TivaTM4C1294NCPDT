@@ -169,7 +169,6 @@ typedef struct _STC_STATE_MSG {
 #define STC_L_REW           0x0004      /* REW button LED  */
 #define STC_L_FWD           0x0008      /* FWD button LED  */
 #define STC_L_STOP          0x0010      /* STOP button LED */
-
 /* Locator and Other Button LED's */
 #define STC_L_LOC1          0x0001		/* LOC1 button LED */
 #define STC_L_LOC2          0x0002		/* LOC2 button LED */
@@ -216,6 +215,10 @@ typedef struct _STC_COMMAND_HDR {
     uint16_t    datalen;                /* trailing payload data len  */
 } STC_COMMAND_HDR;
 
+/*
+ * Locator Command Message Types for 'STC_COMMAND_HDR.command'
+ */
+
 #define STC_CMD_STOP			1
 #define STC_CMD_PLAY			2       /* param0 1=record */
 #define STC_CMD_REW				3
@@ -232,5 +235,6 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_TRACK_MASK_ALL  14      /* param1=setmask, param2=clrmask  */
 #define STC_CMD_TRACK_MODE_ALL  15      /* param1=newmode, param2=0        */
 #define STC_CMD_ZERO_RESET      16      /* param1=0, param2=0              */
+#define STC_CMD_CANCEL          17      /* param1=0, param2=0              */
 
 #pragma pack(pop)

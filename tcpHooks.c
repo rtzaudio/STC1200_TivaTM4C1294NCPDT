@@ -513,6 +513,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: not used, zero
              * param2: not used, zero
              */
+            if (IsLocatorSearching())
+                LocateCancel();
             Transport_PostButtonPress(S_STOP);
             break;
 
@@ -520,6 +522,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: flags STC_M_LIBWIND
              * param2: not used, zero
              */
+            if (IsLocatorSearching())
+                LocateCancel();
             mask = S_REW;
             /* simulate REC+FWD for lib wind mode */
             if (msg.param1.U & STC_M_LIBWIND)
@@ -532,6 +536,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: flags STC_M_LIBWIND
              * param2: not used, zero
              */
+            if (IsLocatorSearching())
+                LocateCancel();
             mask = S_FWD;
             /* simulate REC+FWD for lib wind mode */
             if (msg.param1.U & STC_M_LIBWIND)
@@ -544,6 +550,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: 1=play+record, 0=play mode
              * param2: not used, zero
              */
+            if (IsLocatorSearching())
+                LocateCancel();
             if (msg.param1.U == 1)
                 Transport_PostButtonPress(S_PLAY|S_REC);
             else
@@ -632,6 +640,13 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = 0
              */
             PositionZeroReset();
+            break;
+
+        case STC_CMD_CANCEL:
+            /* param1 = 0
+             * param2 = 0
+             */
+            LocateCancel();
             break;
         }
 
