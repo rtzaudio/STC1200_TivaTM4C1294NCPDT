@@ -374,11 +374,11 @@ void DrawTimeBottom(void)
     x = width + 6;
     y = y + 1;
 
-    if (CuePointGet(g_sysData.cueIndex, NULL) & CF_ACTIVE)
+    if (IsCuePointFlags(g_sysData.cueIndex, CF_ACTIVE))
     {
         CuePointTimeGet(g_sysData.cueIndex, &tapeTime);
         int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';
-        sprintf(buf, "%c%1u:%02u:%02u:%1u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs, tapeTime.tens);
+        snprintf(buf, sizeof(buf)-1, "%c%1u:%02u:%02u:%1u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs, tapeTime.tens);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
     }
     else

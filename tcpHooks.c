@@ -573,7 +573,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             if (msg.param1.U <= 9)
                 Remote_PostSwitchPress(smask[msg.param1.U], msg.param2.U);
             else
-                LocateSearch(LAST_CUE_POINT,  msg.param2.U);
+                LocateSearch(HOME_CUE_POINT,  msg.param2.U);
             break;
 
         case STC_CMD_LOCATE_MODE:
@@ -587,7 +587,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: cue point index
              * param2: not used, zero
              */
-            CuePointSet((size_t)msg.param1.U, ipos);
+            CuePointSet((size_t)msg.param1.U, ipos, CF_NONE);
             break;
 
         case STC_CMD_CUEPOINT_GET:

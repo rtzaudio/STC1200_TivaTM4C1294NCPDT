@@ -546,7 +546,7 @@ void HandleDigitPress(size_t index, uint32_t flags)
         SetLocateButtonLED(index);
 
         /* Store the current locate point */
-        CuePointSet(index, g_sysData.tapePosition);
+        CuePointSet(index, g_sysData.tapePosition, CF_NONE);
 
         /* Return to previous Cue or default mode */
         RemoteSetMode(g_sysData.remoteModePrev);
@@ -621,7 +621,7 @@ void HandleDigitPress(size_t index, uint32_t flags)
             TapeTimeToPosition(&g_sysData.editTime, &ipos);
 
             /* Store the position at current memory index */
-            CuePointSet(g_sysData.cueIndex, ipos);
+            CuePointSet(g_sysData.cueIndex, ipos, CF_NONE);
             break;
 
         default:

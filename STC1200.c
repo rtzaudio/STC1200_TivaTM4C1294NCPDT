@@ -423,7 +423,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 			else if (msgCmd.param == Board_BTN_CUE)
 			{
 				/* Store the current position at cue point 65 */
-				CuePointSet(LAST_CUE_POINT, 0);
+				CuePointSet(HOME_CUE_POINT, 0, CF_NONE);
 
                 /* Debounce button delay */
                 Task_sleep(DEBOUNCE_TIME);
@@ -441,7 +441,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 				/* Begin locate to last cue point memory. This is the
 				 * memory used by the cue/search buttons on the transport.
 				 */
-			    LocateSearch(LAST_CUE_POINT, 0);
+			    LocateSearch(HOME_CUE_POINT, 0);
 
 			    /* Debounce button delay */
                 Task_sleep(DEBOUNCE_TIME);

@@ -15,9 +15,9 @@
 
 /* Locator velocities for various distances from the locate point */
 
-#define JOG_VEL_FAR         0       /* 0 = use DTC default shuttle velocity */
-#define JOG_VEL_MID         500     /* velocity for mid distance from locate point */
-#define JOG_VEL_NEAR        240     /* velocity for near distance from locate point */
+#define JOG_VEL_FAR         0       /* 0 = default shuttle velocity     */
+#define JOG_VEL_MID         500     /* vel for mid distance search      */
+#define JOG_VEL_NEAR        240     /* vel for near distance search     */
 
 #define SHUTTLE_SLOW_VEL    240     /* slow velocity to use for locates */
 
@@ -25,8 +25,8 @@
 
 /* Cue Point Memory Table Structure */
 typedef struct _CUE_POINT {
-    int32_t		ipos;		/* relative tape position cue */
-    uint32_t	flags;      /* non-zero cue point active  */
+    int32_t		ipos;		        /* relative tape position cue       */
+    uint32_t	flags;              /* non-zero cue point active        */
 } CUE_POINT;
 
 /* Cue Point Flags */
@@ -35,22 +35,25 @@ typedef struct _CUE_POINT {
 #define CF_AUTO_PLAY        0x02    /* enter play mode after locate     */
 #define CF_AUTO_REC         0x04    /* enter play + record after locate */
 
-/* This defines the array size that holds all cue point memories. Note
- * one extra cue point is reserved in the buffer space at the end for
- * the transport deck search/cue buttons.
+/* We support 10 cue points for the remote, but three extra cue memories
+ * are reserved for system use. One of these holds the 'home' cue point
+ * associated with the search/cue buttons on the transport deck. This is
+ * a dedicated cue point for the machine operator and is associated with
+ * the RTZ button on the software remote. The home cue point memory is
+ * independent from the remote user cue point memories.
  */
-#define MAX_CUE_POINTS      64
+#define USER_CUE_POINTS     10      /* locate buttons 0-9 cue points    */
+#define SYS_CUE_POINTS      3       /* total system cue point memories  */
+#define MAX_CUE_POINTS      (USER_CUE_POINTS + SYS_CUE_POINTS)
 
-/* We support 64 cue points for the remote, but one extra cue point
- * memory is allocated for the search/cue buttons on the transport
- * deck. This cue point is independent from the remote cue points
- * and allows tape-op's running machine to use this for their own
- * purposes if desired. By default, this cue point is set to zero
- * to serve as RTZ until new cue point is stored vie the cue button.
+/* Two other cue point memories are reserved for the auto-locator
+ * to define the loop start/end cue points for loop mode. These are
+ * stored near the end of the cue point array memory along with the
+ * home cue point memory.
  */
-#define LAST_CUE_POINT      MAX_CUE_POINTS
-
-//#define MAX_TRACKS          24
+#define HOME_CUE_POINT          (MAX_CUE_POINTS - 1)
+#define LOOP_END_CUE_POINT      (MAX_CUE_POINTS - 2)
+#define LOOP_START_CUE_POINT    (MAX_CUE_POINTS - 3)
 
 /*** MESSAGE STRUCTURES ****************************************************/
 
@@ -61,6 +64,7 @@ typedef struct _CUE_POINT {
 typedef enum LocateType {
 	LOCATE_CANCEL=0,
     LOCATE_SEARCH,
+    LOCATE_LOOP
 } LocateType;
 
 typedef struct _LocateMessage {
@@ -72,10 +76,11 @@ typedef struct _LocateMessage {
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 uint32_t CuePointGet(size_t index, int* ipos);
-void CuePointSet(size_t index, int ipos);
+void CuePointSet(size_t index, int ipos, uint32_t cue_flags);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);
 void CuePointTimeGet(size_t index, TAPETIME* tapeTime);
+Bool IsCuePointFlags(size_t index, uint32_t flags);
 
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);

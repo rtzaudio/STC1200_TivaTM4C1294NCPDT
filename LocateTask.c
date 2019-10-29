@@ -134,7 +134,7 @@ void CuePointClear(size_t index)
 {
 	Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-	if (index <= MAX_CUE_POINTS)
+	if (index < MAX_CUE_POINTS)
 	{
 	    uint32_t key = Hwi_disable();
 
@@ -158,7 +158,7 @@ void CuePointClearAll(void)
 
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-    for (i=0; i < MAX_CUE_POINTS; i++)
+    for (i=0; i < USER_CUE_POINTS; i++)
     {
         uint32_t key = Hwi_disable();
 
@@ -179,19 +179,19 @@ void CuePointClearAll(void)
  * on the machine.
  *****************************************************************************/
 
-void CuePointSet(size_t index, int ipos)
+void CuePointSet(size_t index, int ipos, uint32_t cue_flags)
 {
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
     if (!ipos)
         ipos = g_sysData.tapePosition;
 
-    if (index <= MAX_CUE_POINTS)
+    if (index < MAX_CUE_POINTS)
     {
         uint32_t key = Hwi_disable();
 
         g_sysData.cuePoint[index].ipos  = ipos;
-        g_sysData.cuePoint[index].flags = CF_ACTIVE;
+        g_sysData.cuePoint[index].flags = CF_ACTIVE | cue_flags;
 
         Hwi_restore(key);
     }
@@ -209,7 +209,7 @@ uint32_t CuePointGet(size_t index, int* ipos)
 
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
-    if (index <= MAX_CUE_POINTS)
+    if (index < MAX_CUE_POINTS)
     {
         uint32_t key = Hwi_disable();
 
@@ -234,12 +234,34 @@ void CuePointTimeGet(size_t index, TAPETIME* tapeTime)
 {
     memset(tapeTime, 0, sizeof(TAPETIME));
 
-    if (index <= MAX_CUE_POINTS)
+    if (index < MAX_CUE_POINTS)
     {
         int cuePosition = g_sysData.cuePoint[index].ipos;
+
         PositionToTapeTime(cuePosition, tapeTime);
+
         tapeTime->flags = (cuePosition < 0) ? 0 : F_PLUS;
     }
+}
+
+/*****************************************************************************
+ * Test cue point status flags
+ *****************************************************************************/
+
+Bool IsCuePointFlags(size_t index, uint32_t flags)
+{
+    Bool status = FALSE;
+
+    if (index < MAX_CUE_POINTS)
+    {
+        uint32_t key = Hwi_disable();
+
+        status = g_sysData.cuePoint[index].flags & flags;
+
+        Hwi_restore(key);
+    }
+
+    return status;
 }
 
 //*****************************************************************************
@@ -251,7 +273,7 @@ Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags)
 {
     LocateMessage msgLocate;
 
-    if (cuePointIndex > LAST_CUE_POINT)
+    if (cuePointIndex >= MAX_CUE_POINTS)
         return FALSE;
 
     /* Make sure the memory location has a cue point stored */
@@ -320,11 +342,11 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
 
-    /* Initialize single transport cue point to zero */
-    CuePointSet(LAST_CUE_POINT, 0);
+    /* Set home cue point memory to zero */
+    CuePointSet(HOME_CUE_POINT, 0, CF_NONE);
 
-    /* Initialize LOC-1 to zero */
-    CuePointSet(g_sysData.cueIndex, 0);
+    /* Initialize LOC-0 to zero */
+    CuePointSet(g_sysData.cueIndex, 0, CF_NONE);
 
     while(TRUE)
     {
@@ -354,7 +376,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         cue_index = (size_t)msg.param1;
         cue_flags = msg.param2;
 
-        if (cue_index > MAX_CUE_POINTS)
+        if (cue_index >= MAX_CUE_POINTS)
             continue;
 
         /* Is the cue point is active? */
@@ -369,8 +391,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_LOW);
 
-        /* Cue memory is active, turn on the button LED */
-        if (cue_index < LAST_CUE_POINT)
+        /* If user cue memory, turn on the button LED */
+        if (cue_index < USER_CUE_POINTS)
             SetLocateButtonLED(cue_index);
 
         /* Set transport to STOP mode initially */
@@ -691,7 +713,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     cue_index = (size_t)msg.param1;
                     cue_flags = msg.param2;
 
-                    if (cue_index > MAX_CUE_POINTS)
+                    if (cue_index >= MAX_CUE_POINTS)
                         break;
 
                     /* Is the cue point is active? */
@@ -708,8 +730,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     /* Set SEARCHING_OUT status i/o pin */
                     GPIO_write(Board_SEARCHING, PIN_LOW);
 
-                    /* Cue memory is active, turn on the button LED */
-                    if (cue_index < LAST_CUE_POINT)
+                    /* If user cue memory, turn on the button LED */
+                    if (cue_index < USER_CUE_POINTS)
                         SetLocateButtonLED(cue_index);
 
                     /* Set transport to STOP mode initially */

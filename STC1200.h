@@ -110,7 +110,7 @@ typedef struct _SYSDATA
     float       ref_freq;                   /* master ref freq 9600 Hz    */
     TAPETIME    tapeTime;                   /* current tape time position */
     size_t      cueIndex;                   /* current cue table index    */
-    CUE_POINT	cuePoint[MAX_CUE_POINTS+1];	/* array of cue point data    */
+    CUE_POINT	cuePoint[MAX_CUE_POINTS];	/* array of cue point data    */
     uint8_t     trackState[MAX_TRACKS];
 } SYSDATA;
 
