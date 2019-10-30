@@ -51,9 +51,9 @@ typedef struct _CUE_POINT {
  * stored near the end of the cue point array memory along with the
  * home cue point memory.
  */
-#define HOME_CUE_POINT          (MAX_CUE_POINTS - 1)
-#define LOOP_END_CUE_POINT      (MAX_CUE_POINTS - 2)
-#define LOOP_START_CUE_POINT    (MAX_CUE_POINTS - 3)
+#define CUE_POINT_HOME      (MAX_CUE_POINTS - 1)
+#define CUE_POINT_MARK_IN   (MAX_CUE_POINTS - 2)
+#define CUE_POINT_MARK_OUT  (MAX_CUE_POINTS - 3)
 
 /*** MESSAGE STRUCTURES ****************************************************/
 
@@ -84,6 +84,7 @@ Bool IsCuePointFlags(size_t index, uint32_t flags);
 
 Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);
+Bool LocateLoop(uint32_t cue_flags);
 Bool IsLocatorSearching(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);

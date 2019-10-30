@@ -19,22 +19,22 @@
 
 // Defines for Windows equivalent types
 #ifndef int8_t
-#define int8_t		CHAR
+#define int8_t      CHAR
 #endif
 #ifndef uint8_t
-#define uint8_t		BYTE
+#define uint8_t     BYTE
 #endif
 #ifndef int16_t
-#define int16_t		INT16
+#define int16_t     INT16
 #endif
 #ifndef uint16_t
-#define uint16_t	UINT16
+#define uint16_t    UINT16
 #endif
 #ifndef int32_t
-#define int32_t		INT32
+#define int32_t     INT32
 #endif
 #ifndef uint32_t
-#define uint32_t	UINT32
+#define uint32_t    UINT32
 #endif
 
 // =========================================================================
@@ -52,9 +52,9 @@ typedef struct _TAPETIME {
 } TAPETIME;
 
 /* TAPETIME.flags */
-#define F_TAPETIME_PLUS		0x01	    /* 7-seg plus sign if set    */
-#define F_TAPETIME_BLINK	0x02	    /* blink all seven segments  */
-#define F_TAPETIME_BLANK	0x80	    /* blank the entire display  */
+#define F_TAPETIME_PLUS     0x01        /* 7-seg plus sign if set    */
+#define F_TAPETIME_BLINK    0x02        /* blink all seven segments  */
+#define F_TAPETIME_BLANK    0x80        /* blank the entire display  */
 
 #endif /* _WINDOWS */
 
@@ -68,7 +68,7 @@ typedef struct _TAPETIME {
 /* Defines the maximum number of tracks supported by any machine.
  * Some machines may have less, like 16 or 8 track machines.
  */
-#define STC_MAX_TRACKS		    24      /* max number of audio tracks  */
+#define STC_MAX_TRACKS          24      /* max number of audio tracks  */
 
 /* We support 10 cue points for the remote, but three extra cue memories
  * are reserved for system use. One of these holds the 'home' cue point
@@ -86,9 +86,9 @@ typedef struct _TAPETIME {
  * stored near the end of the cue point array memory along with the
  * home cue point memory.
  */
-#define STC_HOME_CUE_POINT          (MAX_CUE_POINTS - 1)
-#define STC_LOOP_END_CUE_POINT      (MAX_CUE_POINTS - 2)
-#define STC_LOOP_START_CUE_POINT    (MAX_CUE_POINTS - 3)
+#define STC_CUE_POINT_HOME      (STC_MAX_CUE_POINTS - 1)
+#define STC_CUE_POINT_MARK_IN   (STC_MAX_CUE_POINTS - 2)
+#define STC_CUE_POINT_MARK_OUT  (STC_MAX_CUE_POINTS - 3)
 
 // =========================================================================
 // STC state update message structure. This message streams from the STC
@@ -106,16 +106,16 @@ typedef struct _STC_STATE_MSG {
     uint32_t    ledMaskButton;          /* DRC remote button LED mask */
     uint32_t    ledMaskTransport;       /* current transport LED mask */
     int32_t     tapePosition;           /* signed relative position   */
-	uint32_t	tapeVelocity;			/* velocity of the tape       */
+    uint32_t    tapeVelocity;           /* velocity of the tape       */
     uint16_t    transportMode;          /* Current transport mode     */
     int8_t      tapeDirection;          /* dir 1=fwd, 0=idle, -1=rew  */
     uint8_t     tapeSpeed;              /* tape speed (15 or 30)      */
     uint8_t     tapeSize;               /* tape size 1" or 2"         */
     uint8_t     searchProgress;         /* search progress 0-100%     */
     uint8_t     searching;              /* true if search in progress */
-	uint8_t		monitorFlags;			/* monitor mode flags         */
-	uint8_t		trackState[STC_MAX_TRACKS];
-	uint8_t		cueState[STC_MAX_CUE_POINTS];
+    uint8_t     monitorFlags;           /* monitor mode flags         */
+    uint8_t     trackState[STC_MAX_TRACKS];
+    uint8_t     cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;
 
 /* The lower three bits of STC_STATE_MSG.transportMode are the
@@ -141,24 +141,24 @@ typedef struct _STC_STATE_MSG {
  * state of a track (input=0, 1=repro, 2=sync). The upper bit is set
  * to indicate the track is armed and ready for record.
  */
-#define STC_TRACK_INPUT		0			/* track is in input mode     */
-#define STC_TRACK_REPRO		1			/* track is in repro mode     */
-#define STC_TRACK_SYNC		2			/* track is in sync mode      */
+#define STC_TRACK_INPUT     0           /* track is in input mode     */
+#define STC_TRACK_REPRO     1           /* track is in repro mode     */
+#define STC_TRACK_SYNC      2           /* track is in sync mode      */
 
 #define STC_TRACK_MASK      0x07        /* low 3-bits are track mode  */
 
 /* Upper bits indicate ready/record state */
-#define STC_T_RECORD		0x40		/* track is recording now     */
-#define STC_T_READY			0x80		/* track is armed for record  */
+#define STC_T_RECORD        0x40        /* track is recording now     */
+#define STC_T_READY         0x80        /* track is armed for record  */
 
 /* STC_STATE_MSG.cueState[n] cue memory state bit flags. These
  * indicate the state of the 10 locator buttons associated with 
  * the first ten memory locations.
  */
-#define STC_CF_NONE         0x00		/* no cue point stored addr   */
-#define STC_CF_ACTIVE       0x01		/* cue point available        */
-#define STC_CF_AUTO_PLAY    0x02		/* auto-play after locate     */
-#define STC_CF_AUTO_REC     0x04		/* auto-play+rec after locate */
+#define STC_CF_NONE         0x00        /* no cue point stored addr   */
+#define STC_CF_ACTIVE       0x01        /* cue point available        */
+#define STC_CF_AUTO_PLAY    0x02        /* auto-play after locate     */
+#define STC_CF_AUTO_REC     0x04        /* auto-play+rec after locate */
 
 // =========================================================================
 // STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
@@ -175,30 +175,30 @@ typedef struct _STC_STATE_MSG {
 #define STC_L_FWD           0x0008      /* FWD button LED  */
 #define STC_L_STOP          0x0010      /* STOP button LED */
 /* Locator and Other Button LED's */
-#define STC_L_LOC1          0x0001		/* LOC1 button LED */
-#define STC_L_LOC2          0x0002		/* LOC2 button LED */
-#define STC_L_LOC3          0x0004		/* LOC3 button LED */
-#define STC_L_LOC4          0x0008		/* LOC4 button LED */
-#define STC_L_LOC5          0x0010		/* LOC5 button LED */
-#define STC_L_LOC6          0x0020		/* LOC6 button LED */
-#define STC_L_LOC7          0x0040		/* LOC7 button LED */
-#define STC_L_LOC8          0x0080		/* LOC8 button LED */
-#define STC_L_LOC0          0x0100		/* LOC0 button LED */
-#define STC_L_LOC9          0x0200		/* LOC9 button LED */
-#define STC_L_MENU          0x0400		/* SET button LED  */
-#define STC_L_EDIT          0x0800		/* ESC button LED  */
-#define STC_L_STORE         0x1000		/* PREV button LED */
-#define STC_L_ALT           0x2000		/* MENU button LED */
-#define STC_L_AUTO          0x4000		/* NEXT button LED */
-#define STC_L_CUE           0x8000		/* EDIT button LED */
+#define STC_L_LOC1          0x0001      /* LOC1 button LED */
+#define STC_L_LOC2          0x0002      /* LOC2 button LED */
+#define STC_L_LOC3          0x0004      /* LOC3 button LED */
+#define STC_L_LOC4          0x0008      /* LOC4 button LED */
+#define STC_L_LOC5          0x0010      /* LOC5 button LED */
+#define STC_L_LOC6          0x0020      /* LOC6 button LED */
+#define STC_L_LOC7          0x0040      /* LOC7 button LED */
+#define STC_L_LOC8          0x0080      /* LOC8 button LED */
+#define STC_L_LOC0          0x0100      /* LOC0 button LED */
+#define STC_L_LOC9          0x0200      /* LOC9 button LED */
+#define STC_L_MENU          0x0400      /* SET button LED  */
+#define STC_L_EDIT          0x0800      /* ESC button LED  */
+#define STC_L_STORE         0x1000      /* PREV button LED */
+#define STC_L_ALT           0x2000      /* MENU button LED */
+#define STC_L_AUTO          0x4000      /* NEXT button LED */
+#define STC_L_CUE           0x8000      /* EDIT button LED */
 
 /* The following bit flags are not supported by the DRC remote as it
  * has less buttons that the DRCWIN application. So, we use the upper
  * 16-bits of the LED status flags for additional button flags.
  */
 #define STC_L_LOOP          0x00010000  /* loop mark begin button */
-#define STC_L_MARK_BEGIN    0x00020000  /* loop mark begin button */
-#define STC_L_MARK_END      0x00040000  /* loop mark begin button */
+#define STC_L_MARK_IN       0x00020000  /* loop mark begin button */
+#define STC_L_MARK_OUT      0x00040000  /* loop mark begin button */
 
 #define STC_L_LOC_MASK      (STC_L_LOC1|STC_L_LOC2|STC_L_LOC3|STC_L_LOC4| \
                              STC_L_LOC5|STC_L_LOC6|STC_L_LOC7|STC_L_LOC8| \
@@ -232,22 +232,23 @@ typedef struct _STC_COMMAND_HDR {
  * Locator Command Message Types for 'STC_COMMAND_HDR.command'
  */
 
-#define STC_CMD_STOP			1
-#define STC_CMD_PLAY			2       /* param0 1=record */
-#define STC_CMD_REW				3
-#define STC_CMD_FWD				4
-#define STC_CMD_LIFTER			5
-#define STC_CMD_LOCATE			6       /* param1 1=autoplay, 2=autorec    */
-#define STC_CMD_LOCATE_MODE		7       /* param1 0=cue-mode, 1=store-mode */
-#define STC_CMD_CUEPOINT_CLEAR	8       /* param1=index                    */
-#define STC_CMD_CUEPOINT_GET    9
-#define STC_CMD_CUEPOINT_SET    10
-#define STC_CMD_TRACK_ARM       11      /* param1=index                    */
-#define STC_CMD_TRACK_SET_STATE 12      /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_GET_STATE 13      /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_MASK_ALL  14      /* param1=setmask, param2=clrmask  */
-#define STC_CMD_TRACK_MODE_ALL  15      /* param1=newmode, param2=0        */
-#define STC_CMD_ZERO_RESET      16      /* param1=0, param2=0              */
-#define STC_CMD_CANCEL          17      /* param1=0, param2=0              */
+#define STC_CMD_STOP            1
+#define STC_CMD_PLAY            2       /* param0 1=record */
+#define STC_CMD_REW             3
+#define STC_CMD_FWD             4
+#define STC_CMD_LIFTER          5
+#define STC_CMD_LOCATE          6       /* param1 1=autoplay, 2=autorec    */
+#define STC_CMD_LOCATE_LOOP     7       /* param1 1=autoplay, 2=autorec    */
+#define STC_CMD_LOCATE_MODE     8       /* param1 0=cue-mode, 1=store-mode */
+#define STC_CMD_CUEPOINT_CLEAR  9       /* param1=index                    */
+#define STC_CMD_CUEPOINT_GET    10
+#define STC_CMD_CUEPOINT_SET    11
+#define STC_CMD_TRACK_ARM       12      /* param1=index                    */
+#define STC_CMD_TRACK_SET_STATE 13      /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_GET_STATE 14      /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_MASK_ALL  15      /* param1=setmask, param2=clrmask  */
+#define STC_CMD_TRACK_MODE_ALL  16      /* param1=newmode, param2=0        */
+#define STC_CMD_ZERO_RESET      17      /* param1=0, param2=0              */
+#define STC_CMD_CANCEL          18      /* param1=0, param2=0              */
 
 #pragma pack(pop)

@@ -287,6 +287,24 @@ Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags)
     return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
 }
 
+Bool LocateLoop(uint32_t cue_flags)
+{
+    LocateMessage msgLocate;
+
+    /* Make sure both the mark in/out points have been set */
+    if (!IsCuePointFlags(CUE_POINT_MARK_IN, CF_ACTIVE))
+        return FALSE;
+
+    if (!IsCuePointFlags(CUE_POINT_MARK_OUT, CF_ACTIVE))
+        return FALSE;
+
+    msgLocate.command = LOCATE_LOOP;
+    msgLocate.param1  = CUE_POINT_MARK_IN;
+    msgLocate.param2  = cue_flags;
+
+    return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
+}
+
 Bool LocateCancel(void)
 {
     uint32_t key = Hwi_disable();
@@ -321,6 +339,7 @@ Bool IsTransportHaltMode(void)
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
     Bool     cancel;
+    Bool     searching;
     int32_t  dir;
     int32_t  cue_from;
 	int32_t  cue_dist;
@@ -343,10 +362,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     GPIO_write(Board_SEARCHING, PIN_HIGH);
 
     /* Set home cue point memory to zero */
-    CuePointSet(HOME_CUE_POINT, 0, CF_NONE);
+    CuePointSet(CUE_POINT_HOME, 0, CF_ACTIVE);
 
     /* Initialize LOC-0 to zero */
-    CuePointSet(g_sysData.cueIndex, 0, CF_NONE);
+    CuePointSet(g_sysData.cueIndex, 0, CF_ACTIVE);
 
     while(TRUE)
     {
@@ -356,25 +375,30 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Wait for a locate request */
         Mailbox_pend(g_mailboxLocate, &msg, BIOS_WAIT_FOREVER);
 
-        /* Only look for search requests initially */
-        if (msg.command != LOCATE_SEARCH)
-        {
-#if (TTY_DEBUG_MSGS > 0)
-            CLI_printf("IGNORING LOCATE COMMAND %u\n", msg.command);
-#endif
-            continue;
-        }
-
         /* Discard locate request if in halt mode */
         if (IsTransportHaltMode())
             continue;
 
-        /* Get the cue point memory index. The cue point table is arranged
-         * with 64 memory positions from 0-63. Memory location 64 is reserved
-         * for the single point cue/search buttons on the machine timer/roller.
-         */
-        cue_index = (size_t)msg.param1;
-        cue_flags = msg.param2;
+        /* Only look for search requests initially */
+        if (msg.command == LOCATE_LOOP)
+        {
+            cue_index = CUE_POINT_MARK_IN;
+            cue_flags = msg.param1;
+        }
+        else if (msg.command == LOCATE_SEARCH)
+        {
+            /* Get the cue point memory index. The cue point table is arranged
+             * with 64 memory positions from 0-63. Memory location 64 is reserved
+             * for the single point cue/search buttons on the machine timer/roller.
+             */
+            cue_index = (size_t)msg.param1;
+            cue_flags = msg.param2;
+        }
+        else
+        {
+            /* Unknown command */
+            continue;
+        }
 
         if (cue_index >= MAX_CUE_POINTS)
             continue;
@@ -420,9 +444,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         state = LOCATE_START_STATE;
 
-        cancel = FALSE;
+        searching = TRUE;
 
-	    while (!cancel)
+	    while (searching)
 	    {
 	        float time;
             float velocity;
@@ -494,7 +518,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #if (TTY_DEBUG_MSGS > 0)
                     CLI_printf("AT ZERO!!\n");
 #endif
-                    cancel = TRUE;
+                    searching = FALSE;
 		            dir = DIR_ZERO;
 		            break;
 		        }
@@ -648,7 +672,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #endif
                         g_sysData.searchProgress = 100;
                         Transport_Stop();
-                        cancel = TRUE;
+                        searching = FALSE;
                         break;
                     }
                 }
@@ -661,7 +685,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #endif
                         g_sysData.searchProgress = 100;
                         Transport_Stop();
-                        cancel = TRUE;
+                        searching = FALSE;
                         break;
                     }
                 }
@@ -670,7 +694,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     g_sysData.searchProgress = 100;
                     Transport_Stop();
-                    cancel = TRUE;
+                    searching = FALSE;
 #if (TTY_DEBUG_MSGS > 0)
                     //CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
 #endif
@@ -679,7 +703,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             default:
 			    /* invalid state! */
-			    cancel = TRUE;
+			    searching = FALSE;
 			    break;
 			}
 
@@ -692,7 +716,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			 * at the new cue point requested.
 			 */
 
-			if (cancel)
+			if (!searching)
                 break;
 
 	        if (Mailbox_pend(g_mailboxLocate, &msg, 2))
@@ -700,7 +724,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	            /* Abort search loop if cancel requested */
                 if (msg.command == LOCATE_CANCEL)
                 {
-                    cancel = TRUE;
+                    searching = FALSE;
 #if (TTY_DEBUG_MSGS > 0)
         CLI_printf("*** USER SEARCH CANCEL ***\n");
 #endif
@@ -752,7 +776,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 break;
 
 	        /* Exit if user search cancel */
-            if (cancel || g_sysData.searchCancel)
+            if (!searching || g_sysData.searchCancel)
                 break;
 	    }
 
@@ -764,6 +788,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         /* Clear the search in progress flag */
         key = Hwi_disable();
+        cancel = g_sysData.searchCancel;
         g_sysData.searching = FALSE;
         g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
@@ -772,7 +797,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         Event_post(g_eventTransport, Event_Id_00);
 
         /* Send STOP button pulse to stop transport */
-	    if (!g_sysData.searchCancel)
+	    if (!cancel)
 	    {
 	        Transport_Stop();
 

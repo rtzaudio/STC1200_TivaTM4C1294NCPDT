@@ -565,6 +565,13 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Transport_PostButtonPress(S_LDEF);
             break;
 
+        case STC_CMD_LOCATE_MODE:
+            /* param1: 1=store-mode, 0=cue-mode
+             * param2: not used, zero
+             */
+            Remote_PostSwitchPress((msg.param1.U == 1) ? SW_STORE : SW_CUE, 0);
+            break;
+
         case STC_CMD_LOCATE:
             // Start the auto-locator for the cue point index given
             /* param1: cue point index (0-9)
@@ -573,21 +580,22 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             if (msg.param1.U <= 9)
                 Remote_PostSwitchPress(smask[msg.param1.U], msg.param2.U);
             else
-                LocateSearch(HOME_CUE_POINT,  msg.param2.U);
+                LocateSearch(CUE_POINT_HOME,  msg.param2.U);
             break;
 
-        case STC_CMD_LOCATE_MODE:
-            /* param1: 1=store-mode, 0=cue-mode
+        case STC_CMD_LOCATE_LOOP:
+            /* param1: cue flags, CF_AUTO_PLAY, etc
              * param2: not used, zero
              */
-            Remote_PostSwitchPress((msg.param1.U == 1) ? SW_STORE : SW_CUE, 0);
+            status = LocateLoop((uint32_t)msg.param1.U);
             break;
 
         case STC_CMD_CUEPOINT_SET:
             /* param1: cue point index
              * param2: not used, zero
              */
-            CuePointSet((size_t)msg.param1.U, msg.param2.I, CF_NONE);
+            CuePointSet((size_t)msg.param1.U, msg.param2.I, CF_ACTIVE);
+            notify = true;
             break;
 
         case STC_CMD_CUEPOINT_GET:
@@ -643,6 +651,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = 0
              */
             PositionZeroReset();
+            notify = true;
             break;
 
         case STC_CMD_CANCEL:
