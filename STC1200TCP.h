@@ -134,6 +134,7 @@ typedef struct _STC_STATE_MSG {
 #define STC_M_LIBWIND       0x0040      /* shuttle library wind flag  */
 #define STC_M_RECORD        0x0080      /* upper bit indicates record */
 #define STC_M_SEARCH        0x0100      /* search active bit flag     */
+#define STC_M_LOOP          0x0200      /* loop mode active bit flag  */
 
 #define STC_MODE_MASK       0x07        /* low 3-bits transport mode  */
 

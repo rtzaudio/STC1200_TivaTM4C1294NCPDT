@@ -94,6 +94,7 @@ typedef struct _SYSDATA
     float		tapeTach;					/* tape speed from roller     */
 	bool		searchCancel;               /* true if search canceling   */
 	bool        searching;                  /* true if search in progress */
+    bool        looping;                    /* true if loop mode running  */
     /* Remote control edit data */
     int32_t     remoteMode;                 /* current remote mode        */
     int32_t     remoteModeLast;             /* last mode before edit      */

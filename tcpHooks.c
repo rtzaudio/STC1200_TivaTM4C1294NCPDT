@@ -310,6 +310,10 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         if (g_sysData.searching)
             transportMode |= STC_M_SEARCH;
 
+        /* If loop mode is active, set loop mode bit flag */
+        if (g_sysData.looping)
+            transportMode |= STC_M_LOOP;
+
         int8_t tapedir = 0;
 
         if (g_sysData.tapeSpeed)
@@ -582,22 +586,18 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              */
             if (msg.param1.U <= 9)
             {
-                CLI_printf("CMD LOCATE %x\n", msg.param1.U);
                 Remote_PostSwitchPress(smask[msg.param1.U], msg.param2.U);
             }
             else if (msg.param1.U == STC_CUE_POINT_HOME)
             {
-                CLI_printf("CUE HOME %x\n", msg.param1.U);
                 LocateSearch(CUE_POINT_HOME,  msg.param2.U);
             }
             else if (msg.param1.U == STC_CUE_POINT_MARK_IN)
             {
-                CLI_printf("CUE MARK-IN %x\n", msg.param1.U);
                 LocateSearch(CUE_POINT_MARK_IN,  msg.param2.U);
             }
             else if (msg.param1.U == STC_CUE_POINT_MARK_OUT)
             {
-                CLI_printf("CUE MARK-OUT %x\n", msg.param1.U);
                 LocateSearch(CUE_POINT_MARK_OUT,  msg.param2.U);
             }
             break;
@@ -606,7 +606,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: cue flags, CF_AUTO_PLAY, etc
              * param2: not used, zero
              */
-            CLI_printf("START LOOP %x\n", msg.param1.U);
             status = LocateLoop((uint32_t)msg.param1.U);
             break;
 
@@ -616,19 +615,16 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              */
             if (msg.param1.U == STC_CUE_POINT_MARK_IN)
             {
-                CLI_printf("SET MARK-IN %u %x\n", msg.param1.U, msg.param2.U);
                 SetButtonLedMask(STC_L_MARK_IN, 0);
-                CuePointSet(STC_CUE_POINT_MARK_IN, g_sysData.tapePosition, CF_ACTIVE);
+                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
             }
             else if (msg.param1.U == STC_CUE_POINT_MARK_OUT)
             {
-                CLI_printf("SET MARK-OUT %u %x\n", msg.param1.U, msg.param2.U);
                 SetButtonLedMask(STC_L_MARK_OUT, 0);
-                CuePointSet(STC_CUE_POINT_MARK_IN, g_sysData.tapePosition, CF_ACTIVE);
+                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
             }
             else
             {
-                CLI_printf("SET CUE POINT %u %x\n", msg.param1.U, msg.param2.U);
                 CuePointSet((size_t)msg.param1.U, msg.param1.I, CF_ACTIVE);
             }
             notify = true;

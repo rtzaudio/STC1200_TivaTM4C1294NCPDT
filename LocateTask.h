@@ -86,6 +86,7 @@ Bool LocateCancel(void);
 Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);
 Bool LocateLoop(uint32_t cue_flags);
 Bool IsLocatorSearching(void);
+Bool IsLocatorLooping(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 

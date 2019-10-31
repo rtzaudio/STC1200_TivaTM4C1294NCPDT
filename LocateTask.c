@@ -318,6 +318,11 @@ Bool IsLocatorSearching(void)
     return g_sysData.searching;
 }
 
+Bool IsLocatorLooping(void)
+{
+    return g_sysData.looping;
+}
+
 Bool IsTransportHaltMode(void)
 {
     uint32_t mode = (g_sysData.transportMode & MODE_MASK);
@@ -339,7 +344,8 @@ Bool IsTransportHaltMode(void)
 Void LocateTaskFxn(UArg arg0, UArg arg1)
 {
     Bool     cancel;
-    Bool     searching;
+    Bool     done;
+    Bool     looping;
     int32_t  dir;
     int32_t  cue_from;
 	int32_t  cue_dist;
@@ -375,11 +381,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (IsTransportHaltMode())
             continue;
 
+        looping = FALSE;;
+
         /* Only look for search requests initially */
         if (msg.command == LOCATE_LOOP)
         {
             cue_index = CUE_POINT_MARK_IN;
             cue_flags = msg.param1;
+            looping = TRUE;
         }
         else if (msg.command == LOCATE_SEARCH)
         {
@@ -427,6 +436,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Clear the global search cancel flag */
         key = Hwi_disable();
         g_sysData.searching = TRUE;
+        g_sysData.looping = looping;
         g_sysData.searchCancel = FALSE;
         g_sysData.searchProgress = 0;
         Hwi_restore(key);
@@ -440,9 +450,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         state = LOCATE_START_STATE;
 
-        searching = TRUE;
+        done = FALSE;
 
-	    while (searching)
+	    while (!done)
 	    {
 	        float time;
             float velocity;
@@ -514,7 +524,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #if (TTY_DEBUG_MSGS > 0)
                     CLI_printf("AT ZERO!!\n");
 #endif
-                    searching = FALSE;
+                    done = TRUE;
 		            dir = DIR_ZERO;
 		            break;
 		        }
@@ -668,7 +678,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #endif
                         g_sysData.searchProgress = 100;
                         Transport_Stop();
-                        searching = FALSE;
+                        done = TRUE;
                         break;
                     }
                 }
@@ -681,7 +691,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #endif
                         g_sysData.searchProgress = 100;
                         Transport_Stop();
-                        searching = FALSE;
+                        done = TRUE;
                         break;
                     }
                 }
@@ -690,7 +700,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     g_sysData.searchProgress = 100;
                     Transport_Stop();
-                    searching = FALSE;
+                    done = TRUE;
 #if (TTY_DEBUG_MSGS > 0)
                     //CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
 #endif
@@ -699,7 +709,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             default:
 			    /* invalid state! */
-			    searching = FALSE;
+			    done = TRUE;
 			    break;
 			}
 
@@ -712,7 +722,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			 * at the new cue point requested.
 			 */
 
-			if (!searching)
+			if (done)
                 break;
 
 	        if (Mailbox_pend(g_mailboxLocate, &msg, 2))
@@ -720,14 +730,17 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	            /* Abort search loop if cancel requested */
                 if (msg.command == LOCATE_CANCEL)
                 {
-                    searching = FALSE;
+                    done = TRUE;
 #if (TTY_DEBUG_MSGS > 0)
         CLI_printf("*** USER SEARCH CANCEL ***\n");
 #endif
+                    looping = FALSE;
                     break;
                 }
                 else if (msg.command == LOCATE_SEARCH)
 	            {
+                    looping = FALSE;
+
                     /* New search requested! */
 
                     cue_index = (size_t)msg.param1;
@@ -743,6 +756,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     /* Clear the global search cancel flag */
                     key = Hwi_disable();
                     g_sysData.searching = TRUE;
+                    g_sysData.looping   = FALSE;
                     g_sysData.searchCancel = FALSE;
                     g_sysData.searchProgress = 0;
                     Hwi_restore(key);
@@ -772,9 +786,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 break;
 
 	        /* Exit if user search cancel */
-            if (!searching || g_sysData.searchCancel)
+            if (done || g_sysData.searchCancel)
                 break;
-	    }
+
+	    } /* END OF CUE POINT SEARCH LOOP */
 
 #if (TTY_DEBUG_MSGS > 0)
 	    CLI_printf("\n** SEARCH END **\n");
@@ -786,13 +801,21 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         key = Hwi_disable();
         cancel = g_sysData.searchCancel;
         g_sysData.searching = FALSE;
+        g_sysData.looping   = FALSE;
         g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
 
         /* Send TCP state change notification */
         Event_post(g_eventTransport, Event_Id_00);
 
-        /* Send STOP button pulse to stop transport */
+        /* Send STOP button pulse to stop transport. If the
+         * user canceled the search, then don't stop or
+         * auto-play and just exit the loop allowing the
+         * machine to run in it's current mode. If the
+         * locate completed, we stop and enter auto play
+         * if the auto play/rec cue flag specified.
+         */
+
 	    if (!cancel)
 	    {
 	        Transport_Stop();
@@ -805,6 +828,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     Transport_Play(0);
 	        }
 	    }
+
+	    /* Finally, loop back to main outer loop waiting for the next
+	     * locate request message from the user remote.
+	     */
     }
 }
 
