@@ -98,7 +98,7 @@
 /*** Local Constants ***/
 
 #define IPC_TIMEOUT     1000
-#define TTY_DEBUG_MSGS  0
+#define TTY_DEBUG_MSGS  1
 
 /* Locator States */
 typedef enum _LocateState {
@@ -353,10 +353,6 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
     /* Get current transport mode & speed from DTC */
     Transport_GetMode(&g_sysData.transportMode, &g_sysData.tapeSpeed);
-
-#if (TTY_DEBUG_MSGS > 0)
-    CLI_printf("\n\nLocator task starting (mode %x)\n\n", g_sysData.transportMode);
-#endif
 
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
