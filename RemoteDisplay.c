@@ -261,6 +261,10 @@ void DrawTimeTop(void)
     {
         len = sprintf(buf, "SEARCH");
     }
+    else if (IsLocatorLooping())
+    {
+        len = sprintf(buf, "LOOP");
+    }
     else
     {
         switch(g_sysData.transportMode & MODE_MASK)

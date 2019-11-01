@@ -98,21 +98,24 @@
 /*** Local Constants ***/
 
 #define IPC_TIMEOUT     1000
-#define TTY_DEBUG_MSGS  1
+#define TTY_DEBUG_MSGS  0
 
 /* Locator States */
 typedef enum _LocateState {
-    LOCATE_START_STATE,
-    LOCATE_BEGIN_SHUTTLE,
-    LOCATE_SHUTTLE_FAR,
-    LOCATE_SHUTTLE_MID,
-    LOCATE_SHUTTLE_NEAR,
-    LOCATE_BRAKE_STATE,
-    LOCATE_BRAKE_VELOCITY,
-    LOCATE_PAST_ZERO,
-    LOCATE_ZERO_DIR,
-    LOCATE_ZERO_CROSS,
-    LOCATE_COMPLETE,
+    STATE_START_STATE,
+    STATE_BEGIN_SHUTTLE,
+    STATE_SHUTTLE_FAR,
+    STATE_SHUTTLE_MID,
+    STATE_SHUTTLE_NEAR,
+    STATE_BRAKE_STATE,
+    STATE_BRAKE_VELOCITY,
+    STATE_PAST_ZERO,
+    STATE_ZERO_DIR,
+    STATE_ZERO_CROSS,
+    STATE_BEGIN_LOOP,
+    STATE_MARK_OUT,
+    STATE_LOOP,
+    STATE_COMPLETE,
 } LocateState;
 
 /*** External Data Items ***/
@@ -305,6 +308,11 @@ Bool LocateLoop(uint32_t cue_flags)
     return Mailbox_post(g_mailboxLocate, &msgLocate, 1000);
 }
 
+//*****************************************************************************
+// Cancel a locate request in process or check the status to see if the
+// locator is searching and/or looping.
+//*****************************************************************************
+
 Bool LocateCancel(void)
 {
     uint32_t key = Hwi_disable();
@@ -313,15 +321,28 @@ Bool LocateCancel(void)
     return TRUE;
 }
 
-Bool IsLocatorSearching(void)
+Bool IsLocating(void)
 {
-    return g_sysData.searching;
+    if (g_sysData.searching)
+        return TRUE;
+    if (g_sysData.looping)
+        return TRUE;
+    return FALSE;
 }
 
 Bool IsLocatorLooping(void)
 {
     return g_sysData.looping;
 }
+
+Bool IsLocatorSearching(void)
+{
+    return g_sysData.searching;
+}
+
+//*****************************************************************************
+// Test to see if transport is out of tape or in thread mode.
+//*****************************************************************************
 
 Bool IsTransportHaltMode(void)
 {
@@ -348,6 +369,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     Bool     looping;
     int32_t  dir;
     int32_t  cue_from;
+    int32_t  out_dist;
 	int32_t  cue_dist;
 	int32_t  abs_dist;
     size_t   cue_index;
@@ -368,6 +390,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize LOC-0 to zero */
     CuePointSet(g_sysData.cueIndex, 0, CF_ACTIVE);
+
+    /*
+     * ENTER THE MAIN LOCATOR SEARCH LOOP!
+     */
 
     while(TRUE)
     {
@@ -437,7 +463,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         key = Hwi_disable();
         g_sysData.searching = TRUE;
         g_sysData.looping = looping;
-        g_sysData.searchCancel = FALSE;
+        //g_sysData.searchCancel = FALSE;
         g_sysData.searchProgress = 0;
         Hwi_restore(key);
 
@@ -448,13 +474,13 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* BEGIN MAIN AUTO-LOCATE SEARCH LOOP */
         /**************************************/
 
-        state = LOCATE_START_STATE;
+        state = STATE_START_STATE;
 
         done = FALSE;
 
 	    while (!done)
 	    {
-	        float time;
+	        float time, mark;
             float velocity;
 
             /* Abort if transport halted, must be tape out? */
@@ -487,7 +513,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             g_sysData.searchProgress = 100 - (int32_t)progress;
 
 #if (TTY_DEBUG_MSGS > 0)
-            //if (state >= LOCATE_SHUTTLE_FAR)
+            //if (state >= STATE_SHUTTLE_FAR)
             //    CLI_printf("d=%d, t=%u, v=%u\n", cue_dist, (uint32_t)time, (uint32_t)velocity);
 #endif
 			/*
@@ -499,7 +525,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			switch(state)
 			{
-			case LOCATE_START_STATE:
+			case STATE_START_STATE:
 
 			    /* Determine which direction we need to go initially */
 #if (TTY_DEBUG_MSGS > 0)
@@ -534,26 +560,26 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			    if (abs_dist > 9000)
                 {
 #if (TTY_DEBUG_MSGS > 0)
-                    CLI_printf("FAR");
+                    CLI_printf("FAR\n");
 #endif
                     shuttle_vel = JOG_VEL_FAR;
-                    state = LOCATE_SHUTTLE_FAR;
+                    state = STATE_SHUTTLE_FAR;
                 }
                 else if (abs_dist > 3000)
                 {
 #if (TTY_DEBUG_MSGS > 0)
-                    CLI_printf("MID");
+                    CLI_printf("MID\n");
 #endif
                     shuttle_vel = JOG_VEL_MID;
-                    state = LOCATE_SHUTTLE_MID;
+                    state = STATE_SHUTTLE_MID;
                 }
                 else
                 {
 #if (TTY_DEBUG_MSGS > 0)
-                    CLI_printf("NEAR");
+                    CLI_printf("NEAR\n");
 #endif
                     shuttle_vel = JOG_VEL_NEAR;
-                    state = LOCATE_SHUTTLE_NEAR;
+                    state = STATE_SHUTTLE_NEAR;
                 }
 
                 //CLI_printf(" d=%d, t=%d\n", cue_dist, (int32_t)time);
@@ -569,50 +595,50 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            Transport_Rew(shuttle_vel, M_NOSLOW);
 			    break;
 
-            case LOCATE_SHUTTLE_FAR:
+            case STATE_SHUTTLE_FAR:
 
                 if (time < 110.0f)
 			    {
-                    state = LOCATE_BRAKE_VELOCITY;
+                    state = STATE_BRAKE_VELOCITY;
 
 	                if (velocity > 35.0f)
 	                {
 #if (TTY_DEBUG_MSGS > 0)
                         CLI_printf("SHUTTLE FAR BRAKE STATE d=%d\n", cue_dist);
 #endif
-	                    state = LOCATE_BRAKE_STATE;
+	                    state = STATE_BRAKE_STATE;
 	                }
 			    }
 			    break;
 
-            case LOCATE_SHUTTLE_MID:
+            case STATE_SHUTTLE_MID:
 
                 if (time < 70.0f)
                 {
-                    state = LOCATE_BRAKE_VELOCITY;
+                    state = STATE_BRAKE_VELOCITY;
 
                     if (velocity > 35.0f)
                     {
 #if (TTY_DEBUG_MSGS > 0)
                         CLI_printf("SHUTTLE MID BRAKE STATE d=%d\n", cue_dist);
 #endif
-                        state = LOCATE_BRAKE_STATE;
+                        state = STATE_BRAKE_STATE;
                     }
                 }
                 break;
 
-            case LOCATE_SHUTTLE_NEAR:
+            case STATE_SHUTTLE_NEAR:
 
                 if (time < 30.0f)
                 {
 #if (TTY_DEBUG_MSGS > 0)
                     CLI_printf("SHUTTLE NEAR BRAKE STATE d=%d\n", cue_dist);
 #endif
-                    state = LOCATE_BRAKE_VELOCITY;
+                    state = STATE_BRAKE_VELOCITY;
                 }
                 break;
 
-            case LOCATE_BRAKE_STATE:
+            case STATE_BRAKE_STATE:
 
                 //CLI_printf("CHECK BRAKE STATE: d=%d, t=%d, v=%u\n", abs_dist, (int32_t)time, (uint32_t)velocity);
 
@@ -623,7 +649,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #endif
                     Transport_Stop();
 
-                    state = LOCATE_BRAKE_VELOCITY;
+                    state = STATE_BRAKE_VELOCITY;
                 }
                 else
                 {
@@ -636,12 +662,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     else
                         Transport_Rew(SHUTTLE_SLOW_VEL, M_NOSLOW);
 
-                    state = LOCATE_ZERO_CROSS;
+                    state = STATE_ZERO_CROSS;
                 }
 
                 /* Fall through to next velocity check state */
 
-			case LOCATE_BRAKE_VELOCITY:
+			case STATE_BRAKE_VELOCITY:
 
 			    /* Wait for velocity to drop to 15 or below */
                 //CLI_printf("d=%d, f=%d, t=%u, v=%u\n", cue_dist, cue_from, (uint32_t)time, (uint32_t)velocity);
@@ -658,11 +684,11 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     Transport_Rew(SHUTTLE_SLOW_VEL, M_NOSLOW);
 
                 /* Next look for zero cross */
-                state = LOCATE_ZERO_CROSS;
+                state = STATE_ZERO_CROSS;
 
                 /* Fall through... */
 
-            case LOCATE_ZERO_CROSS:
+            case STATE_ZERO_CROSS:
 
                 /* ZERO CROSS - check taking direction into account */
 
@@ -677,7 +703,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                         CLI_printf("OVERSHOOT FWD: %d, %d\n", cue_dist, cue_from);
 #endif
                         g_sysData.searchProgress = 100;
+
                         Transport_Stop();
+
+                        if (looping)
+                        {
+                            state = STATE_BEGIN_LOOP;
+                            break;
+                        }
                         done = TRUE;
                         break;
                     }
@@ -690,7 +723,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                         CLI_printf("OVERSHOOT REW: %d, %d\n", cue_dist, cue_from);
 #endif
                         g_sysData.searchProgress = 100;
+
                         Transport_Stop();
+
+                        if (looping)
+                        {
+                            state = STATE_BEGIN_LOOP;
+                            break;
+                        }
                         done = TRUE;
                         break;
                     }
@@ -700,12 +740,62 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 {
                     g_sysData.searchProgress = 100;
                     Transport_Stop();
-                    done = TRUE;
 #if (TTY_DEBUG_MSGS > 0)
-                    //CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
+                    CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
 #endif
+                    if (looping)
+                    {
+                        state = STATE_BEGIN_LOOP;
+                        break;
+                    }
+
+                    done = TRUE;
                 }
                 break;
+
+            case STATE_BEGIN_LOOP:
+
+                g_sysData.searching = FALSE;
+
+                if (cue_flags & CF_AUTO_REC)
+                    Transport_Play(M_RECORD);
+                else
+                    Transport_Play(0);
+
+#if (TTY_DEBUG_MSGS > 0)
+                CLI_printf("BEGIN LOOP MODE\n");
+#endif
+                /* Next look for zero cross */
+                state = STATE_MARK_OUT;
+                break;
+
+            case STATE_MARK_OUT:
+
+                /* Look for tape position to reach/pass mark-out point */
+
+                out_dist = g_sysData.cuePoint[CUE_POINT_MARK_OUT].ipos - g_sysData.tapePosition;
+
+                /* d = v * t */
+                /* t = d/v */
+                mark = fabs((float)out_dist) / velocity;
+
+                //CLI_printf("MARK-OUT pos=%d, out=%f\n", g_sysData.tapePosition, mark);
+
+                if (mark < 10.0f)
+                {
+#if (TTY_DEBUG_MSGS > 0)
+                    CLI_printf("MARK-OUT REACHED pos=%d, out=%f\n", g_sysData.tapePosition, mark);
+#endif
+                    state = STATE_LOOP;
+                    break;
+                }
+                break;
+
+            case STATE_LOOP:
+                /* Queue up the locate request again and loop again */
+                cue_flags |=  CF_AUTO_PLAY;
+                state = STATE_START_STATE;
+                continue;
 
             default:
 			    /* invalid state! */
@@ -722,22 +812,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			 * at the new cue point requested.
 			 */
 
-			if (done)
+	        if (done || g_sysData.searchCancel)
                 break;
 
 	        if (Mailbox_pend(g_mailboxLocate, &msg, 2))
 	        {
-	            /* Abort search loop if cancel requested */
-                if (msg.command == LOCATE_CANCEL)
-                {
-                    done = TRUE;
-#if (TTY_DEBUG_MSGS > 0)
-        CLI_printf("*** USER SEARCH CANCEL ***\n");
-#endif
-                    looping = FALSE;
-                    break;
-                }
-                else if (msg.command == LOCATE_SEARCH)
+                if (msg.command == LOCATE_SEARCH)
 	            {
                     looping = FALSE;
 
@@ -757,7 +837,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     key = Hwi_disable();
                     g_sysData.searching = TRUE;
                     g_sysData.looping   = FALSE;
-                    g_sysData.searchCancel = FALSE;
+                    //g_sysData.searchCancel = FALSE;
                     g_sysData.searchProgress = 0;
                     Hwi_restore(key);
 
@@ -777,22 +857,34 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     if (!cue_from)
                         cue_from = 1;
 
-                    state = LOCATE_START_STATE;
+                    state = STATE_START_STATE;
 	            }
 	        }
 
 	        /* Abort if transport halted, must be tape out? */
             if (IsTransportHaltMode())
+            {
+                done = cancel = TRUE;
                 break;
+            }
 
 	        /* Exit if user search cancel */
             if (done || g_sysData.searchCancel)
+            {
+#if (TTY_DEBUG_MSGS > 0)
+                if (g_sysData.searchCancel)
+                    CLI_printf("*** USER SEARCH CANCEL %d ***\n", done);
+                else
+                    CLI_printf("*** SEARCH DONE ***\n");
+#endif
+                done = TRUE;
                 break;
+            }
 
 	    } /* END OF CUE POINT SEARCH LOOP */
 
 #if (TTY_DEBUG_MSGS > 0)
-	    CLI_printf("\n** SEARCH END **\n");
+	    CLI_printf("\n** SEARCH LOOP COMPLETED **\n");
 #endif
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -802,7 +894,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         cancel = g_sysData.searchCancel;
         g_sysData.searching = FALSE;
         g_sysData.looping   = FALSE;
-        g_sysData.searchCancel = FALSE;
+        //g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
 
         /* Send TCP state change notification */
@@ -820,20 +912,23 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    {
 	        Transport_Stop();
 
-	        if (cue_flags & CF_AUTO_PLAY)
-	        {
-                if (cue_flags & CF_AUTO_REC)
-                    Transport_Play(M_RECORD);
-                else
-                    Transport_Play(0);
-	        }
+            if (!looping)
+            {
+                if (cue_flags & CF_AUTO_PLAY)
+                {
+                    if (cue_flags & CF_AUTO_REC)
+                        Transport_Play(M_RECORD);
+                    else
+                        Transport_Play(0);
+                }
+            }
 	    }
 
-	    /* Finally, loop back to main outer loop waiting for the next
-	     * locate request message from the user remote.
-	     */
-    }
+	    g_sysData.searchCancel = FALSE;
+
+    } /* MAIN OUTER LOOP, BACK TO QUEUE WAIT FOR NEXT LOCATE REQUEST */
 }
+
 
 /*****************************************************************************
  * HELPER FUNCTIONS

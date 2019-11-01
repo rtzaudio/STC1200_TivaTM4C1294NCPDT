@@ -29,12 +29,21 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
-=== VERSION 1.03 (09/10/2019) ==============================================
+=== VERSION 1.05 (11/01/2019) ==============================================
 
-First beta relase of STC-1200 firmware.  
+Enhancements for DRCWIN software remotes. Now includes basic support for
+auto-loop play mode. The MARK-IN and MARK-OUT butts define the start/stop 
+points for looping. The CAN button will exit loop/search mode and leaves
+the machine running in whatever current mode it's operating in. Note this
+version of the STC requires DTC with firmware 2.35 or greater. Also requires
+DRCWin v1.03 or greater.
 
 === VERSION 1.04 (10/27/2019) ==============================================
 
 Support for DRCWIN TCP/IP interface software remote control added. Minor bug
 fixes in the locator and other tasks. Software interface added to support
 future channel switching logic.
+
+=== VERSION 1.03 (09/10/2019) ==============================================
+
+First beta relase of STC-1200 firmware.  

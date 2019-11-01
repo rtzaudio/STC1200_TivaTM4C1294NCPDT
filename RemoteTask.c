@@ -277,12 +277,10 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 /* Convert DRC switch bits to DTC bit mask form */
                 uint32_t mask = xlate_to_dtc_transport_switch_mask(msg.param1.U);
 
-                /* Cancel any search in progress */
-                if (IsLocatorSearching())
-                {
+                /* Cancel any locate/loop in progress */
+                if (IsLocating())
                     LocateCancel();
-                    Task_sleep(250);
-                }
+
                 /* Send the transport command button mask to the DTC */
                 ipc.type     = IPC_TYPE_NOTIFY;
                 ipc.opcode   = OP_NOTIFY_BUTTON;

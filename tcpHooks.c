@@ -520,7 +520,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: not used, zero
              * param2: not used, zero
              */
-            if (IsLocatorSearching())
+            if (IsLocating())
                 LocateCancel();
             Transport_PostButtonPress(S_STOP);
             break;
@@ -529,7 +529,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: flags STC_M_LIBWIND
              * param2: not used, zero
              */
-            if (IsLocatorSearching())
+            if (IsLocating())
                 LocateCancel();
             mask = S_REW;
             /* simulate REC+FWD for lib wind mode */
@@ -543,7 +543,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: flags STC_M_LIBWIND
              * param2: not used, zero
              */
-            if (IsLocatorSearching())
+            if (IsLocating())
                 LocateCancel();
             mask = S_FWD;
             /* simulate REC+FWD for lib wind mode */
@@ -557,7 +557,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: 1=play+record, 0=play mode
              * param2: not used, zero
              */
-            if (IsLocatorSearching())
+            if (IsLocating())
                 LocateCancel();
             if (msg.param1.U == 1)
                 Transport_PostButtonPress(S_PLAY|S_REC);
@@ -584,6 +584,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: cue point index (0-9)
              * param2: cue flags, STC_CF_AUTO_PLAY or STC_CF_AUTO_REC
              */
+
+            if (IsLocating())
+                LocateCancel();
+
             if (msg.param1.U <= 9)
             {
                 Remote_PostSwitchPress(smask[msg.param1.U], msg.param2.U);
@@ -606,6 +610,9 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1: cue flags, CF_AUTO_PLAY, etc
              * param2: not used, zero
              */
+            if (IsLocating())
+                LocateCancel();
+
             status = LocateLoop((uint32_t)msg.param1.U);
             break;
 

@@ -62,8 +62,7 @@ typedef struct _CUE_POINT {
 #define DIR_REW		(-1)
 
 typedef enum LocateType {
-	LOCATE_CANCEL=0,
-    LOCATE_SEARCH,
+    LOCATE_SEARCH=0,
     LOCATE_LOOP
 } LocateType;
 
@@ -87,6 +86,7 @@ Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags);
 Bool LocateLoop(uint32_t cue_flags);
 Bool IsLocatorSearching(void);
 Bool IsLocatorLooping(void);
+Bool IsLocating(void);
 
 Void LocateTaskFxn(UArg arg0, UArg arg1);
 
