@@ -413,7 +413,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (msg.command == LOCATE_LOOP)
         {
             cue_index = CUE_POINT_MARK_IN;
-            cue_flags = msg.param1;
+            cue_flags = msg.param2;
             looping = TRUE;
         }
         else if (msg.command == LOCATE_SEARCH)
@@ -487,7 +487,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             if (IsTransportHaltMode())
                 break;
 
-			/* Get the signed absolute position(distance) cue_from the cue point */
+			/* Get the signed and absolute position(distance) cue_from the cue point */
             cue_dist = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
 
             abs_dist = abs(cue_dist);
@@ -521,7 +521,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			 */
 
             /* Send TCP state change notification */
-            Event_post(g_eventTransport, Event_Id_00);
+            //Event_post(g_eventTransport, Event_Id_00);
 
 			switch(state)
 			{
@@ -804,7 +804,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			}
 
 	        /* Send TCP state change notification */
-	        Event_post(g_eventTransport, Event_Id_00);
+	        //Event_post(g_eventTransport, Event_Id_00);
 
 			/* Check for a new locate command. It's possible the user may have requested
 			 * a new locate cue point while a locate command was already in progress.
@@ -898,7 +898,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         Hwi_restore(key);
 
         /* Send TCP state change notification */
-        Event_post(g_eventTransport, Event_Id_00);
+        //Event_post(g_eventTransport, Event_Id_00);
 
         /* Send STOP button pulse to stop transport. If the
          * user canceled the search, then don't stop or

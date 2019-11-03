@@ -652,9 +652,15 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2: not used, zero
              */
             if (msg.param1.U == STC_ALL_CUEPOINTS)
+            {
                 CuePointClearAll();
+                CuePointClear(CUE_POINT_MARK_IN);
+                CuePointClear(CUE_POINT_MARK_OUT);
+            }
             else
+            {
                 CuePointClear((size_t)msg.param1.U);
+            }
             notify = true;
             break;
 
