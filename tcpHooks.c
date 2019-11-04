@@ -604,6 +604,14 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             {
                 LocateSearch(CUE_POINT_MARK_OUT,  msg.param2.U);
             }
+            else if (msg.param1.U == STC_CUE_POINT_PUNCH_IN)
+            {
+                LocateSearch(CUE_POINT_PUNCH_IN,  msg.param2.U);
+            }
+            else if (msg.param1.U == STC_CUE_POINT_PUNCH_OUT)
+            {
+                LocateSearch(CUE_POINT_PUNCH_OUT,  msg.param2.U);
+            }
             break;
 
         case STC_CMD_LOCATE_LOOP:
@@ -630,6 +638,16 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
                 SetButtonLedMask(STC_L_MARK_OUT, 0);
                 CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
             }
+            else if (msg.param1.U == STC_CUE_POINT_PUNCH_IN)
+            {
+                SetButtonLedMask(STC_L_PUNCH_IN, 0);
+                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
+            }
+            else if (msg.param1.U == STC_CUE_POINT_PUNCH_OUT)
+            {
+                SetButtonLedMask(STC_L_PUNCH_OUT, 0);
+                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
+            }
             else
             {
                 CuePointSet((size_t)msg.param1.U, msg.param1.I, CF_ACTIVE);
@@ -653,9 +671,14 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              */
             if (msg.param1.U == STC_ALL_CUEPOINTS)
             {
+                /* Clear all points 0-9 */
                 CuePointClearAll();
+                /* Clear loop mark in/out points */
                 CuePointClear(CUE_POINT_MARK_IN);
                 CuePointClear(CUE_POINT_MARK_OUT);
+                /* Clear punch in/out points */
+                CuePointClear(CUE_POINT_PUNCH_IN);
+                CuePointClear(CUE_POINT_PUNCH_OUT);
             }
             else
             {

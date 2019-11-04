@@ -78,7 +78,7 @@ typedef struct _TAPETIME {
  * independent from the remote user cue point memories.
  */
 #define STC_USER_CUE_POINTS     10      /* locate buttons 0-9 cue points    */
-#define STC_SYS_CUE_POINTS      3       /* total system cue point memories  */
+#define STC_SYS_CUE_POINTS      5       /* total system cue point memories  */
 #define STC_MAX_CUE_POINTS      (STC_USER_CUE_POINTS + STC_SYS_CUE_POINTS)
 
 /* Two other cue point memories are reserved for the auto-locator
@@ -86,9 +86,11 @@ typedef struct _TAPETIME {
  * stored near the end of the cue point array memory along with the
  * home cue point memory.
  */
-#define STC_CUE_POINT_HOME      (STC_MAX_CUE_POINTS - 1)
-#define STC_CUE_POINT_MARK_IN   (STC_MAX_CUE_POINTS - 2)
-#define STC_CUE_POINT_MARK_OUT  (STC_MAX_CUE_POINTS - 3)
+#define STC_CUE_POINT_HOME          (STC_MAX_CUE_POINTS - 1)
+#define STC_CUE_POINT_MARK_IN       (STC_MAX_CUE_POINTS - 2)
+#define STC_CUE_POINT_MARK_OUT      (STC_MAX_CUE_POINTS - 3)
+#define STC_CUE_POINT_PUNCH_IN      (STC_MAX_CUE_POINTS - 4)
+#define STC_CUE_POINT_PUNCH_OUT     (STC_MAX_CUE_POINTS - 5)
 
 // =========================================================================
 // STC state update message structure. This message streams from the STC
@@ -135,6 +137,7 @@ typedef struct _STC_STATE_MSG {
 #define STC_M_RECORD        0x0080      /* upper bit indicates record */
 #define STC_M_SEARCH        0x0100      /* search active bit flag     */
 #define STC_M_LOOP          0x0200      /* loop mode active bit flag  */
+#define STC_M_PUNCH         0x0400      /* auto punch active bit flag */
 
 #define STC_MODE_MASK       0x07        /* low 3-bits transport mode  */
 
@@ -170,36 +173,40 @@ typedef struct _STC_STATE_MSG {
  */
 
 /* Transport Control Button LED's */
-#define STC_L_REC           0x0001      /* REC button LED  */
-#define STC_L_PLAY          0x0002      /* PLAY button LED */
-#define STC_L_REW           0x0004      /* REW button LED  */
-#define STC_L_FWD           0x0008      /* FWD button LED  */
-#define STC_L_STOP          0x0010      /* STOP button LED */
+#define STC_L_REC           0x00000001      /* REC button LED  */
+#define STC_L_PLAY          0x00000002      /* PLAY button LED */
+#define STC_L_REW           0x00000004      /* REW button LED  */
+#define STC_L_FWD           0x00000008      /* FWD button LED  */
+#define STC_L_STOP          0x00000010      /* STOP button LED */
 /* Locator and Other Button LED's */
-#define STC_L_LOC1          0x0001      /* LOC1 button LED */
-#define STC_L_LOC2          0x0002      /* LOC2 button LED */
-#define STC_L_LOC3          0x0004      /* LOC3 button LED */
-#define STC_L_LOC4          0x0008      /* LOC4 button LED */
-#define STC_L_LOC5          0x0010      /* LOC5 button LED */
-#define STC_L_LOC6          0x0020      /* LOC6 button LED */
-#define STC_L_LOC7          0x0040      /* LOC7 button LED */
-#define STC_L_LOC8          0x0080      /* LOC8 button LED */
-#define STC_L_LOC0          0x0100      /* LOC0 button LED */
-#define STC_L_LOC9          0x0200      /* LOC9 button LED */
-#define STC_L_MENU          0x0400      /* SET button LED  */
-#define STC_L_EDIT          0x0800      /* ESC button LED  */
-#define STC_L_STORE         0x1000      /* PREV button LED */
-#define STC_L_ALT           0x2000      /* MENU button LED */
-#define STC_L_AUTO          0x4000      /* NEXT button LED */
-#define STC_L_CUE           0x8000      /* EDIT button LED */
+#define STC_L_LOC1          0x00000001      /* LOC1 button LED */
+#define STC_L_LOC2          0x00000002      /* LOC2 button LED */
+#define STC_L_LOC3          0x00000004      /* LOC3 button LED */
+#define STC_L_LOC4          0x00000008      /* LOC4 button LED */
+#define STC_L_LOC5          0x00000010      /* LOC5 button LED */
+#define STC_L_LOC6          0x00000020      /* LOC6 button LED */
+#define STC_L_LOC7          0x00000040      /* LOC7 button LED */
+#define STC_L_LOC8          0x00000080      /* LOC8 button LED */
+#define STC_L_LOC0          0x00000100      /* LOC0 button LED */
+#define STC_L_LOC9          0x00000200      /* LOC9 button LED */
+#define STC_L_MENU          0x00000400      /* SET button LED  */
+#define STC_L_EDIT          0x00000800      /* ESC button LED  */
+#define STC_L_STORE         0x00001000      /* PREV button LED */
+#define STC_L_ALT           0x00002000      /* MENU button LED */
+#define STC_L_AUTO          0x00004000      /* NEXT button LED */
+#define STC_L_CUE           0x00008000      /* EDIT button LED */
 
 /* The following bit flags are not supported by the DRC remote as it
- * has less buttons that the DRCWIN application. So, we use the upper
+ * has less buttons than the DRCWIN application. So, we use the upper
  * 16-bits of the LED status flags for additional button flags.
  */
-#define STC_L_LOOP          0x00010000  /* loop mark begin button */
+#define STC_L_AUTO_LOOP     0x00010000  /* loop mark begin button */
 #define STC_L_MARK_IN       0x00020000  /* loop mark begin button */
 #define STC_L_MARK_OUT      0x00040000  /* loop mark begin button */
+
+#define STC_L_AUTO_PUNCH    0x00080000  /* loop mark begin button */
+#define STC_L_PUNCH_IN      0x00100000  /* loop mark begin button */
+#define STC_L_PUNCH_OUT     0x00200000  /* loop mark begin button */
 
 #define STC_L_LOC_MASK      (STC_L_LOC1|STC_L_LOC2|STC_L_LOC3|STC_L_LOC4| \
                              STC_L_LOC5|STC_L_LOC6|STC_L_LOC7|STC_L_LOC8| \

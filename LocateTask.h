@@ -43,7 +43,7 @@ typedef struct _CUE_POINT {
  * independent from the remote user cue point memories.
  */
 #define USER_CUE_POINTS     10      /* locate buttons 0-9 cue points    */
-#define SYS_CUE_POINTS      3       /* total system cue point memories  */
+#define SYS_CUE_POINTS      5       /* total system cue point memories  */
 #define MAX_CUE_POINTS      (USER_CUE_POINTS + SYS_CUE_POINTS)
 
 /* Two other cue point memories are reserved for the auto-locator
@@ -54,6 +54,8 @@ typedef struct _CUE_POINT {
 #define CUE_POINT_HOME      (MAX_CUE_POINTS - 1)
 #define CUE_POINT_MARK_IN   (MAX_CUE_POINTS - 2)
 #define CUE_POINT_MARK_OUT  (MAX_CUE_POINTS - 3)
+#define CUE_POINT_PUNCH_IN  (MAX_CUE_POINTS - 4)
+#define CUE_POINT_PUNCH_OUT (MAX_CUE_POINTS - 5)
 
 /*** MESSAGE STRUCTURES ****************************************************/
 

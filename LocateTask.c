@@ -325,8 +325,10 @@ Bool IsLocating(void)
 {
     if (g_sysData.searching)
         return TRUE;
+
     if (g_sysData.looping)
         return TRUE;
+
     return FALSE;
 }
 
@@ -407,7 +409,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (IsTransportHaltMode())
             continue;
 
-        looping = FALSE;;
+        looping = FALSE;
 
         /* Only look for search requests initially */
         if (msg.command == LOCATE_LOOP)
@@ -806,15 +808,22 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	        /* Send TCP state change notification */
 	        //Event_post(g_eventTransport, Event_Id_00);
 
+            if (done || g_sysData.searchCancel)
+                break;
+
 			/* Check for a new locate command. It's possible the user may have requested
 			 * a new locate cue point while a locate command was already in progress.
 			 * If so, we cancel the current locate request and reset to start searching
 			 * at the new cue point requested.
 			 */
-
-	        if (done || g_sysData.searchCancel)
-                break;
-
+#if 1
+	        if (Mailbox_getNumPendingMsgs(g_mailboxLocate) > 0)
+	        {
+	            done = cancel = TRUE;
+	            looping = FALSE;
+	            break;
+	        }
+#else
 	        if (Mailbox_pend(g_mailboxLocate, &msg, 2))
 	        {
                 if (msg.command == LOCATE_SEARCH)
@@ -860,7 +869,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     state = STATE_START_STATE;
 	            }
 	        }
-
+#endif
 	        /* Abort if transport halted, must be tape out? */
             if (IsTransportHaltMode())
             {
