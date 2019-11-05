@@ -326,20 +326,25 @@ Bool IsLocating(void)
     if (g_sysData.searching)
         return TRUE;
 
-    if (g_sysData.looping)
+    if (g_sysData.autoLoop)
         return TRUE;
 
     return FALSE;
 }
 
-Bool IsLocatorLooping(void)
-{
-    return g_sysData.looping;
-}
-
 Bool IsLocatorSearching(void)
 {
     return g_sysData.searching;
+}
+
+Bool IsLocatorAutoLoop(void)
+{
+    return g_sysData.autoLoop;
+}
+
+Bool IsLocatorAutoPunch(void)
+{
+    return g_sysData.autoPunch;
 }
 
 //*****************************************************************************
@@ -392,6 +397,11 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
     /* Initialize LOC-0 to zero */
     CuePointSet(g_sysData.cueIndex, 0, CF_ACTIVE);
+
+    g_sysData.searchCancel = false;             /* true if search canceling   */
+    g_sysData.searching    = false;             /* true if search in progress */
+    g_sysData.autoLoop     = false;             /* true if loop mode running  */
+    g_sysData.autoPunch    = false;
 
     /*
      * ENTER THE MAIN LOCATOR SEARCH LOOP!
@@ -464,7 +474,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         /* Clear the global search cancel flag */
         key = Hwi_disable();
         g_sysData.searching = TRUE;
-        g_sysData.looping = looping;
+        g_sysData.autoLoop  = looping;
         //g_sysData.searchCancel = FALSE;
         g_sysData.searchProgress = 0;
         Hwi_restore(key);
@@ -816,7 +826,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			 * If so, we cancel the current locate request and reset to start searching
 			 * at the new cue point requested.
 			 */
-#if 1
+#if 0
 	        if (Mailbox_getNumPendingMsgs(g_mailboxLocate) > 0)
 	        {
 	            done = cancel = TRUE;
@@ -824,7 +834,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	            break;
 	        }
 #else
-	        if (Mailbox_pend(g_mailboxLocate, &msg, 2))
+	        if (Mailbox_pend(g_mailboxLocate, &msg, 1))
 	        {
                 if (msg.command == LOCATE_SEARCH)
 	            {
@@ -845,7 +855,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     /* Clear the global search cancel flag */
                     key = Hwi_disable();
                     g_sysData.searching = TRUE;
-                    g_sysData.looping   = FALSE;
+                    g_sysData.autoLoop  = FALSE;
                     //g_sysData.searchCancel = FALSE;
                     g_sysData.searchProgress = 0;
                     Hwi_restore(key);
@@ -902,7 +912,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         key = Hwi_disable();
         cancel = g_sysData.searchCancel;
         g_sysData.searching = FALSE;
-        g_sysData.looping   = FALSE;
+        g_sysData.autoLoop  = FALSE;
         //g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
 

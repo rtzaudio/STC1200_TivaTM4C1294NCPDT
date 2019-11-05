@@ -200,13 +200,13 @@ typedef struct _STC_STATE_MSG {
  * has less buttons than the DRCWIN application. So, we use the upper
  * 16-bits of the LED status flags for additional button flags.
  */
-#define STC_L_AUTO_LOOP     0x00010000  /* loop mark begin button */
-#define STC_L_MARK_IN       0x00020000  /* loop mark begin button */
-#define STC_L_MARK_OUT      0x00040000  /* loop mark begin button */
+#define STC_L_AUTO_LOOP     0x00010000      /* auto-loop button       */
+#define STC_L_MARK_IN       0x00020000      /* auto-loop mark-in btn  */
+#define STC_L_MARK_OUT      0x00040000      /* auto-loop mark-out btn */
 
-#define STC_L_AUTO_PUNCH    0x00080000  /* loop mark begin button */
-#define STC_L_PUNCH_IN      0x00100000  /* loop mark begin button */
-#define STC_L_PUNCH_OUT     0x00200000  /* loop mark begin button */
+#define STC_L_AUTO_PUNCH    0x00080000      /* auto-punch button      */
+#define STC_L_PUNCH_IN      0x00100000      /* auto-punch-in button   */
+#define STC_L_PUNCH_OUT     0x00200000      /* auto-punch-out button  */
 
 #define STC_L_LOC_MASK      (STC_L_LOC1|STC_L_LOC2|STC_L_LOC3|STC_L_LOC4| \
                              STC_L_LOC5|STC_L_LOC6|STC_L_LOC7|STC_L_LOC8| \
@@ -240,23 +240,25 @@ typedef struct _STC_COMMAND_HDR {
  * Locator Command Message Types for 'STC_COMMAND_HDR.command'
  */
 
-#define STC_CMD_STOP            1
-#define STC_CMD_PLAY            2       /* param0 1=record */
-#define STC_CMD_REW             3
-#define STC_CMD_FWD             4
-#define STC_CMD_LIFTER          5
-#define STC_CMD_LOCATE          6       /* param1 1=autoplay, 2=autorec    */
-#define STC_CMD_LOCATE_LOOP     7       /* param1 1=autoplay, 2=autorec    */
-#define STC_CMD_LOCATE_MODE     8       /* param1 0=cue-mode, 1=store-mode */
-#define STC_CMD_CUEPOINT_CLEAR  9       /* param1=index                    */
-#define STC_CMD_CUEPOINT_GET    10
-#define STC_CMD_CUEPOINT_SET    11
-#define STC_CMD_TRACK_ARM       12      /* param1=index                    */
-#define STC_CMD_TRACK_SET_STATE 13      /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_GET_STATE 14      /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_MASK_ALL  15      /* param1=setmask, param2=clrmask  */
-#define STC_CMD_TRACK_MODE_ALL  16      /* param1=newmode, param2=0        */
-#define STC_CMD_ZERO_RESET      17      /* param1=0, param2=0              */
-#define STC_CMD_CANCEL          18      /* param1=0, param2=0              */
+#define STC_CMD_STOP                1
+#define STC_CMD_PLAY                2   /* param0 1=record */
+#define STC_CMD_REW                 3
+#define STC_CMD_FWD                 4
+#define STC_CMD_LIFTER              5
+#define STC_CMD_LOCATE              6   /* param1 1=autoplay, 2=autorec    */
+#define STC_CMD_LOCATE_MODE_SET     8   /* param1 0=cue-mode, 1=store-mode */
+#define STC_CMD_LOCATE_AUTO_LOOP    7   /* param1 1=autoplay, 2=autorec    */
+#define STC_CMD_AUTO_PUNCH_SET      9
+#define STC_CMD_AUTO_PUNCH_GET      10
+#define STC_CMD_CUEPOINT_CLEAR      11  /* param1=index                    */
+#define STC_CMD_CUEPOINT_SET        12
+#define STC_CMD_CUEPOINT_GET        13
+#define STC_CMD_TRACK_ARM           14  /* param1=index                    */
+#define STC_CMD_TRACK_SET_STATE     15  /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_GET_STATE     16  /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_MASK_ALL      17  /* param1=setmask, param2=clrmask  */
+#define STC_CMD_TRACK_MODE_ALL      18  /* param1=newmode, param2=0        */
+#define STC_CMD_ZERO_RESET          19  /* param1=0, param2=0              */
+#define STC_CMD_CANCEL              20  /* param1=0, param2=0              */
 
 #pragma pack(pop)

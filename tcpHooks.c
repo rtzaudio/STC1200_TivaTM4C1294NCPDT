@@ -311,8 +311,11 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
             transportMode |= STC_M_SEARCH;
 
         /* If loop mode is active, set loop mode bit flag */
-        if (g_sysData.looping)
+        if (g_sysData.autoLoop)
             transportMode |= STC_M_LOOP;
+
+        if (g_sysData.autoPunch)
+            transportMode |= STC_M_PUNCH;
 
         int8_t tapedir = 0;
 
@@ -572,7 +575,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             Transport_PostButtonPress(S_LDEF);
             break;
 
-        case STC_CMD_LOCATE_MODE:
+        case STC_CMD_LOCATE_MODE_SET:
             /* param1: 1=store-mode, 0=cue-mode
              * param2: not used, zero
              */
@@ -614,7 +617,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             }
             break;
 
-        case STC_CMD_LOCATE_LOOP:
+        case STC_CMD_LOCATE_AUTO_LOOP:
             /* param1: cue flags, CF_AUTO_PLAY, etc
              * param2: not used, zero
              */
@@ -622,6 +625,20 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
                 LocateCancel();
 
             status = LocateLoop((uint32_t)msg.param1.U);
+            break;
+
+        case STC_CMD_AUTO_PUNCH_SET:
+            if (msg.param1.U)
+            {
+                SetButtonLedMask(STC_L_AUTO_PUNCH, 0);
+                g_sysData.autoPunch = TRUE;
+            }
+            else
+            {
+                SetButtonLedMask(0, STC_L_AUTO_PUNCH);
+                g_sysData.autoPunch = FALSE;
+            }
+            notify = TRUE;
             break;
 
         case STC_CMD_CUEPOINT_SET:

@@ -261,7 +261,7 @@ void DrawTimeTop(void)
     {
         len = sprintf(buf, "SEARCH");
     }
-    else if (IsLocatorLooping())
+    else if (IsLocatorAutoLoop())
     {
         len = sprintf(buf, "LOOP");
     }
