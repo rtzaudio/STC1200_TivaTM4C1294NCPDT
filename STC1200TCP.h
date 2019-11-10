@@ -222,6 +222,7 @@ typedef struct _STC_STATE_MSG {
 typedef struct _STC_COMMAND_HDR {
     uint16_t    hdrlen;                 /* size of this msg structure */
     uint16_t    command;                /* the command ID to execute  */
+    uint16_t    index;                  /* track or cue point index   */
     uint16_t    status;                 /* return status/error code   */
     union {
         uint32_t    U;

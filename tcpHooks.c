@@ -475,9 +475,11 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         bytesRcvd;
     int         bytesToRecv;
     int         ipos;
+    size_t      index;
     uint16_t    status;
     uint8_t*    buf;
     uint32_t    mask;
+    uint32_t    flags;
 
     STC_COMMAND_HDR msg;
 
@@ -509,7 +511,9 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         } while(bytesToRecv > 0);
 
-        msg.status  = status = 0;
+        msg.status = status = 0;
+
+        index = (size_t)msg.index;
 
         /*
          * Determine which command to process from the client
@@ -642,32 +646,37 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_CUEPOINT_SET:
-            /* param1: cue point index
-             * param2: not used, zero
+            /* param1: tape position
+             * param2: cue flags (CF_ACTIVE, etc)
              */
-            if (msg.param1.U == STC_CUE_POINT_MARK_IN)
+            if (msg.param1.I == -1)
+                ipos = g_sysData.tapePosition;
+            else
+                ipos = msg.param1.I;
+
+            if (index == STC_CUE_POINT_MARK_IN)
             {
                 SetButtonLedMask(STC_L_MARK_IN, 0);
-                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
+                CuePointSet(index, ipos, flags);
             }
-            else if (msg.param1.U == STC_CUE_POINT_MARK_OUT)
+            else if (index == STC_CUE_POINT_MARK_OUT)
             {
                 SetButtonLedMask(STC_L_MARK_OUT, 0);
-                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
+                CuePointSet(index, ipos, flags);
             }
-            else if (msg.param1.U == STC_CUE_POINT_PUNCH_IN)
+            else if (index == STC_CUE_POINT_PUNCH_IN)
             {
                 SetButtonLedMask(STC_L_PUNCH_IN, 0);
-                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
+                CuePointSet(index, ipos, flags);
             }
-            else if (msg.param1.U == STC_CUE_POINT_PUNCH_OUT)
+            else if (index == STC_CUE_POINT_PUNCH_OUT)
             {
                 SetButtonLedMask(STC_L_PUNCH_OUT, 0);
-                CuePointSet((size_t)msg.param1.U, g_sysData.tapePosition, CF_ACTIVE);
+                CuePointSet(index, ipos, flags);
             }
             else
             {
-                CuePointSet((size_t)msg.param1.U, msg.param1.I, CF_ACTIVE);
+                CuePointSet(index, ipos, flags);
             }
             notify = true;
             break;
@@ -690,12 +699,18 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             {
                 /* Clear all points 0-9 */
                 CuePointClearAll();
+
                 /* Clear loop mark in/out points */
                 CuePointClear(CUE_POINT_MARK_IN);
                 CuePointClear(CUE_POINT_MARK_OUT);
+
                 /* Clear punch in/out points */
                 CuePointClear(CUE_POINT_PUNCH_IN);
                 CuePointClear(CUE_POINT_PUNCH_OUT);
+
+                SetButtonLedMask(0, STC_L_LOC_MASK |
+                                    STC_L_MARK_IN  | STC_L_MARK_OUT |
+                                    STC_L_PUNCH_IN | STC_L_PUNCH_OUT);
             }
             else
             {
