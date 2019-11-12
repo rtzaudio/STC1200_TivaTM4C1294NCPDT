@@ -423,7 +423,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 			else if (msgCmd.param == Board_BTN_CUE)
 			{
 				/* Store the current position at cue point 65 */
-				CuePointSet(CUE_POINT_HOME, 0, CF_NONE);
+				CuePointSet(CUE_POINT_HOME, 0, CF_ACTIVE);
 
                 /* Debounce button delay */
                 Task_sleep(DEBOUNCE_TIME);

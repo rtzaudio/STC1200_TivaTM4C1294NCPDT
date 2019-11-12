@@ -112,6 +112,9 @@ Void tcpStateWorker(UArg arg0, UArg arg1);
 Void tcpCommandHandler(UArg arg0, UArg arg1);
 Void tcpCommandWorker(UArg arg0, UArg arg1);
 
+static int ReadData(int fd, void *pbuf, int size, int flags);
+static int WriteData(int fd, void *pbuf, int size, int flags);
+
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
 
@@ -471,13 +474,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     bool        notify;
     int         clientfd = (int)arg0;
     int         bytesSent;
-    int         bytesToSend;
     int         bytesRcvd;
-    int         bytesToRecv;
     int         ipos;
     size_t      index;
     uint16_t    status;
-    uint8_t*    buf;
     uint32_t    mask;
     uint32_t    flags;
 
@@ -493,26 +493,19 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
     while (connected)
     {
-        bytesToRecv = sizeof(STC_COMMAND_HDR);
+        /* Attempt to read a message header */
+        bytesRcvd = ReadData(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0);
 
-        buf = (uint8_t*)&msg;
-
-        do {
-
-            if ((bytesRcvd = recv(clientfd, buf, bytesToRecv, 0)) <= 0)
-            {
-                System_printf("Error: tpc recv failed %d.\n", bytesRcvd);
-                break;
-            }
-
-            bytesToRecv -= bytesRcvd;
-
-            buf += bytesRcvd;
-
-        } while(bytesToRecv > 0);
+        if (bytesRcvd < 0)
+        {
+            System_printf("Error: TCP read error %d.\n", bytesRcvd);
+            connected = FALSE;
+            break;
+        }
 
         msg.status = status = 0;
 
+        /* Index into cue table or track table */
         index = (size_t)msg.index;
 
         /*
@@ -645,7 +638,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             notify = TRUE;
             break;
 
-        case STC_CMD_CUEPOINT_SET:
+        case STC_CMD_CUEPOINT_STORE:
             /* param1: tape position
              * param2: cue flags (CF_ACTIVE, etc)
              */
@@ -653,6 +646,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
                 ipos = g_sysData.tapePosition;
             else
                 ipos = msg.param1.I;
+
+            flags = msg.param2.U;
+
+            CLI_printf("Set Cue(%u) %d, %x\n", index, ipos, flags);
 
             if (index == STC_CUE_POINT_MARK_IN)
             {
@@ -674,21 +671,29 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
                 SetButtonLedMask(STC_L_PUNCH_OUT, 0);
                 CuePointSet(index, ipos, flags);
             }
-            else
+            else if (index <= 9)
             {
+                SetButtonLedMask(smask[index] , 0);
                 CuePointSet(index, ipos, flags);
             }
             notify = true;
+            break;
+
+        case STC_CMD_CUEPOINT_SET:
+            /* param1: tape position
+             * param2: cue flags (CF_ACTIVE, etc)
+             */
+            CuePointSet(index, msg.param1.I, msg.param2.U);
             break;
 
         case STC_CMD_CUEPOINT_GET:
             /* param1: cue point index
              * param2: not used, zero
              */
-            mask = CuePointGet((size_t)msg.param1.U, &ipos);
+            CuePointGet((size_t)msg.param1.U, &ipos, &flags);
             /* return position in param1, flags in param2 */
             msg.param1.I = ipos;
-            msg.param2.U = mask;
+            msg.param2.U = flags;
             break;
 
         case STC_CMD_CUEPOINT_CLEAR:
@@ -762,29 +767,20 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
         }
 
-        // Now send the response packet
-
-        bytesToSend = sizeof(STC_COMMAND_HDR);
-
-        buf = (uint8_t*)&msg;
+        /* Now send the response packet */
 
         msg.status  = status;
         msg.datalen = 0;
+        msg.index   = index;
 
-        do {
+        bytesSent =  WriteData(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0);
 
-            if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
-            {
-                System_printf("Error: tpc send failed %d.\n", bytesSent);
-                connected = false;
-                break;
-            }
-
-            bytesToSend -= bytesSent;
-
-            buf += bytesSent;
-
-        } while (bytesToSend > 0);
+        if (bytesSent < 0)
+        {
+            System_printf("Error: TCP write error %d.\n", bytesSent);
+            connected = false;
+            break;
+        }
 
         /* Notify refresh of current transport state change */
 
@@ -796,6 +792,62 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     System_flush();
 
     close(clientfd);
+}
+
+/* This function performs a blocked read for 'size' number of bytes. It will
+ * continue to read until all bytes are read, or return if an error occurs.
+ */
+
+int ReadData(int fd, void *pbuf, int size, int flags)
+{
+    int bytesRcvd = 0;
+    int bytesToRecv = size;
+
+    uint8_t* buf = (uint8_t*)pbuf;
+
+    do {
+
+        if ((bytesRcvd = recv(fd, buf, bytesToRecv, 0)) <= 0)
+        {
+            System_printf("Error: TCP recv failed %d.\n", bytesRcvd);
+            break;
+        }
+
+        bytesToRecv -= bytesRcvd;
+
+        buf += bytesRcvd;
+
+    } while(bytesToRecv > 0);
+
+    return bytesRcvd;
+}
+
+/* This function performs a blocked write for 'size' number of bytes. It will
+ * continue to write until all bytes are sent, or return if an error occurs.
+ */
+
+int WriteData(int fd, void *pbuf, int size, int flags)
+{
+    int bytesSent = 0;
+    int bytesToSend = size;
+
+    uint8_t* buf = (uint8_t*)pbuf;
+
+    do {
+
+        if ((bytesSent = send(fd, buf, bytesToSend, 0)) <= 0)
+        {
+            System_printf("Error: TCP send failed %d.\n", bytesSent);
+            break;
+        }
+
+        bytesToSend -= bytesSent;
+
+        buf += bytesSent;
+
+    } while (bytesToSend > 0);
+
+    return bytesSent;
 }
 
 // End-Of-File

@@ -194,7 +194,7 @@ void CuePointSet(size_t index, int ipos, uint32_t cue_flags)
         uint32_t key = Hwi_disable();
 
         g_sysData.cuePoint[index].ipos  = ipos;
-        g_sysData.cuePoint[index].flags = CF_ACTIVE | cue_flags;
+        g_sysData.cuePoint[index].flags = cue_flags;
 
         Hwi_restore(key);
     }
@@ -206,10 +206,8 @@ void CuePointSet(size_t index, int ipos, uint32_t cue_flags)
  *
  *****************************************************************************/
 
-uint32_t CuePointGet(size_t index, int* ipos)
+void CuePointGet(size_t index, int* ipos, uint32_t* flags)
 {
-    uint32_t flags = 0;
-
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
     if (index < MAX_CUE_POINTS)
@@ -219,14 +217,13 @@ uint32_t CuePointGet(size_t index, int* ipos)
         if (ipos)
             *ipos = g_sysData.cuePoint[index].ipos;
 
-        flags = g_sysData.cuePoint[index].flags;
+        if (flags)
+            *flags = g_sysData.cuePoint[index].flags;
 
         Hwi_restore(key);
     }
 
     Semaphore_post(g_semaCue);
-
-    return flags;
 }
 
 /*****************************************************************************

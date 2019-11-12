@@ -76,7 +76,7 @@ typedef struct _LocateMessage {
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-uint32_t CuePointGet(size_t index, int* ipos);
+void CuePointGet(size_t index, int* ipos,  uint32_t* flags);
 void CuePointSet(size_t index, int ipos, uint32_t cue_flags);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);

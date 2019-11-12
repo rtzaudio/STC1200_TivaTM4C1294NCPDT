@@ -252,14 +252,15 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_AUTO_PUNCH_SET      9
 #define STC_CMD_AUTO_PUNCH_GET      10
 #define STC_CMD_CUEPOINT_CLEAR      11  /* param1=index                    */
-#define STC_CMD_CUEPOINT_SET        12
-#define STC_CMD_CUEPOINT_GET        13
-#define STC_CMD_TRACK_ARM           14  /* param1=index                    */
-#define STC_CMD_TRACK_SET_STATE     15  /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_GET_STATE     16  /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_MASK_ALL      17  /* param1=setmask, param2=clrmask  */
-#define STC_CMD_TRACK_MODE_ALL      18  /* param1=newmode, param2=0        */
-#define STC_CMD_ZERO_RESET          19  /* param1=0, param2=0              */
-#define STC_CMD_CANCEL              20  /* param1=0, param2=0              */
+#define STC_CMD_CUEPOINT_STORE      12
+#define STC_CMD_CUEPOINT_SET        13
+#define STC_CMD_CUEPOINT_GET        14
+#define STC_CMD_TRACK_ARM           15  /* param1=index                    */
+#define STC_CMD_TRACK_SET_STATE     16  /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_GET_STATE     17  /* param1=index, param2=flags      */
+#define STC_CMD_TRACK_MASK_ALL      18  /* param1=setmask, param2=clrmask  */
+#define STC_CMD_TRACK_MODE_ALL      19  /* param1=newmode, param2=0        */
+#define STC_CMD_ZERO_RESET          20  /* param1=0, param2=0              */
+#define STC_CMD_CANCEL              21  /* param1=0, param2=0              */
 
 #pragma pack(pop)
