@@ -684,6 +684,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2: cue flags (CF_ACTIVE, etc)
              */
             CuePointSet(index, msg.param1.I, msg.param2.U);
+            notify = true;
             break;
 
         case STC_CMD_CUEPOINT_GET:

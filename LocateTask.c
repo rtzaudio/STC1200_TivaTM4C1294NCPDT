@@ -97,8 +97,9 @@
 
 /*** Local Constants ***/
 
-#define IPC_TIMEOUT     1000
 #define TTY_DEBUG_MSGS  0
+
+#define IPC_TIMEOUT     1000
 
 /* Locator States */
 typedef enum _LocateState {
@@ -424,6 +425,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             cue_index = CUE_POINT_MARK_IN;
             cue_flags = msg.param2;
             looping = TRUE;
+#if (TTY_DEBUG_MSGS > 0)
+            CLI_printf("\nLOOP COMMAND!\n");
+#endif
         }
         else if (msg.command == LOCATE_SEARCH)
         {
@@ -433,6 +437,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
              */
             cue_index = (size_t)msg.param1;
             cue_flags = msg.param2;
+#if (TTY_DEBUG_MSGS > 0)
+            CLI_printf("\nSEARCH COMMAND!\n");
+#endif
         }
         else
         {
@@ -441,7 +448,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         }
 
         if (cue_index >= MAX_CUE_POINTS)
+        {
+#if (TTY_DEBUG_MSGS > 0)
+            CLI_printf("\nINVALID CUE INDEX %u\n", cue_index);
+#endif
             continue;
+        }
 
         /* Is the cue point is active? */
         if ((g_sysData.cuePoint[cue_index].flags & CF_ACTIVE) == 0)
@@ -472,7 +484,6 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         key = Hwi_disable();
         g_sysData.searching = TRUE;
         g_sysData.autoLoop  = looping;
-        //g_sysData.searchCancel = FALSE;
         g_sysData.searchProgress = 0;
         Hwi_restore(key);
 
@@ -487,14 +498,19 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         done = FALSE;
 
-	    while (!done)
+	    do
 	    {
 	        float time, mark;
             float velocity;
 
             /* Abort if transport halted, must be tape out? */
             if (IsTransportHaltMode())
+            {
+#if (TTY_DEBUG_MSGS > 0)
+                CLI_printf("*** TRANSPORT HALT STATE 1 ***\n");
+#endif
                 break;
+            }
 
 			/* Get the signed and absolute position(distance) cue_from the cue point */
             cue_dist = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
@@ -535,6 +551,15 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			switch(state)
 			{
 			case STATE_START_STATE:
+
+			    /* Reset the search cancel flag! This gets set by a
+			     * button interrupt handler in the program main.
+			     */
+		        key = Hwi_disable();
+			    g_sysData.searchCancel = false;
+		        Hwi_restore(key);
+
+                cancel = false;
 
 			    /* Determine which direction we need to go initially */
 #if (TTY_DEBUG_MSGS > 0)
@@ -754,6 +779,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #endif
                     if (looping)
                     {
+#if (TTY_DEBUG_MSGS > 0)
+                        CLI_printf("*** AUTO-LOOPING ***\n");
+#endif
                         state = STATE_BEGIN_LOOP;
                         break;
                     }
@@ -807,6 +835,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 continue;
 
             default:
+#if (TTY_DEBUG_MSGS > 0)
+                CLI_printf("*** INVALID STATE %d ***\n", state);
+#endif
 			    /* invalid state! */
 			    done = TRUE;
 			    break;
@@ -816,7 +847,16 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	        //Event_post(g_eventTransport, Event_Id_00);
 
             if (done || g_sysData.searchCancel)
+            {
+#if (TTY_DEBUG_MSGS > 0)
+                if (done)
+                    CLI_printf("*** SEARCH DONE STATE 1 ***\n");
+
+                if (g_sysData.searchCancel)
+                    CLI_printf("*** SEARCH CANCELED STATE 1 ***\n");
+#endif
                 break;
+            }
 
 			/* Check for a new locate command. It's possible the user may have requested
 			 * a new locate cue point while a locate command was already in progress.
@@ -835,7 +875,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	        {
                 if (msg.command == LOCATE_SEARCH)
 	            {
-                    looping = FALSE;
+#if (TTY_DEBUG_MSGS > 0)
+                    CLI_printf("*** NEW SEARCH REQUESTED ***\n");
+#endif
+                    cancel = looping = FALSE;
 
                     /* New search requested! */
 
@@ -843,11 +886,21 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     cue_flags = msg.param2;
 
                     if (cue_index >= MAX_CUE_POINTS)
+                    {
+#if (TTY_DEBUG_MSGS > 0)
+                        CLI_printf("*** INVALID CUE INDEX %d ***\n", cue_index);
+#endif
                         break;
+                    }
 
                     /* Is the cue point is active? */
                     if (g_sysData.cuePoint[cue_index].flags == 0)
+                    {
+#if (TTY_DEBUG_MSGS > 0)
+                        CLI_printf("*** CUE POINT %d IS NOT ACTIVE! ***\n", cue_index);
+#endif
                         break;
+                    }
 
                     /* Clear the global search cancel flag */
                     key = Hwi_disable();
@@ -880,41 +933,43 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	        /* Abort if transport halted, must be tape out? */
             if (IsTransportHaltMode())
             {
+#if (TTY_DEBUG_MSGS > 0)
+                CLI_printf("*** TRANSPORT HALT STATE 2 ***\n");
+#endif
                 done = cancel = TRUE;
                 break;
             }
 
+            /* Check for cancel search request */
+            cancel = g_sysData.searchCancel;
+
 	        /* Exit if user search cancel */
-            if (done || g_sysData.searchCancel)
+            if (done || cancel)
             {
 #if (TTY_DEBUG_MSGS > 0)
-                if (g_sysData.searchCancel)
-                    CLI_printf("*** USER SEARCH CANCEL %d ***\n", done);
-                else
+                if (cancel)
+                    CLI_printf("*** USER SEARCH CANCEL ***\n");
+                if (done)
                     CLI_printf("*** SEARCH DONE ***\n");
 #endif
                 done = TRUE;
                 break;
             }
 
-	    } /* END OF CUE POINT SEARCH LOOP */
+	    } while (!done);    /* END OF CUE POINT SEARCH LOOP */
 
 #if (TTY_DEBUG_MSGS > 0)
-	    CLI_printf("\n** SEARCH LOOP COMPLETED **\n");
+	    CLI_printf("\n** SEARCHING COMPLETE **\n");
 #endif
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
 
         /* Clear the search in progress flag */
         key = Hwi_disable();
-        cancel = g_sysData.searchCancel;
         g_sysData.searching = FALSE;
         g_sysData.autoLoop  = FALSE;
         //g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
-
-        /* Send TCP state change notification */
-        //Event_post(g_eventTransport, Event_Id_00);
 
         /* Send STOP button pulse to stop transport. If the
          * user canceled the search, then don't stop or

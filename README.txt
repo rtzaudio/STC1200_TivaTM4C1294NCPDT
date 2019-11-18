@@ -29,6 +29,17 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 1.07 (11/16/2019) ==============================================
+
+Fixed bugs with locator introduced with auto-looping. Hopefully locator 
+and looping issues are resolved with this release.
+
+=== VERSION 1.06 (11/12/2019) ==============================================
+
+Enhancements for DRCWIN software remote. Added velocity graph and ability
+to store/load cue point memories to disk. This version of the STC requires
+DTC firmware 2.35 or greater. Also requires DRCWin v1.04 or greater.
+
 === VERSION 1.05 (11/01/2019) ==============================================
 
 Enhancements for DRCWIN software remotes. Now includes basic support for
