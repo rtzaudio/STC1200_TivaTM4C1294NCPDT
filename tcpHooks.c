@@ -649,8 +649,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
             flags = msg.param2.U;
 
-            CLI_printf("Set Cue(%u) %d, %x\n", index, ipos, flags);
-
             if (index == STC_CUE_POINT_MARK_IN)
             {
                 SetButtonLedMask(STC_L_MARK_IN, 0);

@@ -97,7 +97,7 @@
 
 /*** Local Constants ***/
 
-#define TTY_DEBUG_MSGS  0
+#define TTY_DEBUG_MSGS  1
 
 #define IPC_TIMEOUT     1000
 
@@ -426,7 +426,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             cue_flags = msg.param2;
             looping = TRUE;
 #if (TTY_DEBUG_MSGS > 0)
-            CLI_printf("\nLOOP COMMAND!\n");
+            CLI_printf("LOOP COMMAND!\n");
 #endif
         }
         else if (msg.command == LOCATE_SEARCH)
@@ -438,11 +438,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             cue_index = (size_t)msg.param1;
             cue_flags = msg.param2;
 #if (TTY_DEBUG_MSGS > 0)
-            CLI_printf("\nSEARCH COMMAND!\n");
+            CLI_printf("SEARCH COMMAND!\n");
 #endif
         }
         else
         {
+#if (TTY_DEBUG_MSGS > 0)
+            CLI_printf("BAD SEARCH COMMAND!\n");
+#endif
             /* Unknown command */
             continue;
         }
@@ -450,7 +453,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if (cue_index >= MAX_CUE_POINTS)
         {
 #if (TTY_DEBUG_MSGS > 0)
-            CLI_printf("\nINVALID CUE INDEX %u\n", cue_index);
+            CLI_printf("INVALID CUE INDEX %u\n", cue_index);
 #endif
             continue;
         }
@@ -459,7 +462,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         if ((g_sysData.cuePoint[cue_index].flags & CF_ACTIVE) == 0)
         {
 #if (TTY_DEBUG_MSGS > 0)
-            CLI_printf("\nLOCATE CUE %u NOT ACTIVE - IGNORING!\n", cue_index);
+            CLI_printf("LOCATE CUE %u NOT ACTIVE - IGNORING!\n", cue_index);
 #endif
             continue;
         }
@@ -563,7 +566,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
 			    /* Determine which direction we need to go initially */
 #if (TTY_DEBUG_MSGS > 0)
-			    CLI_printf("\nBEGIN LOCATE[%u] ", cue_index);
+			    CLI_printf("BEGIN LOCATE[%u] ", cue_index);
 #endif
 			    if (g_sysData.cuePoint[cue_index].ipos > g_sysData.tapePosition)
 		        {
@@ -959,7 +962,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    } while (!done);    /* END OF CUE POINT SEARCH LOOP */
 
 #if (TTY_DEBUG_MSGS > 0)
-	    CLI_printf("\n** SEARCHING COMPLETE **\n");
+	    CLI_printf("** SEARCHING COMPLETE **\n");
 #endif
         /* Set SEARCHING_OUT status i/o pin */
         GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -996,6 +999,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	    }
 
 	    g_sysData.searchCancel = FALSE;
+
+#if (TTY_DEBUG_MSGS > 0)
+	    CLI_prompt();
+#endif
 
     } /* MAIN OUTER LOOP, BACK TO QUEUE WAIT FOR NEXT LOCATE REQUEST */
 }

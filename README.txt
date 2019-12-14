@@ -29,6 +29,10 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 1.08 (12/11/2019) ==============================================
+
+Additional build changes for bug checks. 
+
 === VERSION 1.07 (11/16/2019) ==============================================
 
 Fixed bugs with locator introduced with auto-looping. Hopefully locator 

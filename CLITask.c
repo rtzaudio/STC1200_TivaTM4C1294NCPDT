@@ -69,20 +69,24 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include <driverlib/sysctl.h>
 
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/hal/Seconds.h>
 
 #include "STC1200.h"
 #include "Board.h"
 #include "Utils.h"
 #include "CLITask.h"
 #include "SMPTE.h"
+#include "RAMPMessage.h"
 #include "IPCMessage.h"
 #include "IPCCommands.h"
+#include "RemoteTask.h"
 
 //*****************************************************************************
 // Type Definitions
@@ -119,6 +123,10 @@ MK_CMD(play);
 MK_CMD(rew);
 MK_CMD(fwd);
 MK_CMD(speed);
+MK_CMD(time);
+MK_CMD(cue);
+MK_CMD(store);
+MK_CMD(rtz);
 
 /* The dispatch table */
 #define CMD(func, params, help) {#func, cmd_ ## func, params, help}
@@ -136,6 +144,10 @@ cmd_t dispatch[] = {
     CMD(rew, "s", "Transport REW {lib} mode"),
     CMD(fwd, "s", "Transport FWD {lib} mode"),
     CMD(speed, "", "Display tape speed"),
+    CMD(time, "", "Display time"),
+    CMD(cue, "s", "Locator cue {0-9}"),
+    CMD(store, "s", "Locator store {0-9}"),
+    CMD(rtz, "", "Return to zero"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -238,6 +250,14 @@ void CLI_printf(const char *fmt, ...)
     System_vsnprintf(buf, sizeof(buf)-1, fmt, arg);
     va_end(arg);
     UART_write(s_handleUart, buf, strlen(buf));
+}
+
+void CLI_prompt(void)
+{
+    CLI_putc(CRET);
+    CLI_putc(LF);
+    CLI_putc('>');
+    CLI_putc(' ');
 }
 
 //*****************************************************************************
@@ -522,5 +542,129 @@ void cmd_speed(arg_t *args)
 {
     CLI_printf("%u IPS\n", g_sysData.tapeSpeed);
 }
+
+void cmd_time(arg_t *args)
+{
+    time_t t;
+    struct tm *ltm;
+    char *curTime;
+
+    t = time(NULL);
+    ltm = localtime(&t);
+    curTime = asctime(ltm);
+
+    CLI_printf("TIME(GMT): %s", curTime);
+}
+
+void cmd_rtz(arg_t *args)
+{
+    LocateSearch(CUE_POINT_HOME, 0);
+}
+
+void cmd_cue(arg_t *args)
+{
+    int loc = 0;
+
+    if (!args)
+    {
+        CLI_printf("CUE MODE\n");
+        Remote_PostSwitchPress(SW_CUE, 0);
+        return;
+    }
+
+    loc = atoi(args->s);
+
+    if (g_sysData.remoteMode != REMOTE_MODE_CUE)
+        Remote_PostSwitchPress(SW_CUE, 0);
+
+    CLI_printf("SEARCH TO CUE MEMORY %d\n", loc);
+
+    switch(loc)
+    {
+    case 0:
+        Remote_PostSwitchPress(SW_LOC0, 0);
+        break;
+    case 1:
+        Remote_PostSwitchPress(SW_LOC1, 0);
+        break;
+    case 2:
+        Remote_PostSwitchPress(SW_LOC2, 0);
+        break;
+    case 3:
+        Remote_PostSwitchPress(SW_LOC3, 0);
+        break;
+    case 4:
+        Remote_PostSwitchPress(SW_LOC4, 0);
+        break;
+    case 5:
+        Remote_PostSwitchPress(SW_LOC5, 0);
+        break;
+    case 6:
+        Remote_PostSwitchPress(SW_LOC6, 0);
+        break;
+    case 7:
+        Remote_PostSwitchPress(SW_LOC7, 0);
+        break;
+    case 8:
+        Remote_PostSwitchPress(SW_LOC8, 0);
+        break;
+    case 9:
+        Remote_PostSwitchPress(SW_LOC9, 0);
+        break;
+    }
+}
+
+void cmd_store(arg_t *args)
+{
+    int loc = 0;
+
+    if (!args)
+    {
+        CLI_printf("STORE MODE\n");
+        Remote_PostSwitchPress(SW_STORE, 0);
+        return;
+    }
+
+    loc = atoi(args->s);
+    CLI_printf("STORE TO MEMORY to %d\n", loc);
+
+    if (g_sysData.remoteMode != REMOTE_MODE_STORE)
+        Remote_PostSwitchPress(SW_STORE, 0);
+
+    switch(loc)
+    {
+    case 0:
+        Remote_PostSwitchPress(SW_LOC0, 0);
+        break;
+    case 1:
+        Remote_PostSwitchPress(SW_LOC1, 0);
+        break;
+    case 2:
+        Remote_PostSwitchPress(SW_LOC2, 0);
+        break;
+    case 3:
+        Remote_PostSwitchPress(SW_LOC3, 0);
+        break;
+    case 4:
+        Remote_PostSwitchPress(SW_LOC4, 0);
+        break;
+    case 5:
+        Remote_PostSwitchPress(SW_LOC5, 0);
+        break;
+    case 6:
+        Remote_PostSwitchPress(SW_LOC6, 0);
+        break;
+    case 7:
+        Remote_PostSwitchPress(SW_LOC7, 0);
+        break;
+    case 8:
+        Remote_PostSwitchPress(SW_LOC8, 0);
+        break;
+    case 9:
+        Remote_PostSwitchPress(SW_LOC9, 0);
+        break;
+    }
+}
+
 
 // End-Of-File

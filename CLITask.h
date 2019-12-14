@@ -50,6 +50,7 @@ Bool CLI_startup(void);
 void CLI_putc(int ch);
 void CLI_puts(char* s);
 void CLI_printf(const char *fmt, ...);
+void CLI_prompt(void);
 
 Void CLITaskFxn(UArg arg0, UArg arg1);
 
