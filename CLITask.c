@@ -3,7 +3,7 @@
  * DTC-1200 & STC-1200 Digital Transport Controllers for
  * Ampex MM-1200 Tape Machines
  *
- * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * Copyright (C) 2016-2020, RTZ Professional Audio, LLC
  * All Rights Reserved
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
@@ -323,7 +323,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                 {
                     if (isalnum((int)ch) || strchr(s_delim, (int)ch))
                     {
-                        s_cmdbuf[cnt++] = ch;
+                        s_cmdbuf[cnt++] = tolower(ch);
                         s_cmdbuf[cnt] = 0;
 
                         CLI_putc((int)ch);
@@ -434,7 +434,7 @@ void cmd_help(arg_t *args)
 void cmd_about(arg_t *args)
 {
     CLI_printf("STC-1200 v%d.%02d.%03d\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("Copyright (C) 2019, RTZ Professional Audio, LLC.\n");
+    CLI_puts("Copyright (C) 2016-2020, RTZ Professional Audio, LLC.\n");
 }
 
 void cmd_cls(arg_t *args)

@@ -3,7 +3,7 @@
  * DTC-1200 & STC-1200 Digital Transport Controllers for
  * Ampex MM-1200 Tape Machines
  *
- * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * Copyright (C) 2016-2020, RTZ Professional Audio, LLC
  * All Rights Reserved
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
@@ -252,7 +252,9 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
         /* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxRemote, &msg, 100))
         {
-            DrawScreen(s_uScreenNum);
+            /* DIP switch #2 must be on to enable remote tx data */
+            if (GPIO_read(Board_DIPSW_CFG2) == 0)
+                DrawScreen(s_uScreenNum);
             continue;
         }
 

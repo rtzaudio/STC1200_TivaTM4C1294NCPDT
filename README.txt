@@ -29,6 +29,11 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 1.09 (12/14/2019) ==============================================
+
+Added new CLI commands for cue, store and rtz. The locator can now be used
+from the command line interface. Other minor bug fixes.
+ 
 === VERSION 1.08 (12/11/2019) ==============================================
 
 Additional build changes for bug checks. 

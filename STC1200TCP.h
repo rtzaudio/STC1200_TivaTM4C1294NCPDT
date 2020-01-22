@@ -1,5 +1,5 @@
 // =========================================================================
-// STC1200TCP.h v1.01 10/21/2019
+// STC1200TCP.h v1.02 01/04/2020
 //
 // STC-1200 Client/Server Network Packet Definitions for the software based
 // version of the DRC digital remote control. 
@@ -15,32 +15,35 @@
 #pragma once
 #pragma pack(push, 8)
 
-#ifdef _WINDOWS
+#include <stdint.h>
 
-// Defines for Windows equivalent types
-#ifndef int8_t
-#define int8_t      CHAR
-#endif
-#ifndef uint8_t
-#define uint8_t     BYTE
-#endif
-#ifndef int16_t
-#define int16_t     INT16
-#endif
-#ifndef uint16_t
-#define uint16_t    UINT16
-#endif
-#ifndef int32_t
-#define int32_t     INT32
-#endif
-#ifndef uint32_t
-#define uint32_t    UINT32
-#endif
+// =========================================================================
+// STC Specific Constants
+// =========================================================================
+
+// The Ampex MM1200 tape roller quadrature encoder wheel has 40 ppr. This gives
+// either 80 or 160 edges per revolution depending on the quadrature encoder
+// configuration set by QEIConfig(). Currently we use Cha-A mode which
+// gives 80 edges per revolution. If Cha-A/B mode is used this must be
+// set to 160.
+
+#define STC_ROLLER_TICKS_PER_REV        80
+#define STC_ROLLER_TICKS_PER_REV_F      80.0f
+
+ // This is the diameter of the tape timer roller
+#define STC_ROLLER_CIRCUMFERENCE_F      5.0014f
+
+// This is the maximum signed position value we can have. Anything past
+// this is treated as a negative position value.
+
+#define STC_MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
+#define STC_MIN_ROLLER_POSITION			(-STC_MAX_ROLLER_POSITION - 1)
 
 // =========================================================================
 // General purpose time structure for tape position
 // =========================================================================
 
+#ifdef _WINDOWS
 typedef struct _TAPETIME {
     uint8_t     hour;       /* hour (0-1)      */
     uint8_t     mins;       /* minutes (0-59)  */
@@ -55,8 +58,7 @@ typedef struct _TAPETIME {
 #define F_TAPETIME_PLUS     0x01        /* 7-seg plus sign if set    */
 #define F_TAPETIME_BLINK    0x02        /* blink all seven segments  */
 #define F_TAPETIME_BLANK    0x80        /* blank the entire display  */
-
-#endif /* _WINDOWS */
+#endif
 
 // =========================================================================
 // TCP/IP Port Numbers for STC remote server
@@ -105,8 +107,8 @@ typedef struct _STC_STATE_MSG {
     uint32_t    length;                 /* size of this msg structure */
     TAPETIME    tapeTime;               /* current tape time position */
     uint32_t    errorCount;             /* QEI phase error count      */
-    uint32_t    ledMaskButton;          /* DRC remote button LED mask */
-    uint32_t    ledMaskTransport;       /* current transport LED mask */
+    uint32_t    ledMaskButton;          /* locater button LED mask    */
+    uint32_t    ledMaskTransport;       /* transport button LED mask  */
     int32_t     tapePosition;           /* signed relative position   */
     uint32_t    tapeVelocity;           /* velocity of the tape       */
     uint16_t    transportMode;          /* Current transport mode     */
@@ -172,13 +174,15 @@ typedef struct _STC_STATE_MSG {
  * 5-bits for output LED's and 5-bits for pushbutton switch inputs.
  */
 
-/* Transport Control Button LED's */
+/* Transport Control Button LED's (STC_STATE_MSG.ledMaskTransport) */
 #define STC_L_REC           0x00000001      /* REC button LED  */
 #define STC_L_PLAY          0x00000002      /* PLAY button LED */
 #define STC_L_REW           0x00000004      /* REW button LED  */
 #define STC_L_FWD           0x00000008      /* FWD button LED  */
 #define STC_L_STOP          0x00000010      /* STOP button LED */
-/* Locator and Other Button LED's */
+#define STC_L_LDEF          0x00000020      /* LIFT button LED */
+
+/* Locator and Other Button LED's (STC_STATE_MSG.ledMaskButton) */
 #define STC_L_LOC1          0x00000001      /* LOC1 button LED */
 #define STC_L_LOC2          0x00000002      /* LOC2 button LED */
 #define STC_L_LOC3          0x00000004      /* LOC3 button LED */
@@ -196,9 +200,9 @@ typedef struct _STC_STATE_MSG {
 #define STC_L_AUTO          0x00004000      /* NEXT button LED */
 #define STC_L_CUE           0x00008000      /* EDIT button LED */
 
-/* The following bit flags are not supported by the DRC remote as it
- * has less buttons than the DRCWIN application. So, we use the upper
- * 16-bits of the LED status flags for additional button flags.
+/* The following bit flags are not supported by the DRC hardware remote
+ * as it has less buttons than the DRCWIN application. So, we use the
+ * upper 16-bits of the LED status flags for additional button flags.
  */
 #define STC_L_AUTO_LOOP     0x00010000      /* auto-loop button       */
 #define STC_L_MARK_IN       0x00020000      /* auto-loop mark-in btn  */

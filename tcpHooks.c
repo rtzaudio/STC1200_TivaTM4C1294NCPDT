@@ -325,10 +325,16 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         if (g_sysData.tapeSpeed)
             tapedir = (g_sysData.tapeDirection > 0) ?  1 : -1;
 
+        uint32_t maskTransport = g_sysData.ledMaskTransport;
+
+        /* Simulate tape lifter button LED active flag */
+        if (g_sysData.transportMode & M_LIFTER)
+            maskTransport |= STC_L_LDEF;
+
         stateMsg.length             = textlen;
         stateMsg.errorCount         = g_sysData.qei_error_cnt;
         stateMsg.ledMaskButton      = g_sysData.ledMaskButton;
-        stateMsg.ledMaskTransport   = g_sysData.ledMaskTransport;
+        stateMsg.ledMaskTransport   = maskTransport;
         stateMsg.tapePosition       = g_sysData.tapePosition;
         stateMsg.tapeVelocity       = (uint32_t)g_sysData.tapeTach;
         stateMsg.transportMode      = (uint16_t)transportMode;

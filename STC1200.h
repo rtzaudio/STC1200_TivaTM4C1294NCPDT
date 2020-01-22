@@ -3,7 +3,7 @@
  * DTC-1200 & STC-1200 Digital Transport Controllers for
  * Ampex MM-1200 Tape Machines
  *
- * Copyright (C) 2016-2018, RTZ Professional Audio, LLC
+ * Copyright (C) 2016-2020, RTZ Professional Audio, LLC
  * All Rights Reserved
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
@@ -30,8 +30,8 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        9           /* firmware revision */
-#define FIRMWARE_BUILD      4           /* firmware build number */
+#define FIRMWARE_REV        10          /* firmware revision */
+#define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)

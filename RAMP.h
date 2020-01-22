@@ -1,7 +1,7 @@
 /*
  * RAMP - Remote Asynchronous Message Protocol
  *
- * Copyright (C) 2016-2018, RTZ Professional Audio, LLC. ALL RIGHTS RESERVED.
+ * Copyright (C) 2016-2020, RTZ Professional Audio, LLC. ALL RIGHTS RESERVED.
  *
  *              *** RAMP Protocol Message Frame Structure ***
  *
