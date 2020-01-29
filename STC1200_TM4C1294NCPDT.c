@@ -612,6 +612,24 @@ void STC1200_initSDSPI(void)
     /* Enable SD SSI peripherals */
     SysCtlPeripheralEnable(SYSCTL_PERIPH_SSI1);
 
+    /* SSI-1 Configure Pins */
+
+    // Enable pin PE5 for SSI1 SSI1XDAT1
+    GPIOPinConfigure(GPIO_PE5_SSI1XDAT1);
+    GPIOPinTypeSSI(GPIO_PORTE_BASE, GPIO_PIN_5);
+
+    // Enable pin PE4 for SSI1 SSI1XDAT0
+    GPIOPinConfigure(GPIO_PE4_SSI1XDAT0);
+    GPIOPinTypeSSI(GPIO_PORTE_BASE, GPIO_PIN_4);
+
+    // Enable pin PB5 for SSI1 SSI1CLK
+    GPIOPinConfigure(GPIO_PB5_SSI1CLK);
+    GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_5);
+
+    // Enable pin PB4 for SSI1 SSI1FSS
+    GPIOPinConfigure(GPIO_PB4_SSI1FSS);
+    GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_4);
+
     /* Configure pad settings */
 
     /* SCK (PB5) */
@@ -630,24 +648,6 @@ void STC1200_initSDSPI(void)
     GPIOPadConfigSet(GPIO_PORTB_BASE,
                      GPIO_PIN_4,
                      GPIO_STRENGTH_4MA, GPIO_PIN_TYPE_STD);
-
-	/* SSI-1 Configure Pins */
-
-	// Enable pin PE5 for SSI1 SSI1XDAT1
-	GPIOPinConfigure(GPIO_PE5_SSI1XDAT1);
-	GPIOPinTypeSSI(GPIO_PORTE_BASE, GPIO_PIN_5);
-
-	// Enable pin PE4 for SSI1 SSI1XDAT0
-	GPIOPinConfigure(GPIO_PE4_SSI1XDAT0);
-	GPIOPinTypeSSI(GPIO_PORTE_BASE, GPIO_PIN_4);
-
-	// Enable pin PB5 for SSI1 SSI1CLK
-	GPIOPinConfigure(GPIO_PB5_SSI1CLK);
-	GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_5);
-
-	// Enable pin PB4 for SSI1 SSI1FSS
-	GPIOPinConfigure(GPIO_PB4_SSI1FSS);
-	GPIOPinTypeSSI(GPIO_PORTB_BASE, GPIO_PIN_4);
 
 	SDSPI_init();
 }
