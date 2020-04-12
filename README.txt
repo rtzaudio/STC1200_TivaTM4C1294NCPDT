@@ -29,6 +29,22 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 1.12 (02/01/2020) ==============================================
+
+Added new 'stat' command to command line interface. Also fixed minor
+issue with SD drive that resolved potential random access failures
+occasionally. Some SD cards would exhibit problems, others would not, due
+to pullup resistors not being enabled on the I/O pins. Should work with
+all SD cards properly now.
+
+=== VERSION 1.11 (01/14/2020) ==============================================
+
+Minor changes diagnostic and debugging checks of SD drive.
+
+=== VERSION 1.10 (01/10/2020) ==============================================
+
+Minor changes for debugging checks of SD drive. Internal house build.
+
 === VERSION 1.09 (12/14/2019) ==============================================
 
 Added new CLI commands for cue, store and rtz. The locator can now be used

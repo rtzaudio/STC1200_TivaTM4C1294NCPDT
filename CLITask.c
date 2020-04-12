@@ -127,6 +127,7 @@ MK_CMD(time);
 MK_CMD(cue);
 MK_CMD(store);
 MK_CMD(rtz);
+MK_CMD(stat);
 
 /* The dispatch table */
 #define CMD(func, params, help) {#func, cmd_ ## func, params, help}
@@ -148,6 +149,7 @@ cmd_t dispatch[] = {
     CMD(cue, "s", "Locator cue {0-9}"),
     CMD(store, "s", "Locator store {0-9}"),
     CMD(rtz, "", "Return to zero"),
+    CMD(stat, "", "Displays machine status"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -366,7 +368,7 @@ void parse_cmd(char *buf)
         }
     }
 
-    CLI_puts("Command Not Found\n");
+    CLI_puts("Invalid Command\n");
 }
 
 #define ESCAPE { free(args); return NULL; }
@@ -666,5 +668,12 @@ void cmd_store(arg_t *args)
     }
 }
 
+void cmd_stat(arg_t *args)
+{
+    CLI_printf("\nPosition Status\n\n");
+    CLI_printf("  tape roller tach   : %u\n", (uint32_t)g_sysData.tapeTach);
+    CLI_printf("  tape roller errors : %u\n", g_sysData.qei_error_cnt);
+    CLI_printf("  encoder position   : %d\n", g_sysData.tapePosition);
+}
 
 // End-Of-File
