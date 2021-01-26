@@ -592,6 +592,7 @@ void DrawTimeEdit(void)
 
     char sign = (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-';
 
+#if 0
     switch(g_sysData.editState)
     {
     case EDIT_BEGIN:
@@ -682,6 +683,15 @@ void DrawTimeEdit(void)
         }
         break;
     }
+#endif
+
+    len = sprintf(buf, "%c %1u:%02u:%02u:%u",
+                  sign,
+                  g_sysData.editTime.hour,
+                  g_sysData.editTime.mins,
+                  g_sysData.editTime.secs,
+                  g_sysData.editTime.tens);
+
 
     x = (SCREEN_WIDTH / 2) - 3;
     y = (SCREEN_HEIGHT / 2);

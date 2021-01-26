@@ -102,7 +102,8 @@ static void HandleJogwheelPress(uint32_t flags);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void RemoteSetMode(uint32_t mode);
-void ResetDigitBuf(void);
+static void ResetDigitBuf(void);
+static int StrToTapeTime(char *digits, TAPETIME* tapetime);
 
 //*****************************************************************************
 // Initialize the remote display task
@@ -252,7 +253,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
         /* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxRemote, &msg, 100))
         {
-            /* DIP switch #2 must be on to enable remote tx data */
+            /* DIP switch #2 must be on to enable tx data to remote */
             if (GPIO_read(Board_DIPSW_CFG2) == 0)
                 DrawScreen(s_uScreenNum);
             continue;
@@ -519,7 +520,7 @@ void HandleButtonPress(uint32_t mask, uint32_t flags)
 
 void HandleDigitPress(size_t index, uint32_t flags)
 {
-    int n;
+    int len;
     char digit;
     static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
@@ -567,6 +568,29 @@ void HandleDigitPress(size_t index, uint32_t flags)
         g_sysData.digitBuf[g_sysData.digitCount++] = digit;
         g_sysData.digitBuf[g_sysData.digitCount] = 0;
 
+
+        g_sysData.editTime.flags = F_PLUS;
+
+        len = StrToTapeTime(g_sysData.digitBuf, &g_sysData.editTime);
+
+        if (len >= 6)
+        {
+            g_sysData.digitCount = 0;
+            g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
+
+            /* Exit EDIT mode back to previous state */
+            RemoteSetMode(REMOTE_MODE_EDIT);
+
+            /* Convert H:MM:SS time to total seconds */
+            int ipos;
+            TapeTimeToPosition(&g_sysData.editTime, &ipos);
+
+            /* Store the position at current memory index */
+            CuePointSet(g_sysData.cueIndex, ipos, CF_ACTIVE);
+        }
+
+
+#if 0
         switch(g_sysData.editState)
         {
         case EDIT_BEGIN:
@@ -629,6 +653,7 @@ void HandleDigitPress(size_t index, uint32_t flags)
             g_sysData.editState  = EDIT_BEGIN;
             break;
         }
+#endif
     }
     else
     {
@@ -636,6 +661,124 @@ void HandleDigitPress(size_t index, uint32_t flags)
 
         SetLocateButtonLED(index);
     }
+}
+
+//*****************************************************************************
+// Parses a alphanumeric string of digits and converts it to tape time.
+//*****************************************************************************
+
+int StrToTapeTime(char *digits, TAPETIME* tapetime)
+{
+    int  dcount;
+    char buf[8];
+
+    tapetime->frame = 0;
+    tapetime->tens  = 0;
+    tapetime->secs  = 0;
+    tapetime->mins  = 0;
+    tapetime->hour  = 0;
+    tapetime->flags = F_PLUS;
+
+    if (!digits)
+        return 0;
+
+    memset(buf, 0, sizeof(buf));
+
+    dcount = strlen(digits);
+
+    switch(dcount)
+    {
+    case 1:
+        /* parse tens units */
+        buf[0] = digits[0];
+        buf[1] = 0;
+        tapetime->tens = atoi(buf);
+        break;
+
+    case 2:
+        /* parse tens units */
+        buf[0] = digits[0];
+        buf[1] = 0;
+        tapetime->tens = atoi(buf);
+        /* parse secs units */
+        buf[0] = digits[1];
+        buf[1] = 0;
+        tapetime->secs = atoi(buf);
+        break;
+
+    case 3:
+        /* parse tens units */
+        buf[0] = digits[0];
+        buf[1] = 0;
+        tapetime->tens = atoi(buf);
+        /* parse secs units */
+        buf[0] = digits[1];
+        buf[1] = digits[2];
+        buf[2] = 0;
+        tapetime->secs = atoi(buf);
+        break;
+
+    case 4:
+        /* parse tens units */
+        buf[0] = digits[0];
+        buf[1] = 0;
+        tapetime->tens = atoi(buf);
+        /* parse secs units */
+        buf[0] = digits[1];
+        buf[1] = digits[2];
+        buf[2] = 0;
+        tapetime->secs = atoi(buf);
+        /* parse mins units */
+        buf[0] = digits[3];
+        buf[1] = 0;
+        tapetime->mins = atoi(buf);
+        break;
+
+    case 5:
+        /* parse tens units */
+        buf[0] = digits[0];
+        buf[1] = 0;
+        tapetime->tens = atoi(buf);
+        /* parse secs units */
+        buf[0] = digits[1];
+        buf[1] = digits[2];
+        buf[2] = 0;
+        tapetime->secs = atoi(buf);
+        /* parse mins units */
+        buf[0] = digits[3];
+        buf[1] = digits[4];
+        buf[2] = 0;
+        tapetime->mins = atoi(buf);
+        break;
+
+    case 6:
+        /* parse tens units */
+        buf[0] = digits[0];
+        buf[1] = 0;
+        tapetime->tens = atoi(buf);
+        /* parse secs units */
+        buf[0] = digits[1];
+        buf[1] = digits[2];
+        buf[2] = 0;
+        tapetime->secs = atoi(buf);
+        /* parse mins units */
+        buf[0] = digits[3];
+        buf[1] = digits[4];
+        buf[2] = 0;
+        tapetime->mins = atoi(buf);
+        /* parse hour unit */
+        buf[0] = digits[5];
+        buf[1] = 0;
+        tapetime->hour = atoi(buf);
+        break;
+
+    default:
+        /* length error */
+        dcount = 0;
+        break;
+    }
+
+    return dcount;
 }
 
 //*****************************************************************************

@@ -144,12 +144,12 @@ typedef struct _STC_STATE_MSG {
 #define STC_MODE_MASK       0x07        /* low 3-bits transport mode  */
 
 /* The lower three bits of STC_STATE_MSG.trackState[n] define the current
- * state of a track (input=0, 1=repro, 2=sync). The upper bit is set
+ * state of a track (0=repro, 1=sync, 2=input). The upper bit is set
  * to indicate the track is armed and ready for record.
  */
-#define STC_TRACK_INPUT     0           /* track is in input mode     */
-#define STC_TRACK_REPRO     1           /* track is in repro mode     */
-#define STC_TRACK_SYNC      2           /* track is in sync mode      */
+#define STC_TRACK_REPRO     0           /* track is in repro mode     */
+#define STC_TRACK_SYNC      1           /* track is in sync mode      */
+#define STC_TRACK_INPUT     2           /* track is in input mode     */
 
 #define STC_TRACK_MASK      0x07        /* low 3-bits are track mode  */
 
