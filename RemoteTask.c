@@ -104,6 +104,7 @@ static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void RemoteSetMode(uint32_t mode);
 static void ResetDigitBuf(void);
 static int StrToTapeTime(char *digits, TAPETIME* tapetime);
+static void CompleteEditTimeState();
 
 //*****************************************************************************
 // Initialize the remote display task
@@ -353,6 +354,8 @@ void RemoteSetMode(uint32_t mode)
 
         g_sysData.editState = EDIT_BEGIN;
 
+        ResetDigitBuf();
+
         /* Set mode to undefined */
         g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
 
@@ -560,6 +563,22 @@ void HandleDigitPress(size_t index, uint32_t flags)
          * Remote is in EDIT mode and a digit 0-9 was pressed.
          */
 
+        if (g_sysData.editState == EDIT_BEGIN)
+        {
+            g_sysData.editTime.frame = 0;
+            g_sysData.editTime.tens  = 0;
+            g_sysData.editTime.secs  = 0;
+            g_sysData.editTime.mins  = 0;
+            g_sysData.editTime.hour  = 0;
+            g_sysData.editTime.flags = F_PLUS;
+
+            g_sysData.editState = EDIT_DIGITS;
+
+            memset(&g_sysData.editTime, 0, sizeof(g_sysData.editTime));
+
+            ResetDigitBuf();
+        }
+
         digit = digits[index];
 
         if (g_sysData.digitCount >= MAX_DIGITS_BUF)
@@ -568,92 +587,12 @@ void HandleDigitPress(size_t index, uint32_t flags)
         g_sysData.digitBuf[g_sysData.digitCount++] = digit;
         g_sysData.digitBuf[g_sysData.digitCount] = 0;
 
-
-        g_sysData.editTime.flags = F_PLUS;
-
         len = StrToTapeTime(g_sysData.digitBuf, &g_sysData.editTime);
 
         if (len >= 6)
         {
-            g_sysData.digitCount = 0;
-            g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
-
-            /* Exit EDIT mode back to previous state */
-            RemoteSetMode(REMOTE_MODE_EDIT);
-
-            /* Convert H:MM:SS time to total seconds */
-            int ipos;
-            TapeTimeToPosition(&g_sysData.editTime, &ipos);
-
-            /* Store the position at current memory index */
-            CuePointSet(g_sysData.cueIndex, ipos, CF_ACTIVE);
+            CompleteEditTimeState();
         }
-
-
-#if 0
-        switch(g_sysData.editState)
-        {
-        case EDIT_BEGIN:
-        case EDIT_TENS:
-            g_sysData.digitCount = 0;
-            g_sysData.editState  = EDIT_SECS;
-            g_sysData.editTime.flags = F_PLUS;
-            g_sysData.editTime.tens = (uint8_t)atoi(g_sysData.digitBuf);
-            break;
-
-        case EDIT_SECS:
-            n = atoi(g_sysData.digitBuf);
-
-            /* validate secs value */
-            if (n > 59)
-                n = 59;
-
-            g_sysData.editTime.secs = (uint8_t)n;
-
-            if (g_sysData.digitCount > 1)
-            {
-                g_sysData.digitCount = 0;
-                g_sysData.editState  = EDIT_MINS;
-            }
-            break;
-
-        case EDIT_MINS:
-            n = atoi(g_sysData.digitBuf);
-
-            /* validate mins value */
-            if (n > 59)
-                n = 59;
-
-            g_sysData.editTime.mins = (uint8_t)n;
-
-            if (g_sysData.digitCount > 1)
-            {
-                g_sysData.digitCount = 0;
-                g_sysData.editState  = EDIT_HOUR;
-            }
-            break;
-
-        case EDIT_HOUR:
-            g_sysData.digitCount = 0;
-            g_sysData.editTime.hour  = (digit == '1') ? 1 : 0;
-
-            /* Exit EDIT mode back to previous state */
-            RemoteSetMode(REMOTE_MODE_EDIT);
-
-            /* Convert H:MM:SS time to total seconds */
-            int ipos;
-            TapeTimeToPosition(&g_sysData.editTime, &ipos);
-
-            /* Store the position at current memory index */
-            CuePointSet(g_sysData.cueIndex, ipos, CF_ACTIVE);
-            break;
-
-        default:
-            g_sysData.digitCount = 0;
-            g_sysData.editState  = EDIT_BEGIN;
-            break;
-        }
-#endif
     }
     else
     {
@@ -664,6 +603,40 @@ void HandleDigitPress(size_t index, uint32_t flags)
 }
 
 //*****************************************************************************
+// Finished the time edit mode and stores the current result in the
+// cue point currently being edited.
+//*****************************************************************************
+
+void CompleteEditTimeState(void)
+{
+    int count;
+    int ipos;
+
+    /* Get count of digits entered */
+    count = g_sysData.digitCount;
+
+    /* Reset the digit counter */
+    ResetDigitBuf();
+
+    /* Exit EDIT mode back to previous state */
+    RemoteSetMode(REMOTE_MODE_EDIT);
+
+    /* Only store value if digits were entered */
+    if (count)
+    {
+        /* Convert H:MM:SS time to total seconds */
+        TapeTimeToPosition(&g_sysData.editTime, &ipos);
+
+        /* Store the position at current memory index */
+        CuePointSet(g_sysData.cueIndex, ipos, CF_ACTIVE);
+    }
+
+    memset(&g_sysData.editTime, 0, sizeof(g_sysData.editTime));
+
+    g_sysData.editState = EDIT_BEGIN;
+}
+
+//*****************************************************************************
 // Parses a alphanumeric string of digits and converts it to tape time.
 //*****************************************************************************
 
@@ -671,13 +644,6 @@ int StrToTapeTime(char *digits, TAPETIME* tapetime)
 {
     int  dcount;
     char buf[8];
-
-    tapetime->frame = 0;
-    tapetime->tens  = 0;
-    tapetime->secs  = 0;
-    tapetime->mins  = 0;
-    tapetime->hour  = 0;
-    tapetime->flags = F_PLUS;
 
     if (!digits)
         return 0;
@@ -788,33 +754,16 @@ int StrToTapeTime(char *digits, TAPETIME* tapetime)
 
 void HandleJogwheelPress(uint32_t flags)
 {
-    if (!g_sysData.varispeedMode)
-    {
-        /* Enable vari-speed mode */
-        g_sysData.varispeedMode = true;
-    }
-    else
-    {
-        /* Reset ref frequency to default */
-        g_sysData.ref_freq = REF_FREQ;
-        /* Calculate the 32-bit frequency divisor */
-        uint32_t freqCalc = AD9837_freqCalc(g_sysData.ref_freq);
-        /* Program the DSS ref clock with new value */
-        AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-        AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
-        /* Disable vari-speed mode */
-        g_sysData.varispeedMode = false;
-    }
-
-#if 0
-    uint32_t cue_flags = 0;
-
-    size_t index = g_sysData.cueIndex;
+//    uint32_t cue_flags = 0;
+//    size_t index = g_sysData.cueIndex;
 
     switch (g_sysData.remoteMode)
     {
+    case REMOTE_MODE_EDIT:
+        CompleteEditTimeState();
+        break;
+#if 0
     case REMOTE_MODE_CUE:
-
         SetLocateButtonLED(index);
 
         if (g_sysData.autoMode)
@@ -829,8 +778,30 @@ void HandleJogwheelPress(uint32_t flags)
 
     case REMOTE_MODE_STORE:
         break;
-    }
 #endif
+    default:
+        if (!g_sysData.varispeedMode)
+        {
+            /* Enable vari-speed mode */
+            g_sysData.varispeedMode = true;
+        }
+        else
+        {
+            /* Reset ref frequency to default */
+            g_sysData.ref_freq = REF_FREQ;
+
+            /* Calculate the 32-bit frequency divisor */
+            uint32_t freqCalc = AD9837_freqCalc(g_sysData.ref_freq);
+
+            /* Program the DSS ref clock with new value */
+            AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+            AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+            /* Disable vari-speed mode */
+            g_sysData.varispeedMode = false;
+        }
+        break;
+    }
 }
 
 //*****************************************************************************

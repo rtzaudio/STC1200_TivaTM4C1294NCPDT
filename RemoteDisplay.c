@@ -354,7 +354,7 @@ void DrawTimeBottom(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "L:%02u", g_sysData.cueIndex);
+    len = sprintf(buf, "M:%02u", g_sysData.cueIndex);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -592,106 +592,12 @@ void DrawTimeEdit(void)
 
     char sign = (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-';
 
-#if 0
-    switch(g_sysData.editState)
-    {
-    case EDIT_BEGIN:
-    case EDIT_TENS:
-        if (g_sysData.digitCount)
-        {
-            len = sprintf(buf, "%c _:__:__:%u",
-                     sign,
-                     g_sysData.editTime.tens);
-        }
-        else
-        {
-            len = sprintf(buf, "%c _:__:__:_", sign);
-        }
-        break;
-
-    case EDIT_SECS:
-        if (g_sysData.digitCount)
-        {
-            if (g_sysData.digitCount > 1)
-            {
-                len = sprintf(buf, "%c _:__:%02u:%u",
-                              sign,
-                              g_sysData.editTime.secs,
-                              g_sysData.editTime.tens);
-            }
-            else
-            {
-                len = sprintf(buf, "%c _:__:_%1u:%u",
-                              sign,
-                              g_sysData.editTime.secs,
-                              g_sysData.editTime.tens);
-            }
-        }
-        else
-        {
-            len = sprintf(buf, "%c _:__:__:%u",
-                          sign,
-                          g_sysData.editTime.tens);
-        }
-        break;
-
-    case EDIT_MINS:
-        if (g_sysData.digitCount)
-        {
-            if (g_sysData.digitCount > 1)
-            {
-                len = sprintf(buf, "%c _:%02u:%02u:%u",
-                              sign,
-                              g_sysData.editTime.mins,
-                              g_sysData.editTime.secs,
-                              g_sysData.editTime.tens);
-            }
-            else
-            {
-                len = sprintf(buf, "%c _:_%1u:%02u:%u",
-                              sign,
-                              g_sysData.editTime.mins,
-                              g_sysData.editTime.secs,
-                              g_sysData.editTime.tens);            }
-        }
-        else
-        {
-            len = sprintf(buf, "%c _:__:%02u:%u",
-                          sign,
-                          g_sysData.editTime.secs,
-                          g_sysData.editTime.tens);
-        }
-        break;
-
-    case EDIT_HOUR:
-        if (g_sysData.digitCount)
-        {
-            len = sprintf(buf, "%c %1u:%02u:%02u:%u",
-                          sign,
-                          g_sysData.editTime.hour,
-                          g_sysData.editTime.mins,
-                          g_sysData.editTime.secs,
-                          g_sysData.editTime.tens);
-        }
-        else
-        {
-            len = sprintf(buf, "%c _:%02u:%02u:%u",
-                          sign,
-                          g_sysData.editTime.mins,
-                          g_sysData.editTime.secs,
-                          g_sysData.editTime.tens);
-        }
-        break;
-    }
-#endif
-
     len = sprintf(buf, "%c %1u:%02u:%02u:%u",
                   sign,
                   g_sysData.editTime.hour,
                   g_sysData.editTime.mins,
                   g_sysData.editTime.secs,
                   g_sysData.editTime.tens);
-
 
     x = (SCREEN_WIDTH / 2) - 3;
     y = (SCREEN_HEIGHT / 2);

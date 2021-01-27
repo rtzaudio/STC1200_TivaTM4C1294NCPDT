@@ -29,6 +29,13 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 1.13 (01/26/2021) ==============================================
+
+Improved cue point memory editing feature. Now time is entered starting
+with the tens units first. If the user enters all 6 digits it completes the
+data entry on the sixth digit. Otherwise the user can enter 'n' digits and
+then CLICK the JOG WHEEL to accept the digits entered so far.
+
 === VERSION 1.12 (02/01/2020) ==============================================
 
 Added new 'stat' command to command line interface. Also fixed minor

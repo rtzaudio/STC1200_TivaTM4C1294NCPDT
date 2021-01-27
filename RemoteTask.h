@@ -28,10 +28,7 @@
 
 typedef enum EditStateType {
     EDIT_BEGIN,
-    EDIT_TENS,
-    EDIT_SECS,
-    EDIT_MINS,
-    EDIT_HOUR
+    EDIT_DIGITS,
 } EditStateType;
 
 /*** FUNCTION PROTOTYPES ***************************************************/
