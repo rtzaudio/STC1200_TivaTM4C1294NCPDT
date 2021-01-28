@@ -84,9 +84,9 @@
  *
  *      * SOF: start of frame preamble 0x79BA identifier.
  *
- *      * Frame length: Length in bytes (always 5 for ACK/NAK only)
+ *      * Frame length: Length in bytes (always 4 for ACK/NAK only)
  *
- *      * Type: frame type 1=ACK/2=NAK (always 11H or 12H)
+ *      * Type: frame type 1=ACK/2=NAK (always 0x11H or 0x12H)
  *
  *      * ACK/NAK Sequence: ACK/NAK frame sequence#
  *
@@ -160,17 +160,20 @@
 /* IPC Frame Control Block */
 
 typedef struct _IPC_FCB {
+    /* frame data */
     uint8_t     type;                       /* frame type bits       */
     uint8_t     seqnum;                     /* frame tx/rx seq#      */
     uint8_t     acknak;                     /* frame ACK/NAK seq#    */
-    uint8_t     address;                    /* tx/rx node address    */
+    uint8_t     rsvd;                       /* keep on 32-bit align  */
 } IPC_FCB;
 
 /*** IPC FUNCTION PROTOTYPES ***********************************************/
 
 uint8_t IPC_GetSequenceNum(void);
 
-int IPC_TxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen);
-int IPC_RxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen);
+void IPC_InitFCB(IPC_FCB* fcb);
+
+int IPC_RxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t* txtlen);
+int IPC_TxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t* txtlen);
 
 #endif /* _IPCFRAME_H_ */

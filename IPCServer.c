@@ -364,6 +364,7 @@ Bool IPC_Message_post(IPC_MSG* msg, IPC_FCB* fcb, UInt32 timeout)
 
 Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 {
+    uint16_t txlen;
     UInt key;
     IPC_ELEM* elem;
 
@@ -378,7 +379,8 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
         elem = Queue_get(g_ipc.txDataQue);
 
         /* Transmit the packet! */
-        IPC_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
+        txlen = sizeof(IPC_MSG);
+        IPC_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), &txlen);
 
         /* Perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();
@@ -410,6 +412,7 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
 {
     int rc;
+    uint16_t rxlen;
     UInt key;
     IPC_ELEM* elem;
 
@@ -450,8 +453,8 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         while (1)
         {
             /* Attempt to read a frame from the peer */
-
-            rc = IPC_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
+            rxlen = sizeof(IPC_MSG);
+            rc = IPC_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), &rxlen);
 
             /* Zero means packet received successfully */
             if (rc == 0)
@@ -565,7 +568,7 @@ Bool IPC_Notify(IPC_MSG* msg, UInt32 timeout)
     fcb.type    = IPC_MAKETYPE(IPC_F_DATAGRAM, IPC_MSG_ONLY);
     fcb.acknak  = 0;
     fcb.seqnum  = 0;
-    fcb.address = 0;
+    fcb.rsvd    = 0;
 
     return IPC_Message_post(msg, &fcb, timeout);
 }
@@ -583,7 +586,7 @@ Bool IPC_Transaction(IPC_MSG* msgTx, IPC_MSG* msgRx, UInt32 timeout)
     fcb.type    = IPC_MAKETYPE(IPC_F_ACKNAK, IPC_MSG_ONLY);
     fcb.acknak  = 0;
     fcb.seqnum  = IPC_GetTxSeqNum();
-    fcb.address = 0;
+    fcb.rsvd    = 0;
 
     size_t index = (fcb.seqnum - 1) % IPC_MAX_WINDOW;
 

@@ -115,7 +115,7 @@ Bool IPC_Handle_transaction(IPC_MSG* msg, IPC_FCB* fcb, UInt32 timeout)
 
     fcbReply.type    = MAKETYPE(IPC_F_ACKNAK, IPC_MSG_ACK);
     fcbReply.acknak  = fcb->seqnum;
-    fcbReply.address = fcb->address;
+    fcbReply.rsvd    = fcb->rsvd;
     fcbReply.seqnum  = IPC_GetTxSeqNum();
 
     return IPC_Message_post(&msgReply, &fcbReply, timeout);
