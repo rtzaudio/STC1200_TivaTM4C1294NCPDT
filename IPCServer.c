@@ -364,7 +364,6 @@ Bool IPC_Message_post(IPC_MSG* msg, IPC_FCB* fcb, UInt32 timeout)
 
 Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 {
-    uint16_t txlen;
     UInt key;
     IPC_ELEM* elem;
 
@@ -379,8 +378,8 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
         elem = Queue_get(g_ipc.txDataQue);
 
         /* Transmit the packet! */
-        txlen = sizeof(IPC_MSG);
-        IPC_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), &txlen);
+
+        IPC_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
 
         /* Perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();

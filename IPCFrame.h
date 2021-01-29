@@ -174,6 +174,6 @@ uint8_t IPC_GetSequenceNum(void);
 void IPC_InitFCB(IPC_FCB* fcb);
 
 int IPC_RxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t* txtlen);
-int IPC_TxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t* txtlen);
+int IPC_TxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen);
 
 #endif /* _IPCFRAME_H_ */

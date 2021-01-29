@@ -360,8 +360,7 @@ int IPC_RxFrame(
 //
 //              uint8_t*    txtbuf  - Ptr to msg txt tx buffer
 //
-//              uint16_t*   txtlen  - Specifies the length of the message
-//                                    to transmit, or zero on return if error.
+//              uint16_t   txtlen   - Specifies length of the message to send
 //
 // Description: Transmit an IPC frame from the serial port. On entry the value
 //              pointed to by txtlen contains the number of message bytes
@@ -377,7 +376,7 @@ int IPC_TxFrame(
         UART_Handle handle,
         IPC_FCB*    fcb,
         void*       txtbuf,
-        uint16_t*   txtlen
+        uint16_t    txtlen
         )
 {
     uint8_t b;
@@ -387,11 +386,7 @@ int IPC_TxFrame(
     uint16_t crc;
 
     uint8_t *textbuf = txtbuf;
-    uint16_t textlen = *txtlen;
-
-    /* No message text bytes transmitted yet */
-    if (txtlen)
-        *txtlen = 0;
+    uint16_t textlen = txtlen;
 
     /* First check the text length is valid */
     if (textlen > IPC_MAX_TEXT_LEN)
@@ -493,9 +488,6 @@ int IPC_TxFrame(
                 crc = CRC16Update(crc, b);
                 UART_write(handle, &b, 1);
             }
-
-            if (txtlen)
-              *txtlen = textlen;
         }
     }
 
