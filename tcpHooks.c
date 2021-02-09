@@ -766,6 +766,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             notify = true;
             break;
 
+        case STC_CMD_TAPE_SPEED_SET:
+            //(uint8_t)msg.param1.U
+            break;
+
         case STC_CMD_CANCEL:
             /* param1 = 0
              * param2 = 0

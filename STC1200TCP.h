@@ -266,5 +266,6 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_TRACK_MODE_ALL      19  /* param1=newmode, param2=0        */
 #define STC_CMD_ZERO_RESET          20  /* param1=0, param2=0              */
 #define STC_CMD_CANCEL              21  /* param1=0, param2=0              */
+#define STC_CMD_TAPE_SPEED_SET      22  /* param1=30/15, param2=0          */
 
 #pragma pack(pop)
