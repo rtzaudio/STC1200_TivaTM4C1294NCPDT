@@ -361,7 +361,9 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
         do {
 
-            if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
+            //if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
+
+            if ((bytesSent = WriteData(clientfd, buf, bytesToSend, 0)) <= 0)
             {
                 connected = false;
                 break;
