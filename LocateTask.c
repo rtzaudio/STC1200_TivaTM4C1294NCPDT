@@ -773,7 +773,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     }
                 }
 
-                if (time < 20.0f)
+                if (time < 15.0f)
                 {
                     g_sysData.searchProgress = 100;
                     Transport_Stop();
