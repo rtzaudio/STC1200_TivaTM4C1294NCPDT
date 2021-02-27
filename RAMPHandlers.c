@@ -99,20 +99,9 @@ void RAMP_Handle_datagram(RAMP_FCB* fcb, RAMP_MSG* msg)
 
 void RAMP_Handle_message(RAMP_FCB* fcb, RAMP_MSG* msg)
 {
-    uint32_t flags = 0;
-
     switch(msg->type)
     {
     case MSG_TYPE_SWITCH:
-
-        if (g_sysData.autoMode)
-            flags |= CF_AUTO_PLAY;
-
-        if (g_sysData.shiftRecButton)
-            flags |= CF_AUTO_REC;
-
-        msg->param2.U = flags;
-
         /* Send switch class events to remote task */
         Mailbox_post(g_mailboxRemote, msg, 0);
         break;

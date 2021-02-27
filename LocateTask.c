@@ -204,6 +204,40 @@ void CuePointSet(size_t index, int ipos, uint32_t cue_flags)
 }
 
 /*****************************************************************************
+ * This functions sets or clears a bit mask for a cue point in the
+ * cue point memory table. The parameter index must be the range of
+ * zero to MAX_CUE_POINTS. Cue point 0-63 are for the remote control
+ * memories. Cue point 64 is for the single memory cue point buttons
+ * on the machine.
+ *****************************************************************************/
+
+void CuePointMask(size_t index, uint32_t setmask, uint32_t clearmask)
+{
+    Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
+
+    if (index < MAX_CUE_POINTS)
+    {
+        uint32_t key = Hwi_disable();
+
+        /* get current cue bit mask */
+        uint32_t cue_flags = g_sysData.cuePoint[index].flags;
+
+        /* set any mask bits specified */
+        cue_flags |= setmask;
+
+        /* clear any mask bits specified */
+        cue_flags &= ~(clearmask);
+
+        /* save the updated bit mask */
+        g_sysData.cuePoint[index].flags = cue_flags;
+
+        Hwi_restore(key);
+    }
+
+    Semaphore_post(g_semaCue);
+}
+
+/*****************************************************************************
  *
  *****************************************************************************/
 

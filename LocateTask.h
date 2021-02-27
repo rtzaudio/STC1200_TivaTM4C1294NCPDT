@@ -35,7 +35,7 @@ typedef struct _CUE_POINT {
 #define CF_AUTO_PLAY        0x02    /* enter play mode after locate     */
 #define CF_AUTO_REC         0x04    /* enter play + record after locate */
 
-/* We support 10 cue points for the remote, but three extra cue memories
+/* We support 10 cue points for the remote, but extra cue memories
  * are reserved for system use. One of these holds the 'home' cue point
  * associated with the search/cue buttons on the transport deck. This is
  * a dedicated cue point for the machine operator and is associated with
@@ -78,6 +78,7 @@ typedef struct _LocateMessage {
 
 void CuePointGet(size_t index, int* ipos,  uint32_t* flags);
 void CuePointSet(size_t index, int ipos, uint32_t cue_flags);
+void CuePointMask(size_t index, uint32_t setmask, uint32_t clearmask);
 void CuePointClear(size_t index);
 void CuePointClearAll(void);
 void CuePointTimeGet(size_t index, TAPETIME* tapeTime);

@@ -96,8 +96,8 @@ extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
 /* Static Function Prototypes */
-static void HandleButtonPress(uint32_t mask, uint32_t flags);
-static void HandleDigitPress(size_t index, uint32_t flags);
+static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
+static void HandleDigitPress(size_t index, uint32_t cue_flags);
 static void HandleJogwheelPress(uint32_t flags);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
@@ -233,6 +233,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 {
     IPC_MSG ipc;
     RAMP_MSG msg;
+    uint32_t cue_flags;
 
     g_sysData.cueIndex = 0;
 
@@ -299,7 +300,15 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
                 g_sysData.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
                 g_sysData.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
 
-                HandleButtonPress(msg.param1.U, msg.param2.U);
+                cue_flags = 0;
+
+                if (g_sysData.autoMode)
+                    cue_flags |= CF_AUTO_PLAY;
+
+                if (g_sysData.shiftRecButton)
+                    cue_flags |= CF_AUTO_REC;
+
+                HandleButtonPress(msg.param1.U, cue_flags);
 
                 /* Signal the TCP worker thread switch press event */
                 Event_post(g_eventTransport, Event_Id_02);
@@ -432,29 +441,29 @@ void RemoteSetMode(uint32_t mode)
 // Handle button press events from DRC remote
 //*****************************************************************************
 
-void HandleButtonPress(uint32_t mask, uint32_t flags)
+void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
 {
     /* Handle numeric digit/locate buttons */
     if (mask & SW_LOC0) {
-        HandleDigitPress(0, flags);
+        HandleDigitPress(0, cue_flags);
     } else if (mask & SW_LOC1) {
-        HandleDigitPress(1, flags);
+        HandleDigitPress(1, cue_flags);
     } else if (mask & SW_LOC2) {
-        HandleDigitPress(2, flags);
+        HandleDigitPress(2, cue_flags);
     } else if (mask & SW_LOC3) {
-        HandleDigitPress(3, flags);
+        HandleDigitPress(3, cue_flags);
     } else if (mask & SW_LOC4) {
-        HandleDigitPress(4, flags);
+        HandleDigitPress(4, cue_flags);
     } else if (mask & SW_LOC5) {
-        HandleDigitPress(5, flags);
+        HandleDigitPress(5, cue_flags);
     } else if (mask & SW_LOC6) {
-        HandleDigitPress(6, flags);
+        HandleDigitPress(6, cue_flags);
     } else if (mask & SW_LOC7) {
-        HandleDigitPress(7, flags);
+        HandleDigitPress(7, cue_flags);
     } else if (mask & SW_LOC8) {
-        HandleDigitPress(8, flags);
+        HandleDigitPress(8, cue_flags);
     } else if (mask & SW_LOC9) {
-        HandleDigitPress(9, flags);
+        HandleDigitPress(9, cue_flags);
     } else if (mask & SW_CUE) {
         /* Switch to CUE mode */
         RemoteSetMode(REMOTE_MODE_CUE);
@@ -521,11 +530,11 @@ void HandleButtonPress(uint32_t mask, uint32_t flags)
 // This handler is called for any digit keys (0-9) pressed on the remote.
 //*****************************************************************************
 
-void HandleDigitPress(size_t index, uint32_t flags)
+void HandleDigitPress(size_t index, uint32_t cue_flags)
 {
     int len;
     char digit;
-    static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+     static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
     if (g_sysData.remoteMode == REMOTE_MODE_CUE)
     {
@@ -538,7 +547,7 @@ void HandleDigitPress(size_t index, uint32_t flags)
         SetLocateButtonLED(index);
 
         /* Begin locate search */
-        LocateSearch(index, flags);
+        LocateSearch(index, cue_flags);
     }
     else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
     {

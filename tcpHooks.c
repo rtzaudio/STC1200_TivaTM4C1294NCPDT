@@ -596,54 +596,24 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             if (IsLocating())
                 LocateCancel();
 
-            if (msg.param1.U <= 9)
-            {
-                Remote_PostSwitchPress(smask[msg.param1.U], msg.param2.U);
-            }
-            else if (msg.param1.U == STC_CUE_POINT_HOME)
-            {
-                LocateSearch(CUE_POINT_HOME,  msg.param2.U);
-            }
+            index = 0;
+            flags = msg.param2.U;
+
+            if (msg.param1.U == STC_CUE_POINT_HOME)
+                index = CUE_POINT_HOME;
             else if (msg.param1.U == STC_CUE_POINT_MARK_IN)
-            {
-                LocateSearch(CUE_POINT_MARK_IN,  msg.param2.U);
-            }
+                index = CUE_POINT_MARK_IN;
             else if (msg.param1.U == STC_CUE_POINT_MARK_OUT)
-            {
-                LocateSearch(CUE_POINT_MARK_OUT,  msg.param2.U);
-            }
+                index = CUE_POINT_MARK_OUT;
             else if (msg.param1.U == STC_CUE_POINT_PUNCH_IN)
-            {
-                LocateSearch(CUE_POINT_PUNCH_IN,  msg.param2.U);
-            }
+                index = CUE_POINT_PUNCH_IN;
             else if (msg.param1.U == STC_CUE_POINT_PUNCH_OUT)
-            {
-                LocateSearch(CUE_POINT_PUNCH_OUT,  msg.param2.U);
-            }
-            break;
-
-        case STC_CMD_LOCATE_AUTO_LOOP:
-            /* param1: cue flags, CF_AUTO_PLAY, etc
-             * param2: not used, zero
-             */
-            if (IsLocating())
-                LocateCancel();
-
-            status = LocateLoop((uint32_t)msg.param1.U);
-            break;
-
-        case STC_CMD_AUTO_PUNCH_SET:
-            if (msg.param1.U)
-            {
-                SetButtonLedMask(STC_L_AUTO_PUNCH, 0);
-                g_sysData.autoPunch = TRUE;
-            }
+                index = CUE_POINT_PUNCH_OUT;
             else
-            {
-                SetButtonLedMask(0, STC_L_AUTO_PUNCH);
-                g_sysData.autoPunch = FALSE;
-            }
-            notify = TRUE;
+                index = (msg.param1.U <= 9) ? msg.param1.U : 0;
+
+            //SetLocateButtonLED(index);
+            LocateSearch(index, flags);
             break;
 
         case STC_CMD_CUEPOINT_STORE:
@@ -679,7 +649,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             }
             else if (index <= 9)
             {
-                SetButtonLedMask(smask[index] , 0);
+                SetLocateButtonLED(index);
+                //SetButtonLedMask(smask[index] , 0);
                 CuePointSet(index, ipos, flags);
             }
             notify = true;
@@ -729,6 +700,30 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
                 CuePointClear((size_t)msg.param1.U);
             }
             notify = true;
+            break;
+
+        case STC_CMD_LOCATE_AUTO_LOOP:
+            /* param1: cue flags, CF_AUTO_PLAY, etc
+             * param2: not used, zero
+             */
+            if (IsLocating())
+                LocateCancel();
+
+            status = LocateLoop((uint32_t)msg.param1.U);
+            break;
+
+        case STC_CMD_AUTO_PUNCH_SET:
+            if (msg.param1.U)
+            {
+                SetButtonLedMask(STC_L_AUTO_PUNCH, 0);
+                g_sysData.autoPunch = TRUE;
+            }
+            else
+            {
+                SetButtonLedMask(0, STC_L_AUTO_PUNCH);
+                g_sysData.autoPunch = FALSE;
+            }
+            notify = TRUE;
             break;
 
         case STC_CMD_TRACK_SET_STATE:
@@ -793,7 +788,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
         }
 
-        /* Notify refresh of current transport state change */
+        /* Notify refresh of current transport state change to wired remote */
 
         if (notify)
             Event_post(g_eventTransport, Event_Id_03);
