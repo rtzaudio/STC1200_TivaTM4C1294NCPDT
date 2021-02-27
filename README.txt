@@ -29,6 +29,18 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 1.14 (02/27/2021) ==============================================
+
+This build includes a number of fixes and minor changes to support DRCWIN
+and the DRC1200 wired remote simultaneously. The locator now supports
+AUTO-PLAY with record by holding the REC button and pressing a LOC button
+with AUTO-PLAY enabled. The machine will then search to the LOC point 
+requested and then enter PLAY+REC more when REC button on the DRC1200 is
+held prior to initiating a LOC or LOOP function. In DRCWIN the LOOP 
+function also supports auto record by clicking the REC button prior
+to initiating a LOC or LOOP function. The AUTO-PUNCH function has still
+not been implimented yet.
+
 === VERSION 1.13 (01/26/2021) ==============================================
 
 Improved cue point memory editing feature. Now time is entered starting
