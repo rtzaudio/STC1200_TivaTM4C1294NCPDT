@@ -152,44 +152,44 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("</head>\r\n");
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
-    html("  <div id=\"top\">\r\n");
+    html("<div id=\"top\">\r\n");
     //html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
-    html("    <h1>STC-1200</h1>\r\n");
-    html("    <p>Tape Machine Services</p>\r\n");
-    html("  </div>\r\n");
-    html("  <div class=\"wrapper\">\r\n");
-    html("    <div id=\"menubar\">\r\n");
-    html("      <ul id=\"menulist\">\r\n");
-    html("        <li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("        <li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("        <li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("      </ul>\r\n");
-    html("    </div>\r\n");
-    html("    <div id=\"main\">\r\n");
+    html("<h1>STC-1200</h1>\r\n");
+    html("<p>Tape Machine Services</p>\r\n");
+    html("</div>\r\n");
+    html("<div class=\"wrapper\">\r\n");
+    html("<div id=\"menubar\">\r\n");
+    html("<ul id=\"menulist\">\r\n");
+    html("<li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("</ul>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"main\">\r\n");
 
-    System_sprintf(buf,  "    <p>Firmware Version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    System_sprintf(buf, "<p>Firmware Version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
 
-    System_sprintf(buf,  "    <p>PCB Serial#: %s</p>\r\n", serialnum);
+    System_sprintf(buf, "<p>PCB Serial#: %s</p>\r\n", serialnum);
     html(buf);
 
-    System_sprintf(buf,  "    <p>MAC Address: %s</p>\r\n", mac);
+    System_sprintf(buf, "<p>MAC Address: %s</p>\r\n", mac);
     html(buf);
 
-    System_sprintf(buf,  "    <p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
+    System_sprintf(buf, "<p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
     html(buf);
 
-    System_sprintf(buf,  "    <p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
+    System_sprintf(buf, "<p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
     html(buf);
 
-    System_sprintf(buf,  "    <p>Roller Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
+    System_sprintf(buf, "<p>Roller Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
     html(buf);
 
-    html("    </div>\r\n");
-    html("  </div>\r\n");
-    html("  <div id=\"bottom\">\r\n");
-    html("    Copyright &copy; 2019, RTZ Professional Audio, LLC\r\n");
-    html("  </div>\r\n");
+    html("</div>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"bottom\">\r\n");
+    html("Copyright &copy; 2021, RTZ Professional Audio, LLC\r\n");
+    html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
     html("</html>\r\n");
@@ -211,51 +211,51 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</head>\r\n");
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
-    html("  <div id=\"top\">\r\n");
-//    html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
-    html("    <h1>STC-1200</h1>\r\n");
-    html("    <p>Tape Machine Services</p>\r\n");
-    html("  </div>\r\n");
-    html("  <div class=\"wrapper\">\r\n");
-    html("    <div id=\"menubar\">\r\n");
-    html("      <ul id=\"menulist\">\r\n");
-    html("        <li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("        <li class=\"menuitem active\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("        <li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("      </ul>\r\n");
-    html("    </div>\r\n");
-    html("    <div id=\"main\">\r\n");
-    html("      <form action=\"config.cgi\" method=\"post\">\r\n");
-    html("        <p class=\"bold\">General Settings</p>\r\n");
+    html("<div id=\"top\">\r\n");
+//    html("<img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
+    html("<h1>STC-1200</h1>\r\n");
+    html("<p>Tape Machine Services</p>\r\n");
+    html("</div>\r\n");
+    html("<div class=\"wrapper\">\r\n");
+    html("<div id=\"menubar\">\r\n");
+    html("<ul id=\"menulist\">\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("<li class=\"menuitem active\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("</ul>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"main\">\r\n");
+    html("<form action=\"config.cgi\" method=\"post\">\r\n");
+    html("<p class=\"bold\">General Settings</p>\r\n");
 
-    System_sprintf(buf, "        <input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
                        g_sysParms.showLongTime ? "checked" : "");
     html(buf);
-    html("        <br />\r\n");
+    html("<br />\r\n");
 
-    System_sprintf(buf, "        <input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
                    g_sysParms.searchBlink ? "checked" : "");
     html(buf);
-    html("        <p class=\"bold\">Locator Settings</p>\r\n");
+    html("<p class=\"bold\">Locator Settings</p>\r\n");
 
-    System_sprintf(buf, "         Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_near);
+    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_near);
     html(buf);
 
-    System_sprintf(buf, "         Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_mid);
+    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_mid);
     html(buf);
 
-    System_sprintf(buf, "         Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_far);
+    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_far);
     html(buf);
 
-    html("        <br />\r\n");
-    html("        <input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
-    html("        <input class=\"btn\" type=\"reset\" name=\"submit\" value=\"Reset\">\r\n");
-    html("      </form>\r\n");
-    html("    </div>\r\n");
-    html("  </div>\r\n");
-    html("  <div id=\"bottom\">\r\n");
-    html("    Copyright &copy; 2019, RTZ Professional Audio, LLC\r\n");
-    html("  </div>\r\n");
+    html("<br />\r\n");
+    html("<input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
+    html("<input class=\"btn\" type=\"reset\" name=\"submit\" value=\"Reset\">\r\n");
+    html("</form>\r\n");
+    html("</div>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"bottom\">\r\n");
+    html("Copyright &copy; 2021, RTZ Professional Audio, LLC\r\n");
+    html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
     html("</html>\r\n");
