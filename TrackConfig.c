@@ -44,9 +44,10 @@
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
-#include <xdc/runtime/System.h>
+#include <xdc/runtime/Assert.h>
+#include <xdc/runtime/Diags.h>
 #include <xdc/runtime/Error.h>
-#include <xdc/runtime/Gate.h>
+#include <xdc/runtime/Memory.h>
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
@@ -56,11 +57,14 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/SPI.h>
+#include <ti/drivers/SDSPI.h>
+#include <ti/drivers/UART.h>
 
 #include <file.h>
 #include <stdio.h>
@@ -70,9 +74,9 @@
 #include <stdlib.h>
 
 /* STC1200 Board Header file */
-
 #include "STC1200.h"
 #include "Board.h"
+#include "IPCFrame.h"
 #include "STC1200TCP.h"
 #include "TrackConfig.h"
 
@@ -80,19 +84,124 @@
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
 
+/* Default AT45DB parameters structure */
+const TRACK_Params TRACK_defaultParams = {
+    0,   /* dummy */
+};
+
+static uint8_t s_seqnum = IPC_MIN_SEQ;
+
+/* Private Helper Functions */
+int SetTrackStates(TRACK_Handle handle);
+
+//*****************************************************************************
+// Track Controller Construction/Destruction
+//*****************************************************************************
+
+TRACK_Handle TRACK_construct(TRACK_Object *obj, UART_Handle uartHandle,
+                             TRACK_Params *params)
+{
+    /* Initialize the object's fields */
+    obj->uartHandle = uartHandle;
+
+    GateMutex_construct(&(obj->gate), NULL);
+
+    return (TRACK_Handle)obj;
+}
+
+TRACK_Handle TRACK_create(UART_Handle uartHandle, TRACK_Params *params)
+{
+    TRACK_Handle handle;
+    Error_Block eb;
+
+    Error_init(&eb);
+
+    handle = Memory_alloc(NULL, sizeof(TRACK_Object), NULL, &eb);
+
+    if (handle == NULL)
+        return NULL;
+
+    handle = TRACK_construct(handle, uartHandle, params);
+
+    return handle;
+}
+
+Void TRACK_delete(TRACK_Handle handle)
+{
+    TRACK_destruct(handle);
+
+    Memory_free(NULL, handle, sizeof(TRACK_Object));
+}
+
+Void TRACK_destruct(TRACK_Handle handle)
+{
+    Assert_isTrue((handle != NULL), NULL);
+
+    GateMutex_destruct(&(handle->gate));
+}
+
+Void TRACK_Params_init(TRACK_Params *params)
+{
+    Assert_isTrue(params != NULL, NULL);
+
+    *params = TRACK_defaultParams;
+}
+
 //*****************************************************************************
 //
 //*****************************************************************************
 
-bool Track_SetState(size_t track, uint8_t mode, uint8_t flags)
+int TRACK_SetTrackStates(TRACK_Handle handle)
 {
-    if (track >= MAX_TRACKS)
-        return false;
+    int rc;
+    IPC_FCB rxFCB;
+    IPC_FCB txFCB;
+    uint16_t len;
+    uint8_t rxBuf[48];
+    DCS_IPCMSG_SET_TRACKS msg;
+    IArg key;
 
-    g_sysData.trackState[track] = mode | flags;
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
-    return true;
+    /* Set message only op-code and message length */
+    msg.hdr.opcode = DCS_OP_SET_TRACKS;
+    msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACKS);
+
+    /* Copy 24-tracks of the track state data to message */
+    memcpy(msg.trackState, g_sysData.trackState, DCS_NUM_TRACKS);
+
+    /* Setup FCB for message only type frame */
+    txFCB.type   = IPC_MAKETYPE(0, IPC_MSG_ONLY);
+    txFCB.seqnum = s_seqnum;
+    txFCB.acknak = 0;
+
+    /* Send IPC command/data to track controller */
+
+    rc = IPC_TxFrame(handle->uartHandle, &txFCB, &msg, msg.hdr.msglen);
+
+    if (rc == IPC_ERR_SUCCESS)
+    {
+        len = sizeof(rxBuf);
+
+        /* Try to read ack/nak response back */
+
+        rc = IPC_RxFrame(handle->uartHandle, &rxFCB, rxBuf, &len);
+
+        if (rc == IPC_ERR_SUCCESS)
+        {
+            /* increment sequence number on reply */
+            s_seqnum = IPC_INC_SEQ(s_seqnum);
+        }
+    }
+
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return rc;
 }
+
+//*****************************************************************************
+//
+//*****************************************************************************
 
 bool Track_GetState(size_t track, uint8_t* modeflags)
 {
@@ -101,6 +210,16 @@ bool Track_GetState(size_t track, uint8_t* modeflags)
 
     if (modeflags)
         *modeflags = g_sysData.trackState[track];
+
+    return true;
+}
+
+bool Track_SetState(size_t track, uint8_t mode, uint8_t flags)
+{
+    if (track >= MAX_TRACKS)
+        return false;
+
+    g_sysData.trackState[track] = mode | flags;
 
     return true;
 }

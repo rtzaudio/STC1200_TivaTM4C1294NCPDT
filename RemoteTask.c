@@ -57,11 +57,13 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/SPI.h>
+#include <ti/drivers/SDSPI.h>
 #include <ti/drivers/UART.h>
 
 #include <file.h>
@@ -209,10 +211,10 @@ void SetButtonLedMask(uint32_t setMask, uint32_t clearMask)
     uint32_t key = Hwi_disable();
 
     /* Clear any bits in the clear mask */
-    g_sysData.ledMaskButton &= ~(clearMask);
+    g_sysData.ledMaskRemote &= ~(clearMask);
 
     /* Set any bits in the set mask */
-    g_sysData.ledMaskButton |= setMask;
+    g_sysData.ledMaskRemote |= setMask;
 
     /* Restore interrupts */
     Hwi_restore(key);

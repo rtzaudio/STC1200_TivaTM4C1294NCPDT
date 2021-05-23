@@ -53,6 +53,7 @@
 #include <ti/sysbios/knl/Event.h>
 #include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -95,7 +96,6 @@
 
 extern SYSDATA g_sysData;
 extern SYSPARMS g_sysParms;
-extern Event_Handle g_eventQEI;
 
 /* Static Data Items */
 static Hwi_Struct qeiHwiStruct;
@@ -222,7 +222,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 	/* Create interrupt signal event */
     Error_init(&eb);
-    g_eventQEI = Event_create(NULL, &eb);
+    g_sysData.handleEventQEI = Event_create(NULL, &eb);
 
 	/* Initialize the quadrature encoder module */
 	QEI_initialize();
@@ -261,7 +261,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
     	/* Wait for any ISR events to be posted */
-    	UInt events = Event_pend(g_eventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
+    	UInt events = Event_pend(g_sysData.handleEventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
 
     	/* not used */
     	if (events & Event_Id_00)
@@ -392,19 +392,19 @@ Void QEIHwi(UArg arg)
     if (ulIntStat & QEI_INTERROR)       	/* phase error detected */
     {
     	g_sysData.qei_error_cnt++;
-    	Event_post(g_eventQEI, Event_Id_01);
+    	Event_post(g_sysData.handleEventQEI, Event_Id_01);
     }
     else if (ulIntStat & QEI_INTTIMER)  	/* velocity timer expired */
     {
-    	Event_post(g_eventQEI, Event_Id_02);
+    	Event_post(g_sysData.handleEventQEI, Event_Id_02);
     }
     else if (ulIntStat & QEI_INTDIR)    	/* direction change */
     {
-    	Event_post(g_eventQEI, Event_Id_03);
+    	Event_post(g_sysData.handleEventQEI, Event_Id_03);
     }
     else if (ulIntStat & QEI_INTINDEX)  	/* Index pulse detected */
     {
-    	Event_post(g_eventQEI, Event_Id_04);
+    	Event_post(g_sysData.handleEventQEI, Event_Id_04);
     }
 
     QEIIntEnable(QEI_BASE_ROLLER, ulIntStat);

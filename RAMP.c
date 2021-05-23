@@ -46,9 +46,11 @@
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/gates/GateMutex.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
+#include <ti/drivers/SPI.h>
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>

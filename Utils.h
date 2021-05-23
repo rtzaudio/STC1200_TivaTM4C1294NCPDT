@@ -17,7 +17,7 @@
 // Function Prototypes
 //*****************************************************************************
 
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
+bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 
 void InitSysDefaults(SYSPARMS* p);
 int SysParamsRead(SYSPARMS* sp);

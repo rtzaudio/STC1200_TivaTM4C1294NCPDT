@@ -61,6 +61,7 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -107,30 +108,15 @@
 // via I2C from the AT24MAC402 serial EPROM.
 //*****************************************************************************
 
-int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
+bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
 {
     bool            ret;
     uint8_t         txByte;
-    I2C_Handle      handle;
-    I2C_Params      params;
     I2C_Transaction i2cTransaction;
 
     /* default is all FF's  in case read fails*/
     memset(ui8SerialNumber, 0xFF, 16);
     memset(ui8MAC, 0xFF, 6);
-
-    I2C_Params_init(&params);
-    params.transferCallbackFxn = NULL;
-    params.transferMode = I2C_MODE_BLOCKING;
-    params.bitRate = I2C_100kHz;
-
-    handle = I2C_open(Board_I2C_AT24MAC402, &params);
-
-    if (!handle) {
-        System_printf("I2C did not open\n");
-        System_flush();
-        return 0;
-    }
 
     /* Note the Upper bit of the word address must be set
      * in order to read the serial number. Thus 80H would
@@ -152,6 +138,7 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
     {
         System_printf("Unsuccessful I2C transfer\n");
         System_flush();
+        return false;
     }
 
     /* Now read the 6-byte 48-bit MAC at address 0x9A. The EUI-48 address
@@ -174,11 +161,10 @@ int ReadGUIDS(uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6])
     {
         System_printf("Unsuccessful I2C transfer\n");
         System_flush();
+        return false;
     }
 
-    I2C_close(handle);
-
-    return ret;
+    return true;
 }
 
 //*****************************************************************************

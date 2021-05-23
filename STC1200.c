@@ -61,6 +61,7 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -77,6 +78,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <time.h>
 #include <stdbool.h>
 
 /* Tivaware Driver files */
@@ -89,6 +91,7 @@
 #include <driverlib/pin_map.h>
 #include <driverlib/sysctl.h>
 #include <driverlib/fpu.h>
+#include <driverlib/hibernate.h>
 #include <grlib/grlib.h>
 #include <IPCServer.h>
 #include <RAMPServer.h>
@@ -102,7 +105,6 @@
 #include "Board.h"
 #include "CLITask.h"
 #include "Utils.h"
-#include "AD9837.h"
 #include "SMPTE.h"
 
 /* Enable div-clock output if non-zero */
@@ -119,16 +121,15 @@ SYSPARMS g_sysParms;
 AD9837_DEVICE g_ad9837;
 
 /* Handles created dynamically */
-
 Mailbox_Handle g_mailboxLocate  = NULL;
 Mailbox_Handle g_mailboxRemote  = NULL;
 Mailbox_Handle g_mailboxCommand = NULL;
 
-Event_Handle g_eventQEI;
-
 /* Static Function Prototypes */
-static void Hardware_init();
-static Void CommandTaskFxn(UArg arg0, UArg arg1);
+static void Init_Hardware();
+static void Init_Peripherals(void);
+static void Init_Application(void);
+static Void MainTaskFxn(UArg arg0, UArg arg1);
 static void gpioButtonResetHwi(unsigned int index);
 static void gpioButtonSearchHwi(unsigned int index);
 static void gpioButtonCueHwi(unsigned int index);
@@ -151,6 +152,8 @@ int main(void)
     memset(g_sysData.ui8SerialNumber, 0xFF, 16);
     memset(g_sysData.ui8MAC, 0xFF, 6);
 
+    g_sysData.rtcFound = false;
+
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
     Board_initGPIO();
@@ -158,10 +161,9 @@ int main(void)
     Board_initSPI();
     Board_initSDSPI();
     Board_initUART();
-    //Board_initEMAC();
 
     /* Default hardware initialization */
-    Hardware_init();
+    Init_Hardware();
 
     /* Create command task mailbox */
     Error_init(&eb);
@@ -199,7 +201,7 @@ int main(void)
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
     taskParams.priority  = 5;
-    Task_create((Task_FuncPtr)CommandTaskFxn, &taskParams, &eb);
+    Task_create((Task_FuncPtr)MainTaskFxn, &taskParams, &eb);
 
     System_printf("Starting STC1200 execution.\n");
     System_flush();
@@ -211,14 +213,43 @@ int main(void)
 }
 
 //*****************************************************************************
+// This is a hook into the NDK stack to allow delaying execution of the NDK
+// stack task until after we load the MAC address from the AT24MAC serial
+// EPROM part. This hook blocks on a semaphore until after we're able to call
+// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
+// to delay execution until we load the MAC from EPROM.
+//*****************************************************************************
+
+void NDKStackBeginHook(void)
+{
+    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
+}
+
+//*****************************************************************************
+// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
+// from the main cpu clock divided by 'div' parameter. A value of 100 gives
+// a clock of 1.2 Mhz.
+//*****************************************************************************
+
+#if (DIV_CLOCK_ENABLED > 0)
+void EnableClockDivOutput(uint32_t div)
+{
+    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
+    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
+    /* Configure the output pin for the clock output */
+    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
+    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
+    /* Enable the clock output */
+    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
+}
+#endif
+
+//*****************************************************************************
 // Default hardware initialization
 //*****************************************************************************
 
-void Hardware_init()
+void Init_Hardware()
 {
-    SDSPI_Handle handle;
-    SDSPI_Params params;
-
     /* Enables Floating Point Hardware Unit */
     FPUEnable();
 
@@ -250,73 +281,89 @@ void Hardware_init()
 #if (DIV_CLOCK_ENABLED > 0)
     EnableClockDivOutput(100);
 #endif
+}
 
-    /* Initialize the SD drive for operation */
-    SDSPI_Params_init(&params);
-    handle = SDSPI_open(Board_SPI_SDCARD, 0, &params);
-    if (handle == NULL) {
+//*****************************************************************************
+// Default Peripheral initialization
+//*****************************************************************************
+
+void Init_Peripherals(void)
+{
+    SDSPI_Params sdParams;
+    I2C_Params  i2cParams;
+
+    /*
+     * I2C-0 Bus
+     */
+
+    I2C_Params_init(&i2cParams);
+
+    i2cParams.transferCallbackFxn = NULL;
+    i2cParams.transferMode        = I2C_MODE_BLOCKING;
+    i2cParams.bitRate             = I2C_100kHz;
+
+    if ((g_sysData.handleI2C0 = I2C_open(STC1200_I2C0, &i2cParams)) == NULL)
+    {
+        System_printf("Error: Unable to openI2C0 port\n");
+        System_flush();
+    }
+
+    /* Read the globally unique serial number from the AT24MAC EPROM.
+     * We are also read the 6-byte MAC address from the EPROM.
+     */
+    if (!ReadGUIDS(g_sysData.handleI2C0, g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
+    {
+        System_printf("Read Serial Number Failed!\n");
+        System_flush();
+    }
+
+    /* Create and initialize the MCP79410 RTC object attached to I2C0 also */
+    if ((g_sysData.handleRTC = MCP79410_create(g_sysData.handleI2C0, NULL)) == NULL)
+    {
+        System_abort("MCP79410_create failed\n");
+    }
+
+    /* Determine if MCP79410 RTC chip is available or not */
+    g_sysData.rtcFound = MCP79410_Probe(g_sysData.handleRTC);
+
+    /* Only Rev-C or greater has MCP79410 RTC chip installed. Otherwise
+     * configure CPU hibernate clock for RTC use.
+     */
+    if (!g_sysData.rtcFound)
+    {
+        /* Configure hibernate module clock */
+        HibernateEnableExpClk(120000000);
+        /* Enable RTC mode */
+        HibernateRTCEnable();
+        /* Set hibernate module counter to 24-hour calendar mode */
+        HibernateCounterMode(HIBERNATE_COUNTER_24HR);
+    }
+
+    /*
+     *  Initialize the SD drive for operation
+     */
+
+    SDSPI_Params_init(&sdParams);
+
+    if ((g_sysData.handleSD = SDSPI_open(Board_SPI_SDCARD, 0, &sdParams)) == NULL)
+    {
         System_abort("Failed to open SDSPI!");
     }
 }
 
 //*****************************************************************************
-// This enables the DIVSCLK output pin on PQ4 and generates a clock signal
-// from the main cpu clock divided by 'div' parameter. A value of 100 gives
-// a clock of 1.2 Mhz.
+// Default Device initialization
 //*****************************************************************************
 
-#if (DIV_CLOCK_ENABLED > 0)
-void EnableClockDivOutput(uint32_t div)
+void Init_Application(void)
 {
-    /* Enable pin PQ4 for DIVSCLK0 DIVSCLK */
-    GPIOPinConfigure(GPIO_PQ4_DIVSCLK);
-    /* Configure the output pin for the clock output */
-    GPIODirModeSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_DIR_MODE_HW);
-    GPIOPadConfigSet(GPIO_PORTQ_BASE, GPIO_PIN_4, GPIO_STRENGTH_2MA, GPIO_PIN_TYPE_STD);
-    /* Enable the clock output */
-    SysCtlClockOutConfig(SYSCTL_CLKOUT_EN | SYSCTL_CLKOUT_SYSCLK, div);
-}
-#endif
-
-//*****************************************************************************
-// This is a hook into the NDK stack to allow delaying execution of the NDK
-// stack task until after we load the MAC address from the AT24MAC serial
-// EPROM part. This hook blocks on a semaphore until after we're able to call
-// Board_initEMAC() in the CommandTaskFxn() below. This mechanism allows us
-// to delay execution until we load the MAC from EPROM.
-//*****************************************************************************
-
-void NDKStackBeginHook(void)
-{
-    Semaphore_pend(g_semaNDKStartup, BIOS_WAIT_FOREVER);
-}
-
-//*****************************************************************************
-// This function attempts to ready the unique serial number
-// from the I2C
-//*****************************************************************************
-
-Void CommandTaskFxn(UArg arg0, UArg arg1)
-{
-    UInt32 timeout;
-    uint32_t btn;
+    Task_Params taskParams;
     Error_Block eb;
-	Task_Params taskParams;
-    CommandMessage msgCmd;
 
-    /* Step 1 - Read the globally unique serial number from EPROM. We are also
-     * reading the 6-byte MAC address from the AT24MAC serial EPROM.
-     */
-    if (!ReadGUIDS(g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
-    {
-    	System_printf("Read Serial Number Failed!\n");
-    	System_flush();
-    }
-
-    /* Step 2 - Don't initialize EMAC layer until after reading MAC address above! */
+    /* Initialize the EMAC with address loaded in Init_Peripherals() prior */
     Board_initEMAC();
 
-    /* Step 3 - Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
+    /* Now allow the NDK task, blocked by NDKStackBeginHook(), to run */
     Semaphore_post(g_semaNDKStartup);
 
     /* Set default system parameters */
@@ -326,7 +373,7 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     SysParamsRead(&g_sysParms);
 
     /* Set default reference frequency */
-    g_sysData.ref_freq = g_sysParms.ref_freq;
+    g_sysData.ref_freq      = g_sysParms.ref_freq;
     g_sysData.varispeedMode = false;
 
     /* Reset the capstan reference clock and set the default
@@ -338,13 +385,13 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
 
     SMPTE_init();
 
-    /* Initialize the command line serial debug console port */
+    /* Startup the debug console task */
     CLI_init();
 
-    /* Startup the IPC server threads */
+    /* Startup the IPC server tasks */
     IPC_Server_startup();
 
-    /* Initialize the remote task */
+    /* Startup the wired remote task */
     Remote_Task_startup();
 
     /*
@@ -370,7 +417,6 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     CLI_startup();
 
     /* Setup the callback Hwi handler for each button */
-
     GPIO_setCallback(Board_BTN_RESET, gpioButtonResetHwi);
     GPIO_setCallback(Board_BTN_CUE, gpioButtonCueHwi);
     GPIO_setCallback(Board_BTN_SEARCH, gpioButtonSearchHwi);
@@ -381,6 +427,24 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     GPIO_enableInt(Board_BTN_CUE);
     GPIO_enableInt(Board_BTN_SEARCH);
     GPIO_enableInt(Board_STOP_DETECT_N);
+}
+
+//*****************************************************************************
+// This function attempts to ready the unique serial number
+// from the I2C
+//*****************************************************************************
+
+Void MainTaskFxn(UArg arg0, UArg arg1)
+{
+    UInt32 timeout;
+    uint32_t btn;
+    CommandMessage msgCmd;
+
+    /* Allocate and initialize global peripherals used */
+    Init_Peripherals();
+
+    /* Initialize and startup the main application tasks */
+    Init_Application();
 
     /* Now begin the main program command task processing loop */
 
@@ -397,62 +461,67 @@ Void CommandTaskFxn(UArg arg0, UArg arg1)
     		continue;
         }
 
-        switch(msgCmd.command)
+        /*
+         * Handle Transport Deck Button Press Events
+         */
+
+        /* skip if it wasn't a button command */
+        if (msgCmd.command != SWITCHPRESS)
+            continue;
+
+        switch(msgCmd.param)
         {
-		case SWITCHPRESS:
+		case Board_BTN_RESET:
 
-			/* Handle switch debounce */
+			/* Zero tape timer at current tape location */
+			PositionZeroReset();
 
-			if (msgCmd.param == Board_BTN_RESET)
-			{
-				/* Zero tape timer at current tape location */
-				PositionZeroReset();
+			/* Debounce button delay */
+			Task_sleep(DEBOUNCE_TIME);
 
-				/* Debounce button delay */
-				Task_sleep(DEBOUNCE_TIME);
+			/* Wait for button to release, then re-enable interrupt */
+			do {
+		        btn = GPIO_read(Board_BTN_RESET);
+		        Task_sleep(10);
+		    } while (btn);
 
-				/* Wait for button to release, then re-enable interrupt */
-				do {
-			        btn = GPIO_read(Board_BTN_RESET);
-			        Task_sleep(10);
-			    } while (btn);
+			GPIO_enableInt(Board_BTN_RESET);
+			break;
 
-				GPIO_enableInt(Board_BTN_RESET);
-			}
-			else if (msgCmd.param == Board_BTN_CUE)
-			{
-				/* Store the current search home cue position */
-				CuePointSet(CUE_POINT_HOME, g_sysData.tapePosition, CF_ACTIVE);
+		case Board_BTN_CUE:
 
-                /* Debounce button delay */
-                Task_sleep(DEBOUNCE_TIME);
+			/* Store the current search home cue position */
+			CuePointSet(CUE_POINT_HOME, g_sysData.tapePosition, CF_ACTIVE);
 
-                /* Wait for button to release, then re-enable interrupt */
-                do {
-                    btn = GPIO_read(Board_BTN_CUE);
-                    Task_sleep(10);
-                } while (btn);
+            /* Debounce button delay */
+            Task_sleep(DEBOUNCE_TIME);
 
-				GPIO_enableInt(Board_BTN_CUE);
-			}
-			else if (msgCmd.param == Board_BTN_SEARCH)
-			{
-				/* Begin locate to last cue point memory. This is the
-				 * memory used by the cue/search buttons on the transport.
-				 */
-			    LocateSearch(CUE_POINT_HOME, 0);
+            /* Wait for button to release, then re-enable interrupt */
+            do {
+                btn = GPIO_read(Board_BTN_CUE);
+                Task_sleep(10);
+            } while (btn);
 
-			    /* Debounce button delay */
-                Task_sleep(DEBOUNCE_TIME);
+            GPIO_enableInt(Board_BTN_CUE);
+			break;
 
-                /* Wait for button to release, then re-enable interrupt */
-                do {
-                    btn = GPIO_read(Board_BTN_SEARCH);
-                    Task_sleep(10);
-                } while (btn);
+		case Board_BTN_SEARCH:
 
-				GPIO_enableInt(Board_BTN_SEARCH);
-			}
+			/* Begin locate to last cue point memory. This is the
+			 * memory used by the cue/search buttons on the transport.
+			 */
+			LocateSearch(CUE_POINT_HOME, 0);
+
+			/* Debounce button delay */
+            Task_sleep(DEBOUNCE_TIME);
+
+            /* Wait for button to release, then re-enable interrupt */
+            do {
+                btn = GPIO_read(Board_BTN_SEARCH);
+                Task_sleep(10);
+            } while (btn);
+
+			GPIO_enableInt(Board_BTN_SEARCH);
 			break;
 
 		default:

@@ -16,6 +16,8 @@
 #include "PositionTask.h"
 #include "LocateTask.h"
 #include "TrackConfig.h"
+#include "MCP79410.h"
+#include "AD9837.h"
 
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
@@ -30,7 +32,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        14          /* firmware revision */
+#define FIRMWARE_REV        15          /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -76,44 +78,50 @@ typedef struct _SYSPARMS
 
 typedef struct _SYSDATA
 {
-    uint8_t		ui8SerialNumber[16];		/* 128-bit serial number      */
-    uint8_t     ui8MAC[6];                  /* 48-bit MAC from EPROM      */
-    char        ipAddr[32];                 /* IP address from DHCP       */
-    uint32_t    ledMaskButton;              /* DRC remote button LED mask */
+    uint8_t		    ui8SerialNumber[16];		/* 128-bit serial number      */
+    uint8_t         ui8MAC[6];                  /* 48-bit MAC from EPROM      */
+    char            ipAddr[32];                 /* IP address from DHCP       */
     /* Items below are updated from DTC notifications */
-    uint32_t    ledMaskTransport;           /* current transport LED mask */
-    uint32_t    transportMode;              /* Current transport mode     */
-    /* These items  are internal to STC */
-    uint32_t    tapeSpeed;                  /* tape speed (15 or 30)      */
-    int32_t     tapeDirection;              /* direction 1=fwd, 0=rew     */
-    uint32_t    tapePositionAbs;            /* absolute tape position     */
-    int32_t 	tapePosition;				/* signed relative position   */
-    int32_t 	tapePositionPrev;			/* previous tape position     */
-    int32_t     searchProgress;             /* progress to cue (0-100%)   */
-    uint32_t	qei_error_cnt;				/* QEI phase error count      */
-    float		tapeTach;					/* tape speed from roller     */
-	bool		searchCancel;               /* true if search canceling   */
-	bool        searching;                  /* true if search in progress */
-    bool        autoLoop;                   /* true if loop mode running  */
-    bool        autoPunch;                  /* auto punch mode active     */
+    uint32_t        ledMaskTransport;           /* current transport LED mask */
+    uint32_t        transportMode;              /* Current transport mode     */
+    /* These items are internal to STC */
+    uint32_t        tapeSpeed;                  /* tape speed (15 or 30)      */
+    int32_t         tapeDirection;              /* direction 1=fwd, 0=rew     */
+    uint32_t        tapePositionAbs;            /* absolute tape position     */
+    int32_t 	    tapePosition;				/* signed relative position   */
+    int32_t 	    tapePositionPrev;			/* previous tape position     */
+    int32_t         searchProgress;             /* progress to cue (0-100%)   */
+    uint32_t	    qei_error_cnt;				/* QEI phase error count      */
+    float		    tapeTach;					/* tape speed from roller     */
+	bool		    searchCancel;               /* true if search canceling   */
+	bool            searching;                  /* true if search in progress */
+    bool            autoLoop;                   /* true if loop mode running  */
+    bool            autoPunch;                  /* auto punch mode active     */
     /* Remote control edit data */
-    int32_t     remoteMode;                 /* current remote mode        */
-    int32_t     remoteModeLast;             /* last mode before edit      */
-    int32_t     remoteModePrev;             /* previous remote mode       */
-    int32_t     editState;                  /* current edit time state    */
-    TAPETIME    editTime;                   /* edit tape time conversion  */
-    int32_t     digitCount;
-    char        digitBuf[MAX_DIGITS_BUF+1]; /* input digits buffer        */
-    bool        autoMode;                   /* auto mode active flag      */
-    bool        shiftRecButton;             /* true if shifted REC button */
-    bool        shiftAltButton;             /* true if shifted ALT button */
+    uint32_t        ledMaskRemote;              /* DRC remote button LED mask */
+    int32_t         remoteMode;                 /* current remote mode        */
+    int32_t         remoteModeLast;             /* last mode before edit      */
+    int32_t         remoteModePrev;             /* previous remote mode       */
+    int32_t         editState;                  /* current edit time state    */
+    TAPETIME        editTime;                   /* edit tape time conversion  */
+    int32_t         digitCount;
+    char            digitBuf[MAX_DIGITS_BUF+1]; /* input digits buffer        */
+    bool            autoMode;                   /* auto mode active flag      */
+    bool            shiftRecButton;             /* true if shifted REC button */
+    bool            shiftAltButton;             /* true if shifted ALT button */
     /* Locate and Position data */
-    bool        varispeedMode;              /* jog wheel varispeed active */
-    float       ref_freq;                   /* master ref freq 9600 Hz    */
-    TAPETIME    tapeTime;                   /* current tape time position */
-    size_t      cueIndex;                   /* current cue table index    */
-    CUE_POINT	cuePoint[MAX_CUE_POINTS];	/* array of cue point data    */
-    uint8_t     trackState[MAX_TRACKS];
+    bool            varispeedMode;              /* jog wheel varispeed active */
+    float           ref_freq;                   /* master ref freq 9600 Hz    */
+    TAPETIME        tapeTime;                   /* current tape time position */
+    size_t          cueIndex;                   /* current cue table index    */
+    CUE_POINT	    cuePoint[MAX_CUE_POINTS];	/* array of cue point data    */
+    uint8_t         trackState[MAX_TRACKS];
+    /* Application Global Handles */
+    Event_Handle    handleEventQEI;
+    SDSPI_Handle    handleSD;
+    I2C_Handle      handleI2C0;
+    MCP79410_Handle handleRTC;
+    bool            rtcFound;                   /* true if MCP79410 RTC found */
 } SYSDATA;
 
 //*****************************************************************************

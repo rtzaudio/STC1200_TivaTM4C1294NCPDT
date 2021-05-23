@@ -60,6 +60,7 @@ extern "C" {
 #define Board_LAMP_OFF              STC1200_LAMP_OFF
 
 #define Board_I2C_AT24MAC402        STC1200_I2C0
+#define Board_I2C_RTC               STC1200_I2C0
 
 #define Board_SPI_SDCARD          	STC1200_SDSPI1
 #define Board_SPI_S25FL127          STC1200_SPI2

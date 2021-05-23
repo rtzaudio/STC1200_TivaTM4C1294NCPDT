@@ -53,11 +53,14 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
 #include <ti/drivers/SPI.h>
+#include <ti/drivers/SDSPI.h>
+#include <ti/drivers/UART.h>
 
 /* NDK BSD support */
 #include <sys/socket.h>

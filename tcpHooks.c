@@ -57,10 +57,12 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
+#include <ti/drivers/SPI.h>
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>
@@ -333,7 +335,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
         stateMsg.length             = textlen;
         stateMsg.errorCount         = g_sysData.qei_error_cnt;
-        stateMsg.ledMaskButton      = g_sysData.ledMaskButton;
+        stateMsg.ledMaskButton      = g_sysData.ledMaskRemote;
         stateMsg.ledMaskTransport   = maskTransport;
         stateMsg.tapePosition       = g_sysData.tapePosition;
         stateMsg.tapeVelocity       = (uint32_t)g_sysData.tapeTach;
@@ -491,10 +493,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
     STC_COMMAND_HDR msg;
 
-    static const uint32_t smask[10] = {
-        SW_LOC0, SW_LOC1, SW_LOC2, SW_LOC3, SW_LOC4,
-        SW_LOC5, SW_LOC6, SW_LOC7, SW_LOC8, SW_LOC9
-    };
+    //static const uint32_t smask[10] = {
+    //    SW_LOC0, SW_LOC1, SW_LOC2, SW_LOC3, SW_LOC4,
+    //    SW_LOC5, SW_LOC6, SW_LOC7, SW_LOC8, SW_LOC9
+    //};
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();

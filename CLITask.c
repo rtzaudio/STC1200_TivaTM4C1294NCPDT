@@ -56,9 +56,11 @@
 #include <ti/sysbios/BIOS.h>
 #include <ti/sysbios/knl/Mailbox.h>
 #include <ti/sysbios/knl/Task.h>
+#include <ti/sysbios/gates/GateMutex.h>
 
 /* TI-RTOS Driver files */
 #include <ti/drivers/GPIO.h>
+#include <ti/drivers/SPI.h>
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>
@@ -72,6 +74,7 @@
 #include <time.h>
 
 #include <driverlib/sysctl.h>
+#include <driverlib/hibernate.h>
 
 #include <ti/sysbios/knl/Semaphore.h>
 #include <ti/sysbios/knl/Task.h>
@@ -88,32 +91,28 @@
 #include "IPCCommands.h"
 #include "RemoteTask.h"
 
+extern SYSDATA g_sysData;
+extern SYSPARMS g_sysParms;
+
 //*****************************************************************************
 // Type Definitions
 //*****************************************************************************
 
-typedef union {
-    char  *s;
-    char   c;
-    float  f;
-} arg_t;
-
 typedef struct {
     const char* name;
-    void (*func)(arg_t*);
-    const char* args;
+    void (*func)(int, char**);
     const char* doc;
 } cmd_t;
 
-#define MK_CMD(x) void cmd_ ## x (arg_t*)
+#define MK_CMD(x) void cmd_ ## x (int, char**)
 
 //*****************************************************************************
 // CLI Function Handle Declarations
 //*****************************************************************************
 
-MK_CMD(ipaddr);
-MK_CMD(macaddr);
-MK_CMD(sernum);
+MK_CMD(ip);
+MK_CMD(mac);
+MK_CMD(sn);
 MK_CMD(smpte);
 MK_CMD(cls);
 MK_CMD(help);
@@ -124,32 +123,34 @@ MK_CMD(rew);
 MK_CMD(fwd);
 MK_CMD(speed);
 MK_CMD(time);
+MK_CMD(date);
 MK_CMD(cue);
 MK_CMD(store);
 MK_CMD(rtz);
 MK_CMD(stat);
 
 /* The dispatch table */
-#define CMD(func, params, help) {#func, cmd_ ## func, params, help}
+#define CMD(func, help) {#func, cmd_ ## func, help}
 
 cmd_t dispatch[] = {
-    CMD(ipaddr, "", "Displays IP address"),
-    CMD(macaddr, "", "Displays MAC address"),
-    CMD(sernum, "", "Displays serial number"),
-    CMD(smpte, "s", "SMPTE generator {start|stop}"),
-    CMD(cls, "", "Clear the screen"),
-    CMD(help, "", "Display this help"),
-    CMD(about, "", "About the system"),
-    CMD(stop, "", "Transport STOP mode"),
-    CMD(play, "s", "Transport PLAY {rec} mode"),
-    CMD(rew, "s", "Transport REW {lib} mode"),
-    CMD(fwd, "s", "Transport FWD {lib} mode"),
-    CMD(speed, "", "Display tape speed"),
-    CMD(time, "", "Display time"),
-    CMD(cue, "s", "Locator cue {0-9}"),
-    CMD(store, "s", "Locator store {0-9}"),
-    CMD(rtz, "", "Return to zero"),
-    CMD(stat, "", "Displays machine status"),
+    CMD(ip, "Displays IP address"),
+    CMD(mac, "Displays MAC address"),
+    CMD(sn, "Displays serial number"),
+    CMD(smpte, "SMPTE generator {start|stop}"),
+    CMD(cls, "Clear the screen"),
+    CMD(help, "Display this help"),
+    CMD(about, "About the system"),
+    CMD(stop, "Transport STOP mode"),
+    CMD(play, "Transport PLAY {rec} mode"),
+    CMD(rew, "Transport REW {lib} mode"),
+    CMD(fwd, "Transport FWD {lib} mode"),
+    CMD(speed, "Display tape speed"),
+    CMD(time, "Display time"),
+    CMD(date, "Display date"),
+    CMD(cue, "Locator cue {0-9}"),
+    CMD(store, "Locator store {0-9}"),
+    CMD(rtz, "Return to zero"),
+    CMD(stat, "Displays machine status"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -158,17 +159,29 @@ cmd_t dispatch[] = {
 // Static and External Data Items
 //*****************************************************************************
 
-#define MAX_CHARS   80
+#define MAX_CHARS       80
+#define MAX_ARGS        8
+#define MAX_ARG_LEN     16
+#define MAX_PATH        256
 
 /*** Static Data Items ***/
 static UART_Handle s_handleUart;
-static const char *s_delim = " |()\n";
+static const char *s_delim = " ://\n";
 static char s_cmdbuf[MAX_CHARS+3];
 static char s_cmdprev[MAX_CHARS+3];
 
+static int   s_argc = 0;
+static char* s_argv[MAX_ARGS];
+static char  s_args[MAX_ARGS][MAX_ARG_LEN];
+
+/* Current Working Directory */
+//static char s_cwd[MAX_PATH] = "\\";
+//static char s_drive = '0';
+
 /*** Function Prototypes ***/
+static int parse_args(char *buf);
 static void parse_cmd(char *buf);
-static arg_t *args_parse(const char *s);
+static bool IsClockRunning(void);
 
 /*** External Data Items ***/
 extern SYSDATA g_sysData;
@@ -340,12 +353,37 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 //
 //*****************************************************************************
 
+int parse_args(char *buf)
+{
+    int argc = 0;
+
+    const char* tok = strtok(NULL, s_delim);
+
+    if (!tok)
+        return 0;
+
+    while (tok != NULL)
+    {
+        s_argv[argc] = strncpy(s_args[argc], tok, MAX_ARG_LEN-1);
+
+        if (++argc >= MAX_ARGS)
+            break;
+
+        tok = strtok(NULL, s_delim);
+    }
+
+    return argc;
+}
+
 void parse_cmd(char *buf)
 {
-    const char* tok = strtok(buf, s_delim);
+    char* tok = strtok(buf, s_delim);
 
     if (!tok)
         return;
+
+    /* parse args into array */
+    s_argc = parse_args(tok);
 
     int i = NUM_CMDS;
 
@@ -353,104 +391,107 @@ void parse_cmd(char *buf)
     {
         cmd_t cur = dispatch[i];
 
-        if (!strncmp(tok, cur.name, strlen(tok)))
+        if (!strncmp(tok, cur.name, strlen(cur.name)))
         {
-            arg_t *args = args_parse(cur.args);
-
-            //if (args == NULL && strlen(cur.args))
-            //    return;//Error in argument parsing
-
-            cur.func(args);
-
-            if (args)
-                free(args);
+            cur.func(s_argc, s_argv);
             return;
         }
     }
 
-    CLI_puts("Invalid Command\n");
+    CLI_puts("Command not found.\n");
 }
 
-#define ESCAPE { free(args); return NULL; }
+//*****************************************************************************
+// Time/Date Helper Functions
+//*****************************************************************************
 
-arg_t *args_parse(const char *s)
+bool IsClockRunning(void)
 {
-    int argc = strlen(s);
+    bool running = true;
 
-    arg_t *args = malloc(sizeof(arg_t)*argc);
+    if (g_sysData.rtcFound)
+        running = MCP79410_IsRunning(g_sysData.handleRTC);
 
-    int i;
+    if (!running)
+        CLI_printf("clock not running - set time/date first\n");
 
-    for(i=0; i < argc; ++i)
+    return running;
+}
+
+bool IsValidTime(struct tm *p)
+{
+    if (((p->tm_sec < 0) || (p->tm_sec > 59)) ||
+        ((p->tm_min < 0) || (p->tm_min > 59)) ||
+        ((p->tm_hour < 0) || (p->tm_hour > 23)))
     {
-        char *tok;
-
-        switch(s[i])
-        {
-            case 's':
-                args[i].s = strtok(NULL,s_delim);
-                if (!args[i].s)
-                    ESCAPE;
-                break;
-
-            case 'c':
-                tok = strtok(NULL,s_delim);
-                if (!tok)
-                    ESCAPE;
-                args[i].c = tok[0];
-                if (!islower(args[i].c))
-                    ESCAPE;
-                break;
-
-            case 'f':
-                tok = strtok(NULL,s_delim);
-                if (sscanf(tok,"%f", &args[i].f)!=1)
-                    ESCAPE;
-                break;
-        }
+        return false;
     }
 
-    return args;
+    return true;
 }
-#undef ESCAPE
+
+bool IsValidDate(struct tm *p)
+{
+    // Is valid data read?
+    if(((p->tm_mday < 1) || (p->tm_mday > 31)) ||
+       ((p->tm_mon < 0) || (p->tm_mon > 11)) ||
+       ((p->tm_year < 100) || (p->tm_year > 199)))
+    {
+        return false;
+    }
+
+    return true;
+}
 
 //*****************************************************************************
 // CLI Command Handlers
 //*****************************************************************************
 
-void cmd_help(arg_t *args)
+void cmd_help(int argc, char *argv[])
 {
-    char tmp[100];
+    char name[16];
+    int x, len;
     int i = NUM_CMDS;
 
     CLI_puts("\nAvailable Commands:\n\n");
 
     while(i--)
     {
-        cmd_t cmd=dispatch[i];
-        snprintf(tmp, 100, "%s(%s)", cmd.name, cmd.args);
-        CLI_printf("%10s\t %s\n", tmp, cmd.doc);
+        cmd_t cmd = dispatch[i];
+
+        len = strlen(cmd.name);
+
+        for (x=0; x < len; x++)
+        {
+            name[x] = toupper(cmd.name[x]);
+            name[x+1] = 0;
+
+            if (x >= sizeof(name)-1)
+                break;
+        }
+
+        CLI_printf("%-10s%s\n", name, cmd.doc);
     }
 }
 
-void cmd_about(arg_t *args)
+void cmd_about(int argc, char *argv[])
 {
     CLI_printf("STC-1200 v%d.%02d.%03d\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("Copyright (C) 2016-2020, RTZ Professional Audio, LLC.\n");
+    CLI_puts("Copyright (C) 2016-2021, RTZ Professional Audio\n");
 }
 
-void cmd_cls(arg_t *args)
+void cmd_cls(int argc, char *argv[])
 {
     CLI_puts(VT100_CLS);
     CLI_puts(VT100_HOME);
 }
 
-void cmd_ipaddr(arg_t *args)
+void cmd_ip(int argc, char *argv[])
 {
     CLI_printf("%s\n", g_sysData.ipAddr);
 }
 
-void cmd_macaddr(arg_t *args)
+void cmd_mac(int argc, char *argv[])
 {
     char mac[32];
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
@@ -459,7 +500,7 @@ void cmd_macaddr(arg_t *args)
     CLI_printf("%s\n", mac);
 }
 
-void cmd_sernum(arg_t *args)
+void cmd_sn(int argc, char *argv[])
 {
     char serialnum[64];
     /*  Format the 64 bit GUID as a string */
@@ -467,9 +508,9 @@ void cmd_sernum(arg_t *args)
     CLI_printf("%s\n", serialnum);
 }
 
-void cmd_smpte(arg_t *args)
+void cmd_smpte(int argc, char *argv[])
 {
-    if (!args)
+    if (argc < 1)
     {
         CLI_puts("Missing Argument\n");
         return;
@@ -477,7 +518,7 @@ void cmd_smpte(arg_t *args)
 
     CLI_puts("SMPTE generator ");
 
-    if (strcmp(args->s, "start") == 0)
+    if (strcmp(argv[0], "start") == 0)
     {
         SMPTE_stripe_start();
         CLI_puts("START\n");
@@ -489,19 +530,19 @@ void cmd_smpte(arg_t *args)
     }
 }
 
-void cmd_stop(arg_t *args)
+void cmd_stop(int argc, char *argv[])
 {
     CLI_puts("STOP\n");
     Transport_PostButtonPress(S_STOP);
 }
 
-void cmd_play(arg_t *args)
+void cmd_play(int argc, char *argv[])
 {
     uint32_t mask = S_PLAY;
 
-    if (args)
+    if (argc)
     {
-        if (strcmp(args->s, "rec") == 0)
+        if (strcmp(argv[0], "rec") == 0)
             mask |= S_REC;
     }
 
@@ -510,13 +551,13 @@ void cmd_play(arg_t *args)
     Transport_PostButtonPress(mask);
 }
 
-void cmd_fwd(arg_t *args)
+void cmd_fwd(int argc, char *argv[])
 {
     uint32_t mask = 0;
 
-    if (args)
+    if (argc)
     {
-        if (strcmp(args->s, "lib") == 0)
+        if (strcmp(argv[0], "lib") == 0)
             mask |= M_LIBWIND;
     }
 
@@ -525,13 +566,13 @@ void cmd_fwd(arg_t *args)
     Transport_Fwd(0, mask);
 }
 
-void cmd_rew(arg_t *args)
+void cmd_rew(int argc, char *argv[])
 {
     uint32_t mask = 0;
 
-    if (args)
+    if (argc)
     {
-        if (strcmp(args->s, "lib") == 0)
+        if (strcmp(argv[0], "lib") == 0)
             mask |= M_LIBWIND;
     }
 
@@ -540,41 +581,28 @@ void cmd_rew(arg_t *args)
     Transport_Rew(0, mask);
 }
 
-void cmd_speed(arg_t *args)
+void cmd_speed(int argc, char *argv[])
 {
     CLI_printf("%u IPS\n", g_sysData.tapeSpeed);
 }
 
-void cmd_time(arg_t *args)
-{
-    time_t t;
-    struct tm *ltm;
-    char *curTime;
-
-    t = time(NULL);
-    ltm = localtime(&t);
-    curTime = asctime(ltm);
-
-    CLI_printf("TIME(GMT): %s", curTime);
-}
-
-void cmd_rtz(arg_t *args)
+void cmd_rtz(int argc, char *argv[])
 {
     LocateSearch(CUE_POINT_HOME, 0);
 }
 
-void cmd_cue(arg_t *args)
+void cmd_cue(int argc, char *argv[])
 {
     int loc = 0;
 
-    if (!args)
+    if (!argc)
     {
         CLI_printf("CUE MODE\n");
         Remote_PostSwitchPress(SW_CUE, 0);
         return;
     }
 
-    loc = atoi(args->s);
+    loc = atoi(argv[0]);
 
     if (g_sysData.remoteMode != REMOTE_MODE_CUE)
         Remote_PostSwitchPress(SW_CUE, 0);
@@ -616,18 +644,18 @@ void cmd_cue(arg_t *args)
     }
 }
 
-void cmd_store(arg_t *args)
+void cmd_store(int argc, char *argv[])
 {
     int loc = 0;
 
-    if (!args)
+    if (!argc)
     {
         CLI_printf("STORE MODE\n");
         Remote_PostSwitchPress(SW_STORE, 0);
         return;
     }
 
-    loc = atoi(args->s);
+    loc = atoi(argv[0]);
     CLI_printf("STORE TO MEMORY to %d\n", loc);
 
     if (g_sysData.remoteMode != REMOTE_MODE_STORE)
@@ -668,12 +696,178 @@ void cmd_store(arg_t *args)
     }
 }
 
-void cmd_stat(arg_t *args)
+void cmd_stat(int argc, char *argv[])
 {
     CLI_printf("\nPosition Status\n\n");
     CLI_printf("  tape roller tach   : %u\n", (uint32_t)g_sysData.tapeTach);
     CLI_printf("  tape roller errors : %u\n", g_sysData.qei_error_cnt);
     CLI_printf("  encoder position   : %d\n", g_sysData.tapePosition);
+}
+
+void cmd_time(int argc, char *argv[])
+{
+    char timeFmt[] = "Current time: %d:%02d:%02d\n";
+    char timeSet[] = "Time set!\n";
+    char timeAs[]  = "Enter time as: hh:mm:ss\n";
+
+    if (g_sysData.rtcFound)
+    {
+        RTCC_Struct ts;
+
+        if (argc == 0)
+        {
+            if (!IsClockRunning())
+                return;
+
+            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+
+            CLI_printf(timeFmt, ts.hour, ts.min, ts.sec);
+        }
+        else if (argc == 3)
+        {
+            /* Get current time/date */
+            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+
+            ts.hour    = (uint8_t)atoi(argv[0]);
+            ts.min     = (uint8_t)atoi(argv[1]);
+            ts.sec     = (uint8_t)atoi(argv[2]);
+
+            MCP79410_SetHourFormat(g_sysData.handleRTC, H24);                // Set hour format to military time standard
+            MCP79410_EnableVbat(g_sysData.handleRTC);                        // Enable battery backup
+            MCP79410_SetTime(g_sysData.handleRTC, &ts);
+            MCP79410_EnableOscillator(g_sysData.handleRTC);                  // Start clock by enabling oscillator
+
+            CLI_puts(timeSet);
+        }
+        else
+        {
+            CLI_puts(timeAs);
+        }
+    }
+    else
+    {
+        struct tm stime;
+
+        if (argc == 0)
+        {
+            // Get the latest time.
+            HibernateCalendarGet(&stime);
+
+            // Is valid data read?
+            if (!IsValidTime(&stime))
+            {
+                CLI_puts("Time has not been set yet\n");
+            }
+            else
+            {
+                CLI_printf(timeFmt, stime.tm_hour, stime.tm_min, stime.tm_sec);
+            }
+        }
+        else if (argc == 3)
+        {
+            // Get the latest date and time.
+            HibernateCalendarGet(&stime);
+
+            // Set the time values that are to be updated.
+            stime.tm_hour = atoi(argv[0]);
+            stime.tm_min  = atoi(argv[1]);
+            stime.tm_sec  = atoi(argv[2]);
+
+            // Update the calendar logic of hibernation module.
+            HibernateCalendarSet(&stime);
+
+            CLI_puts(timeSet);
+        }
+        else
+        {
+            CLI_puts(timeAs);
+        }
+    }
+}
+
+void cmd_date(int argc, char *argv[])
+{
+    char dateFmt[] = "Current date: %d/%d/%d\n";
+    char dateSet[] = "Date set!\n";
+    char dateAs[]  = "Enter date as: mm/dd/yyyy\n";
+
+    if (g_sysData.rtcFound)
+     {
+        RTCC_Struct ts;
+
+        if (argc == 0)
+        {
+            if (!IsClockRunning())
+                return;
+
+            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+
+            CLI_printf(dateFmt, ts.month, ts.date, ts.year+2000);
+        }
+        else if (argc == 3)
+        {
+            /* Get current time/date */
+            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+
+            ts.month   = (uint8_t)atoi(argv[0]);
+            ts.date    = (uint8_t)atoi(argv[1]);
+            ts.year    = (uint8_t)(atoi(argv[2]) - 2000);
+            ts.weekday = (uint8_t)((ts.date % 7) + 1);
+
+            MCP79410_SetHourFormat(g_sysData.handleRTC, H24);                // Set hour format to military time standard
+            MCP79410_EnableVbat(g_sysData.handleRTC);                        // Enable battery backup
+            MCP79410_SetTime(g_sysData.handleRTC, &ts);
+            MCP79410_EnableOscillator(g_sysData.handleRTC);                  // Start clock by enabling oscillator
+
+            CLI_puts(dateSet);
+        }
+        else
+        {
+            CLI_puts(dateAs);
+        }
+     }
+    else
+    {
+        struct tm stime;
+
+        if (argc == 0)
+        {
+            // Get the latest time.
+            HibernateCalendarGet(&stime);
+
+            // Is valid data read?
+            if (!IsValidDate(&stime))
+            {
+                CLI_puts("Date has not been set yet\n");
+            }
+            else
+            {
+                CLI_printf(dateFmt,
+                           stime.tm_mon,
+                           stime.tm_mday,
+                           stime.tm_year + 1900);
+            }
+        }
+        else if (argc == 3)
+        {
+            // Get the latest date and time.
+            HibernateCalendarGet(&stime);
+
+            // Set the date values that are to be updated.
+            stime.tm_mon  = atoi(argv[0]);
+            stime.tm_mday = atoi(argv[1]);
+            stime.tm_year = atoi(argv[2]) - 1900;
+
+            // Update the calendar logic of hibernation module.
+            HibernateCalendarSet(&stime);
+
+            CLI_puts(dateSet);
+        }
+        else
+        {
+            CLI_puts(dateAs);
+        }
+    }
 }
 
 // End-Of-File

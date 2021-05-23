@@ -42,7 +42,9 @@
 #include <xdc/std.h>
 #include <xdc/runtime/Error.h>
 #include <xdc/runtime/System.h>
+#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
+#include <ti/sysbios/knl/Event.h>
 
 #include <inc/hw_ints.h>
 #include <inc/hw_memmap.h>
@@ -59,6 +61,10 @@
 #include <driverlib/uart.h>
 #include <driverlib/udma.h>
 #include <driverlib/eeprom.h>
+
+#include <ti/drivers/UART.h>
+#include <ti/drivers/SPI.h>
+#include <ti/drivers/SDSPI.h>
 
 #include "STC1200_TM4C1294NCPDT.h"
 
