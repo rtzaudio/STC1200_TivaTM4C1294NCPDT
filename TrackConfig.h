@@ -36,11 +36,17 @@ typedef TRACK_Object *TRACK_Handle;
 
 TRACK_Handle TRACK_construct(TRACK_Object *obj, UART_Handle uartHandle,
                              TRACK_Params *params);
+
 TRACK_Handle TRACK_create(UART_Handle uartHandle, TRACK_Params *params);
+
 Void TRACK_delete(TRACK_Handle handle);
 Void TRACK_destruct(TRACK_Handle handle);
 Void TRACK_Params_init(TRACK_Params *params);
-int TRACK_SetTrackStates(TRACK_Handle handle);
+
+int TRACK_Command(TRACK_Handle handle,
+                  DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* reply);
+
+int TRACK_SetAllStates(TRACK_Handle handle);
 
 bool Track_SetState(size_t track, uint8_t mode, uint8_t flags);
 bool Track_GetState(size_t track, uint8_t* modeflags);

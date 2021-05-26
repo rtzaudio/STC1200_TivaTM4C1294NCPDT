@@ -120,6 +120,27 @@ void PositionZeroReset(void)
  * Convert absolute encoder position to tape time units.
  *****************************************************************************/
 
+/* The MM1200 timer-counter roller wheel measures closely to 1.592”
+ * in diameter. This gives a circumference of 5.0014” (c = PI * d).
+ * Thus, one revolution of the tachometer wheel equals 5” of
+ * tape travel.
+ *
+ * The formula for time traveled is distance/speed:
+ *
+ *     time     = distance / speed
+ *     speed    = distance / time
+ *     distance = speed * time
+ *
+ * The tape moves on the transport at either 15 or 30 inches per
+ * second (IPS) depending on the speed switch setting.
+ *
+ * The time taken to cover 30 inches of tape travel is one second.
+ *
+ * The time taken to cover 1 inch of tape travel is 1/30 of a second.
+ *
+ *     time = (distance inches / 30 inches) * second
+ */
+
 #define INV_ROLLER_TICKS_PER_REV    (1.0f / ROLLER_TICKS_PER_REV_F)
 
 void PositionToTapeTime(int tapePosition, TAPETIME* tapeTime)
@@ -334,27 +355,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	    	//System_printf("%d\n", g_sysData.tapePosition);
 	    	//System_flush();
     	}
-
-    	/* The MM1200 timer-counter roller wheel measures closely to 1.592”
-    	 * in diameter. This gives a circumference of 5.0014” (c = PI * d).
-    	 * Thus, one revolution of the tachometer wheel equals 5” of
-    	 * tape travel.
-    	 *
-    	 * The formula for time traveled is distance/speed:
-    	 *
-    	 *     time     = distance / speed
-    	 *     speed    = distance / time
-     	 *     distance = speed * time    	 
-    	 *
-    	 * The tape moves on the transport at either 15 or 30 inches per
-    	 * second (IPS) depending on the speed switch setting.
-    	 *
-    	 * The time taken to cover 30 inches of tape travel is one second.
-    	 *
-    	 * The time taken to cover 1 inch of tape travel is 1/30 of a second.
-    	 *
-    	 *     time = (distance inches / 30 inches) * second
-	     */
 
     	if (++rcount >= 10)
     	{

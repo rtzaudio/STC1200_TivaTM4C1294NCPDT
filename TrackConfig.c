@@ -46,6 +46,7 @@
 #include <xdc/cfg/global.h>
 #include <xdc/runtime/Assert.h>
 #include <xdc/runtime/Diags.h>
+#include <xdc/runtime/System.h>
 #include <xdc/runtime/Error.h>
 #include <xdc/runtime/Memory.h>
 
@@ -90,9 +91,6 @@ const TRACK_Params TRACK_defaultParams = {
 };
 
 static uint8_t s_seqnum = IPC_MIN_SEQ;
-
-/* Private Helper Functions */
-int SetTrackStates(TRACK_Handle handle);
 
 //*****************************************************************************
 // Track Controller Construction/Destruction
@@ -147,11 +145,59 @@ Void TRACK_Params_init(TRACK_Params *params)
     *params = TRACK_defaultParams;
 }
 
+
+int TRACK_Command(TRACK_Handle handle, DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* reply)
+{
+    int rc;
+    IPC_FCB rxFCB;
+    IPC_FCB txFCB;
+    IArg key;
+
+    /* DIP switch 1 must be on to use track controller */
+    if (GPIO_read(Board_DIPSW_CFG1) != 0)
+        return 0;
+
+    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+
+    /* Set message only op-code and message length */
+    //msg.hdr.opcode = DCS_OP_SET_TRACKS;
+   // msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACKS);
+
+    /* Setup FCB for message only type frame */
+    txFCB.type   = IPC_MAKETYPE(0, IPC_MSG_ONLY);
+    txFCB.seqnum = s_seqnum;
+    txFCB.acknak = 0;
+
+    /* Send IPC command/data to track controller */
+    rc = IPC_TxFrame(handle->uartHandle, &txFCB, request, request->msglen);
+
+    if (rc == IPC_ERR_SUCCESS)
+    {
+        /* Try to read ack/nak response back */
+        rc = IPC_RxFrame(handle->uartHandle, &rxFCB, reply, &(request->msglen));
+
+        if (rc == IPC_ERR_SUCCESS)
+        {
+            /* increment sequence number on reply */
+            s_seqnum = IPC_INC_SEQ(s_seqnum);
+        }
+        else
+        {
+            System_printf("TRACK_Command() error %d\n", rc);
+            System_flush();
+        }
+    }
+
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+
+    return rc;
+}
+
 //*****************************************************************************
 //
 //*****************************************************************************
 
-int TRACK_SetTrackStates(TRACK_Handle handle)
+int TRACK_SetAllStates(TRACK_Handle handle)
 {
     int rc;
     IPC_FCB rxFCB;
@@ -160,6 +206,10 @@ int TRACK_SetTrackStates(TRACK_Handle handle)
     uint8_t rxBuf[48];
     DCS_IPCMSG_SET_TRACKS msg;
     IArg key;
+
+    /* DIP switch 1 must be on to use track controller */
+    if (GPIO_read(Board_DIPSW_CFG1) != 0)
+        return 0;
 
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
@@ -192,6 +242,11 @@ int TRACK_SetTrackStates(TRACK_Handle handle)
             /* increment sequence number on reply */
             s_seqnum = IPC_INC_SEQ(s_seqnum);
         }
+        else
+        {
+            System_printf("SetTrackStates() error %d\n", rc);
+            System_flush();
+        }
     }
 
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
@@ -221,6 +276,9 @@ bool Track_SetState(size_t track, uint8_t mode, uint8_t flags)
 
     g_sysData.trackState[track] = mode | flags;
 
+    /* Update DCS channel switcher states */
+    TRACK_SetAllStates(g_sysData.handleDCS);
+
     return true;
 }
 
@@ -230,6 +288,9 @@ bool Track_SetAll(uint8_t mode, uint8_t flags)
 
     for (i=0; i < MAX_TRACKS; i++)
         g_sysData.trackState[i] = mode | flags;
+
+    /* Update DCS channel switcher states */
+    TRACK_SetAllStates(g_sysData.handleDCS);
 
     return true;
 }
@@ -252,6 +313,9 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask)
         g_sysData.trackState[i] = mode | mask;
     }
 
+    /* Update DCS channel switcher states */
+    TRACK_SetAllStates(g_sysData.handleDCS);
+
     return true;
 }
 
@@ -266,6 +330,9 @@ bool Track_ModeAll(uint8_t setmode)
         /* Store the new track flags, mode preserved */
         g_sysData.trackState[i] = setmode | mask;
     }
+
+    /* Update DCS channel switcher states */
+    TRACK_SetAllStates(g_sysData.handleDCS);
 
     return true;
 }

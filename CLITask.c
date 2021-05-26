@@ -286,8 +286,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 
     CLI_printf(VT100_HOME);
     CLI_printf(VT100_CLS);
-
-    CLI_printf("STC-1200 v%d.%02d.%03d\n\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    cmd_about(0, NULL);
     CLI_puts("Enter 'help' to view a list valid commands\n\n> ");
 
     while (true)
@@ -476,8 +475,8 @@ void cmd_help(int argc, char *argv[])
 
 void cmd_about(int argc, char *argv[])
 {
-    CLI_printf("STC-1200 v%d.%02d.%03d\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("Copyright (C) 2016-2021, RTZ Professional Audio\n");
+    CLI_printf("STC-1200 Search/Timer [v%d.%02d.%03d]\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    CLI_puts("(c) RTZ Professional Audio. All rights reserved\n\n");
 }
 
 void cmd_cls(int argc, char *argv[])

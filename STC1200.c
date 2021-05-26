@@ -258,17 +258,22 @@ void Init_Hardware()
 
     /* Deassert the Atmega88 reset line */
     GPIO_write(Board_RESET_AVR_N, PIN_HIGH);
+
     /* Deassert motion status lines */
     GPIO_write(Board_TAPE_DIR, PIN_HIGH);
     GPIO_write(Board_MOTION_FWD, PIN_HIGH);
     GPIO_write(Board_MOTION_REW, PIN_HIGH);
+
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
+
     /* Turn on the status LED */
     GPIO_write(Board_STAT_LED, Board_LED_ON);
+
     /* Turn off the play and shuttle lamps */
     GPIO_write(Board_LAMP_PLAY, Board_LAMP_OFF);
     GPIO_write(Board_LAMP_FWDREW, Board_LAMP_OFF);
+
     /* Deassert the RS-422 DE & RE pins */
     GPIO_write(Board_RS422_DE, PIN_LOW);
     GPIO_write(Board_RS422_RE_N, PIN_HIGH);
@@ -290,11 +295,12 @@ void Init_Hardware()
 void Init_Peripherals(void)
 {
     SDSPI_Params sdParams;
+    UART_Params uartParams;
     I2C_Params  i2cParams;
 
-    /*
-     * I2C-0 Bus
-     */
+    /*-----------------------------------------------------------*/
+    /* Open I2C-0 bus, read MAC, S/N and probe if RTC available  */
+    /*-----------------------------------------------------------*/
 
     I2C_Params_init(&i2cParams);
 
@@ -309,7 +315,7 @@ void Init_Peripherals(void)
     }
 
     /* Read the globally unique serial number from the AT24MAC EPROM.
-     * We are also read the 6-byte MAC address from the EPROM.
+     * We also read a 6-byte MAC address from this EPROM part.
      */
     if (!ReadGUIDS(g_sysData.handleI2C0, g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
     {
@@ -339,9 +345,9 @@ void Init_Peripherals(void)
         HibernateCounterMode(HIBERNATE_COUNTER_24HR);
     }
 
-    /*
-     *  Initialize the SD drive for operation
-     */
+    /*-----------------------------------------------------------*/
+    /*  Initialize the SD drive for operation                    */
+    /*-----------------------------------------------------------*/
 
     SDSPI_Params_init(&sdParams);
 
@@ -349,6 +355,33 @@ void Init_Peripherals(void)
     {
         System_abort("Failed to open SDSPI!");
     }
+
+    /*-----------------------------------------------------------*/
+    /* Open COM2 for digital channel switcher control (DCS-1200) */
+    /*-----------------------------------------------------------*/
+
+    UART_Params_init(&uartParams);
+
+    uartParams.readMode       = UART_MODE_BLOCKING;
+    uartParams.writeMode      = UART_MODE_BLOCKING;
+    uartParams.readTimeout    = 1000;                   // 1 second read timeout
+    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
+    uartParams.readCallback   = NULL;
+    uartParams.writeCallback  = NULL;
+    uartParams.readReturnMode = UART_RETURN_FULL;
+    uartParams.writeDataMode  = UART_DATA_BINARY;
+    uartParams.readDataMode   = UART_DATA_BINARY;
+    uartParams.readEcho       = UART_ECHO_OFF;
+    uartParams.baudRate       = 250000;
+    uartParams.stopBits       = UART_STOP_ONE;
+    uartParams.parityType     = UART_PAR_NONE;
+
+    if ((g_sysData.handleUartDCS = UART_open(Board_UART_RS232_COM2, &uartParams)) == NULL)
+    {
+        System_abort("Error initializing UART\n");
+    }
+
+    g_sysData.handleDCS = TRACK_create(g_sysData.handleUartDCS, NULL);
 }
 
 //*****************************************************************************
@@ -383,7 +416,11 @@ void Init_Application(void)
     AD9837_init();
     AD9837_reset();
 
+    /* Initialize SMPTE daughter card if installed */
     SMPTE_init();
+
+    /* Configure all track channel states */
+    TRACK_SetAllStates(g_sysData.handleDCS);
 
     /* Startup the debug console task */
     CLI_init();

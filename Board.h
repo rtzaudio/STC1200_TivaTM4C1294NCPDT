@@ -81,8 +81,8 @@ extern "C" {
 /* REV-B Hardware */
 #define Board_UART_IPC_A            STC1200_UART7               /* IPC commands to/from DTC */
 #define Board_UART_IPC_B            STC1200_UART0               /* IPC commands from DTC (future) */
-#define Board_UART_RS232_COM1       STC1200_UART1               /* RS-232 reserved for DCS channel switcher */
-#define Board_UART_RS232_COM2       STC1200_UART2               /* COM2 = RS232 debug port */
+#define Board_UART_RS232_COM1       STC1200_UART1               /* COM1 = RS232 TTY console port  */
+#define Board_UART_RS232_COM2       STC1200_UART2               /* COM2 = RS232 to DCS channel switcher */
 #define Board_UART_RS422_SPARE      STC1200_UART3               /* spare RS-422 port */
 #define Board_UART_RS422_REMOTE     STC1200_UART5               /* RS-422 to DRC-1200 remote */
 #define Board_UART_MIDI             STC1200_UART4               /* MIDI MMC port */
