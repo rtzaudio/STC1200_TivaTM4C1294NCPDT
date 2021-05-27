@@ -155,7 +155,7 @@ int TRACK_Command(TRACK_Handle handle, DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* 
 
     /* DIP switch 1 must be on to use track controller */
     if (GPIO_read(Board_DIPSW_CFG1) != 0)
-        return 0;
+        return IPC_ERR_TIMEOUT;
 
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
@@ -174,7 +174,7 @@ int TRACK_Command(TRACK_Handle handle, DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* 
     if (rc == IPC_ERR_SUCCESS)
     {
         /* Try to read ack/nak response back */
-        rc = IPC_RxFrame(handle->uartHandle, &rxFCB, reply, &(request->msglen));
+        rc = IPC_RxFrame(handle->uartHandle, &rxFCB, reply, &(reply->msglen));
 
         if (rc == IPC_ERR_SUCCESS)
         {
@@ -191,6 +191,39 @@ int TRACK_Command(TRACK_Handle handle, DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* 
     GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
 
     return rc;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+bool Track_GetCount(uint32_t* count)
+{
+    int rc;
+    bool success = false;
+
+    DCS_IPCMSG_GET_NUMTRACKS request;
+    DCS_IPCMSG_GET_NUMTRACKS reply;
+
+    request.hdr.opcode = DCS_OP_GET_NUMTRACKS;
+    request.hdr.msglen = sizeof(DCS_OP_GET_NUMTRACKS);
+
+    reply.hdr.opcode = DCS_OP_GET_NUMTRACKS;
+    reply.hdr.msglen = sizeof(DCS_IPCMSG_GET_NUMTRACKS);
+
+    rc = TRACK_Command(g_sysData.handleDCS,
+                       (DCS_IPCMSG_HDR*)&request,
+                       (DCS_IPCMSG_HDR*)&reply);
+
+    if (rc == IPC_ERR_SUCCESS)
+    {
+        *count = (uint32_t)reply.numTracks;
+        success = true;
+    }
+
+    *count = 0;
+
+    return success;
 }
 
 //*****************************************************************************
@@ -253,10 +286,6 @@ int TRACK_SetAllStates(TRACK_Handle handle)
 
     return rc;
 }
-
-//*****************************************************************************
-//
-//*****************************************************************************
 
 bool Track_GetState(size_t track, uint8_t* modeflags)
 {

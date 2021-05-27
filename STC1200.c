@@ -419,8 +419,15 @@ void Init_Application(void)
     /* Initialize SMPTE daughter card if installed */
     SMPTE_init();
 
-    /* Configure all track channel states */
-    TRACK_SetAllStates(g_sysData.handleDCS);
+    /* Get number of tracks DCS is configured for */
+    if (Track_GetCount(&g_sysData.trackCount))
+    {
+        /* Set flag indicating we have a working DCS */
+        g_sysData.dcsFound = true;
+
+        /* Send track configuration to DCS */
+        TRACK_SetAllStates(g_sysData.handleDCS);
+    }
 
     /* Startup the debug console task */
     CLI_init();

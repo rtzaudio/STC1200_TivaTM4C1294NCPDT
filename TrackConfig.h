@@ -48,6 +48,8 @@ int TRACK_Command(TRACK_Handle handle,
 
 int TRACK_SetAllStates(TRACK_Handle handle);
 
+bool Track_GetCount(uint32_t* count);
+
 bool Track_SetState(size_t track, uint8_t mode, uint8_t flags);
 bool Track_GetState(size_t track, uint8_t* modeflags);
 bool Track_SetAll(uint8_t mode, uint8_t flags);

@@ -116,6 +116,7 @@ typedef struct _SYSDATA
     size_t          cueIndex;                   /* current cue table index    */
     CUE_POINT	    cuePoint[MAX_CUE_POINTS];	/* array of cue point data    */
     uint8_t         trackState[MAX_TRACKS];
+    uint32_t        trackCount;                 /* number of tracks in machine*/
     /* Application Global Handles */
     Event_Handle    handleEventQEI;
     SDSPI_Handle    handleSD;
@@ -124,6 +125,7 @@ typedef struct _SYSDATA
     bool            rtcFound;                   /* true if MCP79410 RTC found */
     UART_Handle     handleUartDCS;
     TRACK_Handle    handleDCS;
+    bool            dcsFound;                   /* true if DCS-1200 found     */
 } SYSDATA;
 
 //*****************************************************************************
