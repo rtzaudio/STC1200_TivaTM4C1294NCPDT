@@ -32,9 +32,9 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        15          /* firmware revision */
-#define FIRMWARE_BUILD      1           /* firmware build number */
-#define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
+#define FIRMWARE_REV        16          /* firmware revision */
+#define FIRMWARE_BUILD      2           /* firmware build number */
+#define FIRMWARE_MIN_BUILD  2           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
 #error "STC build option FIRMWARE_MIN_BUILD set incorrectly"
@@ -51,7 +51,7 @@
 #define REF_FREQ_MIN        1000.0f
 #define REF_FREQ_MAX        18000.0f
 
-typedef struct _SYSPARMS
+typedef struct _SYSCFG
 {
     uint32_t    magic;
     uint32_t    version;
@@ -68,7 +68,10 @@ typedef struct _SYSPARMS
     uint32_t    jog_vel_near;       /* vel for near distance from locate point */
     /* NCO reference freq */
     float       ref_freq;           /* default reference freq */
-} SYSPARMS;
+    /* shadow copy of track state */
+    uint8_t     trackState[MAX_TRACKS];
+    uint8_t     tapeSpeed;          /* 15=low speed, 30=high speed */
+} SYSCFG;
 
 //*****************************************************************************
 // GLOBAL SHARED MEMORY & REAL-TIME DATA
@@ -76,7 +79,7 @@ typedef struct _SYSPARMS
 
 #define MAX_DIGITS_BUF      8
 
-typedef struct _SYSDATA
+typedef struct _SYSDAT
 {
     uint8_t		    ui8SerialNumber[16];		/* 128-bit serial number      */
     uint8_t         ui8MAC[6];                  /* 48-bit MAC from EPROM      */
@@ -126,7 +129,7 @@ typedef struct _SYSDATA
     UART_Handle     handleUartDCS;
     TRACK_Handle    handleDCS;
     bool            dcsFound;                   /* true if DCS-1200 found     */
-} SYSDATA;
+} SYSDAT;
 
 //*****************************************************************************
 // Task Command Message Structure
@@ -146,5 +149,9 @@ typedef struct CommandMessage {
 //*****************************************************************************
 
 int main(void);
+
+int ConfigSave(int level);
+int ConfigLoad(int level);
+int ConfigReset(int level);
 
 #endif /* __STC1200_H */

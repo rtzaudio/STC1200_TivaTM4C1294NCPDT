@@ -103,8 +103,8 @@ extern tFont *g_psFontWDseg7bold16pt;
 extern tFont *g_psFontWDseg7bold14pt;
 extern tFont *g_psFontWDseg7bold12pt;
 extern tFont *g_psFontWDseg7bold10pt;
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 //*****************************************************************************
 // Display the current measurement screen data
@@ -185,7 +185,7 @@ void DrawAbout(void)
     y += height + spacing + 4;
 
     /* Get the serial number string and display it */
-    GetHexStr(buf, g_sysData.ui8SerialNumber, 16);
+    GetHexStr(buf, g_sys.ui8SerialNumber, 16);
     GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
 }
 
@@ -222,10 +222,10 @@ void DrawMenu(void)
     y = SCREEN_HEIGHT - height - 1;
 
     /* Display the IP address */
-    if (strlen(g_sysData.ipAddr) == 0)
+    if (strlen(g_sys.ipAddr) == 0)
         len = sprintf(buf, "IP: (none)");
     else
-        len = sprintf(buf, "IP:%s", g_sysData.ipAddr);
+        len = sprintf(buf, "IP:%s", g_sys.ipAddr);
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
 }
 
@@ -240,7 +240,7 @@ void DrawTapeTime(void)
     DrawTimeTop();
 
     /* Draw the current tape position time in the middle */
-    if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
+    if (g_sys.remoteMode == REMOTE_MODE_EDIT)
         DrawTimeEdit();
     else
         DrawTimeMiddle();
@@ -271,7 +271,7 @@ void DrawTimeTop(void)
     }
     else
     {
-        switch(g_sysData.transportMode & MODE_MASK)
+        switch(g_sys.transportMode & MODE_MASK)
         {
         case MODE_HALT:
             len = sprintf(buf, "HALT");
@@ -286,21 +286,21 @@ void DrawTimeTop(void)
             break;
 
         case MODE_PLAY:
-            if (g_sysData.transportMode & M_RECORD)
+            if (g_sys.transportMode & M_RECORD)
                 len = sprintf(buf, "PLAY (REC)");
             else
                 len = sprintf(buf, "PLAY");
             break;
 
         case MODE_FWD:
-            if (g_sysData.transportMode & M_LIBWIND)
+            if (g_sys.transportMode & M_LIBWIND)
                 len = sprintf(buf, "FWD (LIB)");
             else
                 len = sprintf(buf, "FWD");
             break;
 
         case MODE_REW:
-            if (g_sysData.transportMode & M_LIBWIND)
+            if (g_sys.transportMode & M_LIBWIND)
                 len = sprintf(buf, "REW (LIB)");
             else
                 len = sprintf(buf, "REW");
@@ -323,13 +323,13 @@ void DrawTimeTop(void)
     GrStringDraw(&g_context, buf, -1, x, y, 1);
 
     /* Draw current tape speed active */
-    if (g_sysData.varispeedMode)
+    if (g_sys.varispeedMode)
     {
-        len = sprintf(buf, "%u", (uint32_t)g_sysData.ref_freq);
+        len = sprintf(buf, "%u", (uint32_t)g_sys.ref_freq);
     }
     else
     {
-        len = sprintf(buf, "%s IPS", (g_sysData.tapeSpeed == 30) ? "30" : "15");
+        len = sprintf(buf, "%s IPS", (g_sys.tapeSpeed == 30) ? "30" : "15");
     }
 
     width = GrStringWidthGet(&g_context, buf, len);
@@ -358,7 +358,7 @@ void DrawTimeBottom(void)
     x = 0;
     y = SCREEN_HEIGHT - height - 1;
 
-    len = sprintf(buf, "M:%02u", g_sysData.cueIndex);
+    len = sprintf(buf, "M:%02u", g_sys.cueIndex);
     width = GrStringWidthGet(&g_context, buf, len);
 
     rect.i16XMin = x;
@@ -382,9 +382,9 @@ void DrawTimeBottom(void)
     x = width + 6;
     y = y + 1;
 
-    if (IsCuePointFlags(g_sysData.cueIndex, CF_ACTIVE))
+    if (IsCuePointFlags(g_sys.cueIndex, CF_ACTIVE))
     {
-        CuePointTimeGet(g_sysData.cueIndex, &tapeTime);
+        CuePointTimeGet(g_sys.cueIndex, &tapeTime);
         int ch = (tapeTime.flags & F_PLUS) ? '+' : '-';
         snprintf(buf, sizeof(buf)-1, "%c%1u:%02u:%02u:%1u", ch, tapeTime.hour, tapeTime.mins, tapeTime.secs, tapeTime.tens);
         GrStringDraw(&g_context, buf, -1, x, y, 0);
@@ -398,7 +398,7 @@ void DrawTimeBottom(void)
 
     if (!IsLocatorSearching())
     {
-        if (g_sysData.transportMode & M_RECORD)
+        if (g_sys.transportMode & M_RECORD)
         {
             GrContextFontSet(&g_context, g_psFontFixed6x8);
             height = GrStringHeightGet(&g_context);
@@ -431,7 +431,7 @@ void DrawTimeBottom(void)
         {
             /* Draw progress as text only */
             GrContextFontSet(&g_context, g_psFontFixed6x8);
-            sprintf(buf, "%d%%", g_sysData.searchProgress);
+            sprintf(buf, "%d%%", g_sys.searchProgress);
             GrStringDraw(&g_context, buf, -1, 100, y, 0);
         }
         else
@@ -460,7 +460,7 @@ void DrawTimeBottom(void)
             int32_t x1 = rect2.i16XMin;
             int32_t x2 = rect2.i16XMax;
 
-            float progress = (float)g_sysData.searchProgress * 0.01f;
+            float progress = (float)g_sys.searchProgress * 0.01f;
 
             x = (int16_t)((float)(x2 - x1) * progress) + x1;
 
@@ -497,16 +497,16 @@ void DrawTimeMiddle(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    if (g_sysParms.showLongTime)
+    if (g_cfg.showLongTime)
     {
         GrContextFontSet(&g_context, g_psFontWDseg7bold16pt);
         height = GrStringHeightGet(&g_context);
 
         len = sprintf(buf, "%1u:%02u:%02u:%1u:",
-                 g_sysData.tapeTime.hour,
-                 g_sysData.tapeTime.mins,
-                 g_sysData.tapeTime.secs,
-                 g_sysData.tapeTime.tens);
+                 g_sys.tapeTime.hour,
+                 g_sys.tapeTime.mins,
+                 g_sys.tapeTime.secs,
+                 g_sys.tapeTime.tens);
 
         width = GrStringWidthGet(&g_context, buf, len);
 
@@ -515,12 +515,12 @@ void DrawTimeMiddle(void)
         GrStringDraw(&g_context, buf, len, x, y, 0);
 
         GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
-        len = sprintf(buf, "%02u", g_sysData.tapeTime.frame);
+        len = sprintf(buf, "%02u", g_sys.tapeTime.frame);
         GrStringDraw(&g_context, buf, len, x+width, y, 0);
 
         /* Draw the sign in a different font as 7-seg does not have these chars */
         GrContextFontSet(&g_context, g_psFontCm12); //g_psFontCmss12);
-        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
         GrStringDrawCentered(&g_context, buf, len, 6, y+6, 1);
 
         y += height + 5;
@@ -540,10 +540,10 @@ void DrawTimeMiddle(void)
         height = GrStringHeightGet(&g_context);
 
         len = sprintf(buf, "%1u:%02u:%02u:%1u",
-                 g_sysData.tapeTime.hour,
-                 g_sysData.tapeTime.mins,
-                 g_sysData.tapeTime.secs,
-                 g_sysData.tapeTime.tens);
+                 g_sys.tapeTime.hour,
+                 g_sys.tapeTime.mins,
+                 g_sys.tapeTime.secs,
+                 g_sys.tapeTime.tens);
 
         x = (SCREEN_WIDTH / 2) - 3;
         y = (SCREEN_HEIGHT / 2) - 5;
@@ -551,7 +551,7 @@ void DrawTimeMiddle(void)
 
         /* Draw the sign in a different font as 7-seg does not have these chars */
         GrContextFontSet(&g_context, g_psFontCm14);
-        len = sprintf(buf, "%c", (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-');
+        len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
         GrStringDrawCentered(&g_context, buf, len, 6, y-3, FALSE);
 
         y += height - 5;
@@ -594,14 +594,14 @@ void DrawTimeEdit(void)
     y = (SCREEN_HEIGHT / 2) - 13;
     GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 
-    char sign = (g_sysData.tapeTime.flags & F_PLUS) ? '+' : '-';
+    char sign = (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-';
 
     len = sprintf(buf, "%c %1u:%02u:%02u:%u",
                   sign,
-                  g_sysData.editTime.hour,
-                  g_sysData.editTime.mins,
-                  g_sysData.editTime.secs,
-                  g_sysData.editTime.tens);
+                  g_sys.editTime.hour,
+                  g_sys.editTime.mins,
+                  g_sys.editTime.secs,
+                  g_sys.editTime.tens);
 
     x = (SCREEN_WIDTH / 2) - 3;
     y = (SCREEN_HEIGHT / 2);

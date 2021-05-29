@@ -94,7 +94,7 @@
 
 /* External Data Items */
 
-extern SYSDATA g_sysData;
+extern SYSDAT g_sys;
 
 extern Mailbox_Handle g_mailboxLocate;
 

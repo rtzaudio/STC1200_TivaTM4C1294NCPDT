@@ -71,8 +71,8 @@
 #include "STC1200.h"
 
 /* Global STC-1200 System data */
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 
 #ifndef TI_DRIVERS_UART_DMA
@@ -271,7 +271,7 @@ const EMAC_Config EMAC_config[] = {
 
 void STC1200_initEMAC(void)
 {
-    memcpy(macAddress, g_sysData.ui8MAC, 6);
+    memcpy(macAddress, g_sys.ui8MAC, 6);
 
 #if 0
     uint32_t ulUser0, ulUser1;

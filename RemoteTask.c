@@ -94,8 +94,8 @@ static uint32_t s_uScreenNum = 0;
 /* External Global Data */
 extern tContext g_context;
 extern Mailbox_Handle g_mailboxRemote;
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 /* Static Function Prototypes */
 static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
@@ -170,9 +170,9 @@ uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask)
 
 void ResetDigitBuf(void)
 {
-    g_sysData.digitCount = 0;
+    g_sys.digitCount = 0;
 
-    memset(&g_sysData.digitBuf, 0, sizeof(g_sysData.digitBuf));
+    memset(&g_sys.digitBuf, 0, sizeof(g_sys.digitBuf));
 }
 
 /*****************************************************************************
@@ -191,9 +191,9 @@ void SetLocateButtonLED(size_t index)
 
     mask = tab[index % 10];
 
-    if (g_sysData.remoteMode == REMOTE_MODE_CUE)
+    if (g_sys.remoteMode == REMOTE_MODE_CUE)
         mask |= L_CUE;
-    else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
+    else if (g_sys.remoteMode == REMOTE_MODE_STORE)
         mask |= L_STORE;
     else
         mask = 0;
@@ -211,10 +211,10 @@ void SetButtonLedMask(uint32_t setMask, uint32_t clearMask)
     uint32_t key = Hwi_disable();
 
     /* Clear any bits in the clear mask */
-    g_sysData.ledMaskRemote &= ~(clearMask);
+    g_sys.ledMaskRemote &= ~(clearMask);
 
     /* Set any bits in the set mask */
-    g_sysData.ledMaskRemote |= setMask;
+    g_sys.ledMaskRemote |= setMask;
 
     /* Restore interrupts */
     Hwi_restore(key);
@@ -237,12 +237,12 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     RAMP_MSG msg;
     uint32_t cue_flags;
 
-    g_sysData.cueIndex = 0;
+    g_sys.cueIndex = 0;
 
-    g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+    g_sys.remoteMode = REMOTE_MODE_UNDEFINED;
 
     /* Initialize LOC-1 memory as return to zero at CUE point 1 */
-    g_sysData.remoteModePrev = REMOTE_MODE_CUE;
+    g_sys.remoteModePrev = REMOTE_MODE_CUE;
     RemoteSetMode(REMOTE_MODE_CUE);
     HandleDigitPress(0, 0);
 
@@ -299,15 +299,15 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             else if (msg.opcode == OP_SWITCH_REMOTE)
             {
                 /* A locate or other mode button was pressed */
-                g_sysData.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
-                g_sysData.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
+                g_sys.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
+                g_sys.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
 
                 cue_flags = 0;
 
-                if (g_sysData.autoMode)
+                if (g_sys.autoMode)
                     cue_flags |= CF_AUTO_PLAY;
 
-                if (g_sysData.shiftRecButton)
+                if (g_sys.shiftRecButton)
                     cue_flags |= CF_AUTO_REC;
 
                 HandleButtonPress(msg.param1.U, cue_flags);
@@ -353,43 +353,43 @@ void RemoteSetMode(uint32_t mode)
         /* No mode active */
         SetButtonLedMask(0, L_CUE | L_STORE | L_EDIT);
 
-        g_sysData.remoteModePrev = g_sysData.remoteMode;
+        g_sys.remoteModePrev = g_sys.remoteMode;
 
-        g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+        g_sys.remoteMode = REMOTE_MODE_UNDEFINED;
     }
-    else if (g_sysData.remoteMode == mode)
+    else if (g_sys.remoteMode == mode)
     {
         /*
          * Same mode requested, cancel the current mode
          */
 
-        g_sysData.editState = EDIT_BEGIN;
+        g_sys.editState = EDIT_BEGIN;
 
         ResetDigitBuf();
 
         /* Set mode to undefined */
-        g_sysData.remoteMode = REMOTE_MODE_UNDEFINED;
+        g_sys.remoteMode = REMOTE_MODE_UNDEFINED;
 
         /* Update the button LEDs */
         switch(mode)
         {
         case REMOTE_MODE_CUE:
-            g_sysData.remoteModeLast = REMOTE_MODE_UNDEFINED;
+            g_sys.remoteModeLast = REMOTE_MODE_UNDEFINED;
             SetButtonLedMask(0, L_CUE);
             break;
 
         case REMOTE_MODE_STORE:
-            g_sysData.remoteMode = g_sysData.remoteModePrev;
+            g_sys.remoteMode = g_sys.remoteModePrev;
             SetButtonLedMask(0, L_STORE);
             break;
 
         case REMOTE_MODE_EDIT:
-            g_sysData.remoteMode = g_sysData.remoteModeLast;
+            g_sys.remoteMode = g_sys.remoteModeLast;
             SetButtonLedMask(0, L_EDIT);
             break;
         }
 
-        SetLocateButtonLED(g_sysData.cueIndex);
+        SetLocateButtonLED(g_sys.cueIndex);
     }
     else
     {
@@ -397,21 +397,21 @@ void RemoteSetMode(uint32_t mode)
          * New mode requested, set LED's accordingly
          */
 
-        g_sysData.remoteModePrev = g_sysData.remoteMode;
+        g_sys.remoteModePrev = g_sys.remoteMode;
 
         /* Save the new mode */
-        g_sysData.remoteMode = mode;
+        g_sys.remoteMode = mode;
 
         /* Setup new mode requested */
         switch(mode)
         {
         case REMOTE_MODE_CUE:
-            g_sysData.remoteModeLast = mode;
+            g_sys.remoteModeLast = mode;
             SetButtonLedMask(L_CUE, L_CUE | L_STORE | L_EDIT);
             break;
 
         case REMOTE_MODE_STORE:
-            g_sysData.remoteModeLast = mode;
+            g_sys.remoteModeLast = mode;
             SetButtonLedMask(L_STORE, L_CUE | L_STORE | L_EDIT);
             break;
 
@@ -419,13 +419,13 @@ void RemoteSetMode(uint32_t mode)
             /* Reset digit input buffer */
             ResetDigitBuf();
             /* Reset the edit time structure */
-            g_sysData.editTime.hour  = 0;
-            g_sysData.editTime.mins  = 0;
-            g_sysData.editTime.secs  = 0;
-            g_sysData.editTime.frame = 0;
-            g_sysData.editTime.flags = F_PLUS;
+            g_sys.editTime.hour  = 0;
+            g_sys.editTime.mins  = 0;
+            g_sys.editTime.secs  = 0;
+            g_sys.editTime.frame = 0;
+            g_sys.editTime.flags = F_PLUS;
             /* Begin at hour entry state */
-            g_sysData.editState = EDIT_BEGIN;
+            g_sys.editState = EDIT_BEGIN;
             /* Set new button LED state */
             SetButtonLedMask(L_EDIT, L_CUE | L_STORE | L_EDIT);
             break;
@@ -435,7 +435,7 @@ void RemoteSetMode(uint32_t mode)
             break;
         }
 
-        SetLocateButtonLED(g_sysData.cueIndex);
+        SetLocateButtonLED(g_sys.cueIndex);
     }
 }
 
@@ -483,7 +483,7 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
     else if (mask & SW_MENU)
     {
         /* ALT+MENU to zero reset system position */
-        if (g_sysData.shiftAltButton)
+        if (g_sys.shiftAltButton)
         {
             /* Reset system position to zero */
             PositionZeroReset();
@@ -505,23 +505,23 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
     else if (mask & SW_AUTO)
     {
         /* toggle auto play mode */
-        if (!g_sysData.autoMode)
+        if (!g_sys.autoMode)
         {
-            g_sysData.autoMode = TRUE;
+            g_sys.autoMode = TRUE;
             SetButtonLedMask(L_AUTO, 0);
         }
         else
         {
-            g_sysData.autoMode = FALSE;
+            g_sys.autoMode = FALSE;
             SetButtonLedMask(0, L_AUTO);
         }
     }
     else if (mask & SW_ALT)
     {
-        if (g_sysParms.showLongTime)
-            g_sysParms.showLongTime = false;
+        if (g_cfg.showLongTime)
+            g_cfg.showLongTime = false;
         else
-            g_sysParms.showLongTime = true;
+            g_cfg.showLongTime = true;
     }
 
     // Notify the software remote of status change
@@ -538,67 +538,67 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
     char digit;
      static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
-    if (g_sysData.remoteMode == REMOTE_MODE_CUE)
+    if (g_sys.remoteMode == REMOTE_MODE_CUE)
     {
         /*
          * Remote is in CUE mode and a LOC-# button was pressed
          */
 
-        g_sysData.cueIndex = index;
+        g_sys.cueIndex = index;
 
         SetLocateButtonLED(index);
 
         /* Begin locate search */
         LocateSearch(index, cue_flags);
     }
-    else if (g_sysData.remoteMode == REMOTE_MODE_STORE)
+    else if (g_sys.remoteMode == REMOTE_MODE_STORE)
     {
         /*
          * Remote is in STORE mode and a LOC-# button was pressed
          */
-        g_sysData.cueIndex = index;
+        g_sys.cueIndex = index;
 
         SetLocateButtonLED(index);
 
         /* Store the current locate point */
-        CuePointSet(index, g_sysData.tapePosition, CF_ACTIVE);
+        CuePointSet(index, g_sys.tapePosition, CF_ACTIVE);
 
         /* Return to previous Cue or default mode */
-        RemoteSetMode(g_sysData.remoteModePrev);
+        RemoteSetMode(g_sys.remoteModePrev);
 
-        SetLocateButtonLED(g_sysData.cueIndex);
+        SetLocateButtonLED(g_sys.cueIndex);
     }
-    else if (g_sysData.remoteMode == REMOTE_MODE_EDIT)
+    else if (g_sys.remoteMode == REMOTE_MODE_EDIT)
     {
         /*
          * Remote is in EDIT mode and a digit 0-9 was pressed.
          */
 
-        if (g_sysData.editState == EDIT_BEGIN)
+        if (g_sys.editState == EDIT_BEGIN)
         {
-            g_sysData.editTime.frame = 0;
-            g_sysData.editTime.tens  = 0;
-            g_sysData.editTime.secs  = 0;
-            g_sysData.editTime.mins  = 0;
-            g_sysData.editTime.hour  = 0;
-            g_sysData.editTime.flags = F_PLUS;
+            g_sys.editTime.frame = 0;
+            g_sys.editTime.tens  = 0;
+            g_sys.editTime.secs  = 0;
+            g_sys.editTime.mins  = 0;
+            g_sys.editTime.hour  = 0;
+            g_sys.editTime.flags = F_PLUS;
 
-            g_sysData.editState = EDIT_DIGITS;
+            g_sys.editState = EDIT_DIGITS;
 
-            memset(&g_sysData.editTime, 0, sizeof(g_sysData.editTime));
+            memset(&g_sys.editTime, 0, sizeof(g_sys.editTime));
 
             ResetDigitBuf();
         }
 
         digit = digits[index];
 
-        if (g_sysData.digitCount >= MAX_DIGITS_BUF)
-            g_sysData.digitCount = 0;
+        if (g_sys.digitCount >= MAX_DIGITS_BUF)
+            g_sys.digitCount = 0;
 
-        g_sysData.digitBuf[g_sysData.digitCount++] = digit;
-        g_sysData.digitBuf[g_sysData.digitCount] = 0;
+        g_sys.digitBuf[g_sys.digitCount++] = digit;
+        g_sys.digitBuf[g_sys.digitCount] = 0;
 
-        len = StrToTapeTime(g_sysData.digitBuf, &g_sysData.editTime);
+        len = StrToTapeTime(g_sys.digitBuf, &g_sys.editTime);
 
         if (len >= 6)
         {
@@ -607,7 +607,7 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
     }
     else
     {
-        g_sysData.cueIndex = index;
+        g_sys.cueIndex = index;
 
         SetLocateButtonLED(index);
     }
@@ -624,7 +624,7 @@ void CompleteEditTimeState(void)
     int ipos;
 
     /* Get count of digits entered */
-    count = g_sysData.digitCount;
+    count = g_sys.digitCount;
 
     /* Reset the digit counter */
     ResetDigitBuf();
@@ -636,15 +636,15 @@ void CompleteEditTimeState(void)
     if (count)
     {
         /* Convert H:MM:SS time to total seconds */
-        TapeTimeToPosition(&g_sysData.editTime, &ipos);
+        TapeTimeToPosition(&g_sys.editTime, &ipos);
 
         /* Store the position at current memory index */
-        CuePointSet(g_sysData.cueIndex, ipos, CF_ACTIVE);
+        CuePointSet(g_sys.cueIndex, ipos, CF_ACTIVE);
     }
 
-    memset(&g_sysData.editTime, 0, sizeof(g_sysData.editTime));
+    memset(&g_sys.editTime, 0, sizeof(g_sys.editTime));
 
-    g_sysData.editState = EDIT_BEGIN;
+    g_sys.editState = EDIT_BEGIN;
 }
 
 //*****************************************************************************
@@ -768,7 +768,7 @@ void HandleJogwheelPress(uint32_t flags)
 //    uint32_t cue_flags = 0;
 //    size_t index = g_sysData.cueIndex;
 
-    switch (g_sysData.remoteMode)
+    switch (g_sys.remoteMode)
     {
     case REMOTE_MODE_EDIT:
         CompleteEditTimeState();
@@ -777,10 +777,10 @@ void HandleJogwheelPress(uint32_t flags)
     case REMOTE_MODE_CUE:
         SetLocateButtonLED(index);
 
-        if (g_sysData.autoMode)
+        if (g_sys.autoMode)
             cue_flags |= CF_AUTO_PLAY;
 
-        if (g_sysData.shiftRecButton)
+        if (g_sys.shiftRecButton)
             cue_flags |= CF_AUTO_REC;
 
         /* Begin locate search */
@@ -791,25 +791,25 @@ void HandleJogwheelPress(uint32_t flags)
         break;
 #endif
     default:
-        if (!g_sysData.varispeedMode)
+        if (!g_sys.varispeedMode)
         {
             /* Enable vari-speed mode */
-            g_sysData.varispeedMode = true;
+            g_sys.varispeedMode = true;
         }
         else
         {
             /* Reset ref frequency to default */
-            g_sysData.ref_freq = REF_FREQ;
+            g_sys.ref_freq = REF_FREQ;
 
             /* Calculate the 32-bit frequency divisor */
-            uint32_t freqCalc = AD9837_freqCalc(g_sysData.ref_freq);
+            uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
 
             /* Program the DSS ref clock with new value */
             AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
             AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
 
             /* Disable vari-speed mode */
-            g_sysData.varispeedMode = false;
+            g_sys.varispeedMode = false;
         }
         break;
     }
@@ -822,7 +822,7 @@ void HandleJogwheelPress(uint32_t flags)
 
 void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
-    if (g_sysData.varispeedMode)
+    if (g_sys.varispeedMode)
     {
         float freq;
         float step;
@@ -838,7 +838,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         else
             step = 1.0f;
 
-        freq = g_sysData.ref_freq;
+        freq = g_sys.ref_freq;
 
         if (direction > 0)
         {
@@ -863,7 +863,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
         AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
 
-        g_sysData.ref_freq = freq;
+        g_sys.ref_freq = freq;
     }
 }
 

@@ -98,9 +98,11 @@
 #include "drivers/offscrmono.h"
 
 /* STC1200 Board Header file */
-
-#include "STC1200.h"
 #include "Board.h"
+#include "STC1200.h"
+#include "STC1200TCP.h"
+#include "IPCCommands.h"
+#include "IPCMessage.h"
 #include "Utils.h"
 
 //*****************************************************************************
@@ -171,7 +173,7 @@ bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]
 // Set default runtime values
 //*****************************************************************************
 
-void InitSysDefaults(SYSPARMS* p)
+void InitSysDefaults(SYSCFG* p)
 {
     /** Default servo parameters **/
     p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
@@ -186,6 +188,10 @@ void InitSysDefaults(SYSPARMS* p)
     p->jog_vel_near = JOG_VEL_NEAR;         /* vel for near distance locate */
     /** Master Reference Clock */
     p->ref_freq     = REF_FREQ;             /* default ref clock 9600.0 Hz  */
+    p->tapeSpeed    = 30;                   /* default tape speed high      */
+
+    /* Initial track state zero for all channels */
+    memset(p->trackState, 0, STC_MAX_TRACKS);
 }
 
 //*****************************************************************************
@@ -195,7 +201,7 @@ void InitSysDefaults(SYSPARMS* p)
 //          -1 = Error writing EEPROM data
 //*****************************************************************************
 
-int SysParamsWrite(SYSPARMS* sp)
+int SysParamsWrite(SYSCFG* sp)
 {
     int32_t rc = 0;
 
@@ -205,7 +211,7 @@ int SysParamsWrite(SYSPARMS* sp)
     sp->magic   = MAGIC;
 
     /* Store the configuration parameters to EPROM */
-    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSPARMS));
+    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSCFG));
 
     System_printf("Writing System Parameters %d\n", rc);
     System_flush();
@@ -221,12 +227,12 @@ int SysParamsWrite(SYSPARMS* sp)
 //
 //*****************************************************************************
 
-int SysParamsRead(SYSPARMS* sp)
+int SysParamsRead(SYSCFG* sp)
 {
     InitSysDefaults(sp);
 
     /* Read the configuration parameters from EPROM */
-    EEPROMRead((uint32_t *)sp, 0, sizeof(SYSPARMS));
+    EEPROMRead((uint32_t *)sp, 0, sizeof(SYSCFG));
 
     /* Does the magic number match? If not, set defaults and
      * store to initialize the system default parameters.

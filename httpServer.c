@@ -92,8 +92,8 @@
 static bool rec_arm = false;
 static bool rec_active = false;
 
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 /* Static CGI callback functions */
 static Int sendIndexHtml(SOCKET htmlSock, int length);
@@ -137,11 +137,11 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     Char mac[32];
 
     /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
+    GetHexStr(serialnum, g_sys.ui8SerialNumber, 16);
 
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-            g_sysData.ui8MAC[0], g_sysData.ui8MAC[1], g_sysData.ui8MAC[2],
-            g_sysData.ui8MAC[3], g_sysData.ui8MAC[4], g_sysData.ui8MAC[5]);
+            g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
+            g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
 
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
@@ -177,13 +177,13 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "<p>MAC Address: %s</p>\r\n", mac);
     html(buf);
 
-    System_sprintf(buf, "<p>IP Address: %s</p>\r\n", g_sysData.ipAddr);
+    System_sprintf(buf, "<p>IP Address: %s</p>\r\n", g_sys.ipAddr);
     html(buf);
 
-    System_sprintf(buf, "<p>Tape Speed: %d IPS</p>\r\n", g_sysData.tapeSpeed);
+    System_sprintf(buf, "<p>Tape Speed: %d IPS</p>\r\n", g_sys.tapeSpeed);
     html(buf);
 
-    System_sprintf(buf, "<p>Roller Encoder Errors: %d</p>\r\n", g_sysData.qei_error_cnt);
+    System_sprintf(buf, "<p>Roller Encoder Errors: %d</p>\r\n", g_sys.qei_error_cnt);
     html(buf);
 
     html("</div>\r\n");
@@ -230,22 +230,22 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<p class=\"bold\">General Settings</p>\r\n");
 
     System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
-                       g_sysParms.showLongTime ? "checked" : "");
+                       g_cfg.showLongTime ? "checked" : "");
     html(buf);
     html("<br />\r\n");
 
     System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
-                   g_sysParms.searchBlink ? "checked" : "");
+                   g_cfg.searchBlink ? "checked" : "");
     html(buf);
     html("<p class=\"bold\">Locator Settings</p>\r\n");
 
-    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_near);
+    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"> <br />\r\n", g_cfg.jog_vel_near);
     html(buf);
 
-    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_mid);
+    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"> <br />\r\n", g_cfg.jog_vel_mid);
     html(buf);
 
-    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"> <br />\r\n", g_sysParms.jog_vel_far);
+    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"> <br />\r\n", g_cfg.jog_vel_far);
     html(buf);
 
     html("<br />\r\n");
@@ -300,8 +300,8 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
     parseIndex = 0;
     buffer[ContentLength] = '\0';
 
-    g_sysParms.showLongTime = false;
-    g_sysParms.searchBlink  = false;
+    g_cfg.showLongTime = false;
+    g_cfg.searchBlink  = false;
 
     // Process request variables until there are none left
     do
@@ -310,26 +310,26 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
         value = cgiParseVars(buffer, &parseIndex);
 
         if (!strcmp("longtime", key))
-            g_sysParms.showLongTime = (strcmp(value, "yes") == 0) ? true : false;
+            g_cfg.showLongTime = (strcmp(value, "yes") == 0) ? true : false;
         else if (!strcmp("blink", key))
-            g_sysParms.searchBlink = (strcmp(value, "yes") == 0) ? true : false;
+            g_cfg.searchBlink = (strcmp(value, "yes") == 0) ? true : false;
         else if (!strcmp("jognear", key))
         {
             val = atoi(value);
             if ((val >= 0) && (val <= 300))
-                g_sysParms.jog_vel_near = (uint32_t)val;
+                g_cfg.jog_vel_near = (uint32_t)val;
         }
         else if (!strcmp("jogmid", key))
         {
             val = atoi(value);
             if ((val >= 0) && (val <= 500))
-                g_sysParms.jog_vel_mid = (uint32_t)val;
+                g_cfg.jog_vel_mid = (uint32_t)val;
         }
         else if (!strcmp("jogfar", key))
         {
             val = atoi(value);
             if ((val >= 0) && (val <= 1100))
-                g_sysParms.jog_vel_far = (uint32_t)val;
+                g_cfg.jog_vel_far = (uint32_t)val;
         }
     } while(parseIndex != -1);
 
@@ -339,7 +339,7 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
     html(CRLF);
 
     /* Write system parameters to EPROM */
-    SysParamsWrite(&g_sysParms);
+    ConfigSave(1);
 
     // Send the updated page
     sendConfigHtml(htmlSock, 0);
@@ -407,44 +407,44 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html("        <fieldset>\r\n");
     html("        <legend>Mode</legend>\r\n");
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"cue\" value=\"CUE\">\r\n", (g_sysData.ledMaskRemote & L_CUE) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"cue\" value=\"CUE\">\r\n", (g_sys.ledMaskRemote & L_CUE) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"store\" value=\"STORE\">\r\n", (g_sysData.ledMaskRemote & L_STORE) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"store\" value=\"STORE\">\r\n", (g_sys.ledMaskRemote & L_STORE) ? '1' : '0');
     html(buf);
 
     html("        </fieldset>\r\n");
     html("        <fieldset>\r\n");
     html("        <legend>Locate</legend>\r\n");
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sysData.ledMaskRemote & L_LOC1) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sys.ledMaskRemote & L_LOC1) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc2\" value=\"LOC-2\">\r\n", (g_sysData.ledMaskRemote & L_LOC2) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc2\" value=\"LOC-2\">\r\n", (g_sys.ledMaskRemote & L_LOC2) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc3\" value=\"LOC-3\">\r\n", (g_sysData.ledMaskRemote & L_LOC3) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc3\" value=\"LOC-3\">\r\n", (g_sys.ledMaskRemote & L_LOC3) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc4\" value=\"LOC-4\">\r\n", (g_sysData.ledMaskRemote & L_LOC4) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc4\" value=\"LOC-4\">\r\n", (g_sys.ledMaskRemote & L_LOC4) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc5\" value=\"LOC-5\"><br />\r\n", (g_sysData.ledMaskRemote & L_LOC5) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc5\" value=\"LOC-5\"><br />\r\n", (g_sys.ledMaskRemote & L_LOC5) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc6\" value=\"LOC-6\">\r\n", (g_sysData.ledMaskRemote & L_LOC6) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc6\" value=\"LOC-6\">\r\n", (g_sys.ledMaskRemote & L_LOC6) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc7\" value=\"LOC-7\">\r\n", (g_sysData.ledMaskRemote & L_LOC7) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc7\" value=\"LOC-7\">\r\n", (g_sys.ledMaskRemote & L_LOC7) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc8\" value=\"LOC-8\">\r\n", (g_sysData.ledMaskRemote & L_LOC8) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc8\" value=\"LOC-8\">\r\n", (g_sys.ledMaskRemote & L_LOC8) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc9\" value=\"LOC-9\">\r\n", (g_sysData.ledMaskRemote & L_LOC9) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc9\" value=\"LOC-9\">\r\n", (g_sys.ledMaskRemote & L_LOC9) ? '1' : '0');
     html(buf);
 
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sysData.ledMaskRemote & L_LOC0) ? '1' : '0');
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sys.ledMaskRemote & L_LOC0) ? '1' : '0');
     html(buf);
 
     html("        </fieldset>\r\n");

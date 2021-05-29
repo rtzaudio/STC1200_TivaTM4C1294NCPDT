@@ -82,8 +82,8 @@
 #include "TrackConfig.h"
 
 /* Global STC-1200 System data */
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 /* Default AT45DB parameters structure */
 const TRACK_Params TRACK_defaultParams = {
@@ -145,8 +145,13 @@ Void TRACK_Params_init(TRACK_Params *params)
     *params = TRACK_defaultParams;
 }
 
+//*****************************************************************************
+// Issue a command to the DCS controller and get any reply.
+//*****************************************************************************
 
-int TRACK_Command(TRACK_Handle handle, DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* reply)
+int TRACK_Command(TRACK_Handle handle,
+                  DCS_IPCMSG_HDR* request,
+                  DCS_IPCMSG_HDR* reply)
 {
     int rc;
     IPC_FCB rxFCB;
@@ -194,97 +199,103 @@ int TRACK_Command(TRACK_Handle handle, DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* 
 }
 
 //*****************************************************************************
-//
+// Set speed to 15 or 30
 //*****************************************************************************
+
+bool Track_SetTapeSpeed(int speed)
+{
+    int rc;
+    bool success = false;
+    DCS_IPCMSG_SET_SPEED msg;
+
+    msg.hdr.opcode = DCS_OP_SET_SPEED;
+    msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_SPEED);
+
+    msg.tapeSpeed =  (speed >= 30) ? 1 : 0;
+
+    /* mirror this here for debug */
+    g_sys.tapeSpeed = speed;
+
+    rc = TRACK_Command(g_sys.handleDCS,
+                       (DCS_IPCMSG_HDR*)&msg,
+                       (DCS_IPCMSG_HDR*)&msg);
+
+    if (rc == IPC_ERR_SUCCESS)
+    {
+        success = true;
+    }
+
+    return success;
+}
 
 bool Track_GetCount(uint32_t* count)
 {
     int rc;
     bool success = false;
+    DCS_IPCMSG_GET_NUMTRACKS msg;
 
-    DCS_IPCMSG_GET_NUMTRACKS request;
-    DCS_IPCMSG_GET_NUMTRACKS reply;
+    *count = 0;
 
-    request.hdr.opcode = DCS_OP_GET_NUMTRACKS;
-    request.hdr.msglen = sizeof(DCS_OP_GET_NUMTRACKS);
+    msg.hdr.opcode = DCS_OP_GET_NUMTRACKS;
+    msg.hdr.msglen = sizeof(DCS_IPCMSG_GET_NUMTRACKS);
 
-    reply.hdr.opcode = DCS_OP_GET_NUMTRACKS;
-    reply.hdr.msglen = sizeof(DCS_IPCMSG_GET_NUMTRACKS);
-
-    rc = TRACK_Command(g_sysData.handleDCS,
-                       (DCS_IPCMSG_HDR*)&request,
-                       (DCS_IPCMSG_HDR*)&reply);
+    rc = TRACK_Command(g_sys.handleDCS,
+                       (DCS_IPCMSG_HDR*)&msg,
+                       (DCS_IPCMSG_HDR*)&msg);
 
     if (rc == IPC_ERR_SUCCESS)
     {
-        *count = (uint32_t)reply.numTracks;
+        *count = (uint32_t)msg.numTracks;
         success = true;
     }
-
-    *count = 0;
 
     return success;
 }
 
-//*****************************************************************************
-//
-//*****************************************************************************
-
-int TRACK_SetAllStates(TRACK_Handle handle)
+bool Track_ApplyState(size_t track, uint8_t state)
 {
     int rc;
-    IPC_FCB rxFCB;
-    IPC_FCB txFCB;
-    uint16_t len;
-    uint8_t rxBuf[48];
+    bool success = false;
+    DCS_IPCMSG_SET_TRACK msg;
+
+    if (track >= DCS_NUM_TRACKS)
+        return false;
+
+    msg.hdr.opcode = DCS_OP_SET_TRACK;
+    msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACK);
+
+    msg.trackNum   = track;
+    msg.trackState = state;
+
+    rc = TRACK_Command(g_sys.handleDCS,
+                       (DCS_IPCMSG_HDR*)&msg,
+                       (DCS_IPCMSG_HDR*)&msg);
+
+    if (rc == IPC_ERR_SUCCESS)
+        success = true;
+
+    return success;
+}
+
+bool Track_ApplyAllStates(uint8_t* trackStates)
+{
+    int rc;
+    bool success = false;
     DCS_IPCMSG_SET_TRACKS msg;
-    IArg key;
 
-    /* DIP switch 1 must be on to use track controller */
-    if (GPIO_read(Board_DIPSW_CFG1) != 0)
-        return 0;
-
-    key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
-
-    /* Set message only op-code and message length */
     msg.hdr.opcode = DCS_OP_SET_TRACKS;
     msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACKS);
 
-    /* Copy 24-tracks of the track state data to message */
-    memcpy(msg.trackState, g_sysData.trackState, DCS_NUM_TRACKS);
+    memcpy(msg.trackState, trackStates, DCS_NUM_TRACKS);
 
-    /* Setup FCB for message only type frame */
-    txFCB.type   = IPC_MAKETYPE(0, IPC_MSG_ONLY);
-    txFCB.seqnum = s_seqnum;
-    txFCB.acknak = 0;
-
-    /* Send IPC command/data to track controller */
-
-    rc = IPC_TxFrame(handle->uartHandle, &txFCB, &msg, msg.hdr.msglen);
+    rc = TRACK_Command(g_sys.handleDCS,
+                       (DCS_IPCMSG_HDR*)&msg,
+                       (DCS_IPCMSG_HDR*)&msg);
 
     if (rc == IPC_ERR_SUCCESS)
-    {
-        len = sizeof(rxBuf);
+        success = true;
 
-        /* Try to read ack/nak response back */
-
-        rc = IPC_RxFrame(handle->uartHandle, &rxFCB, rxBuf, &len);
-
-        if (rc == IPC_ERR_SUCCESS)
-        {
-            /* increment sequence number on reply */
-            s_seqnum = IPC_INC_SEQ(s_seqnum);
-        }
-        else
-        {
-            System_printf("SetTrackStates() error %d\n", rc);
-            System_flush();
-        }
-    }
-
-    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
-
-    return rc;
+    return success;
 }
 
 bool Track_GetState(size_t track, uint8_t* modeflags)
@@ -293,20 +304,19 @@ bool Track_GetState(size_t track, uint8_t* modeflags)
         return false;
 
     if (modeflags)
-        *modeflags = g_sysData.trackState[track];
+        *modeflags = g_sys.trackState[track];
 
     return true;
 }
 
-bool Track_SetState(size_t track, uint8_t mode, uint8_t flags)
+bool Track_SetState(size_t track, uint8_t modeflags)
 {
     if (track >= MAX_TRACKS)
         return false;
 
-    g_sysData.trackState[track] = mode | flags;
+    g_sys.trackState[track] = modeflags;
 
-    /* Update DCS channel switcher states */
-    TRACK_SetAllStates(g_sysData.handleDCS);
+    Track_ApplyState(track, modeflags);
 
     return true;
 }
@@ -316,10 +326,10 @@ bool Track_SetAll(uint8_t mode, uint8_t flags)
     size_t i;
 
     for (i=0; i < MAX_TRACKS; i++)
-        g_sysData.trackState[i] = mode | flags;
+        g_sys.trackState[i] = mode | flags;
 
     /* Update DCS channel switcher states */
-    TRACK_SetAllStates(g_sysData.handleDCS);
+    Track_ApplyAllStates(g_sys.trackState);
 
     return true;
 }
@@ -332,18 +342,18 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask)
 
     for (i=0; i < MAX_TRACKS; i++)
     {
-        mode = g_sysData.trackState[i] & STC_TRACK_MASK;
-        mask = g_sysData.trackState[i] & ~(STC_TRACK_MASK);
+        mode = g_sys.trackState[i] & STC_TRACK_MASK;
+        mask = g_sys.trackState[i] & ~(STC_TRACK_MASK);
         /* Clear any bits in the clear mask */
         mask &= ~(clearmask);
         /* Set any bits in the set mask */
         mask |= setmask;
         /* Store the new track flags, mode preserved */
-        g_sysData.trackState[i] = mode | mask;
+        g_sys.trackState[i] = mode | mask;
     }
 
     /* Update DCS channel switcher states */
-    TRACK_SetAllStates(g_sysData.handleDCS);
+    Track_ApplyAllStates(g_sys.trackState);
 
     return true;
 }
@@ -355,13 +365,13 @@ bool Track_ModeAll(uint8_t setmode)
 
     for (i=0; i < MAX_TRACKS; i++)
     {
-        mask = g_sysData.trackState[i] & ~(STC_TRACK_MASK);
+        mask = g_sys.trackState[i] & ~(STC_TRACK_MASK);
         /* Store the new track flags, mode preserved */
-        g_sysData.trackState[i] = setmode | mask;
+        g_sys.trackState[i] = setmode | mask;
     }
 
     /* Update DCS channel switcher states */
-    TRACK_SetAllStates(g_sysData.handleDCS);
+    Track_ApplyAllStates(g_sys.trackState);
 
     return true;
 }

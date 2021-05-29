@@ -19,9 +19,9 @@
 
 bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 
-void InitSysDefaults(SYSPARMS* p);
-int SysParamsRead(SYSPARMS* sp);
-int SysParamsWrite(SYSPARMS* sp);
+void InitSysDefaults(SYSCFG* p);
+int SysParamsRead(SYSCFG* sp);
+int SysParamsWrite(SYSCFG* sp);
 
 int GetHexStr(char* textbuf, uint8_t* databuf, int datalen);
 

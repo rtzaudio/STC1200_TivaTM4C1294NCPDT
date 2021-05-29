@@ -81,7 +81,7 @@
 
 /* External Data Items */
 
-extern SYSDATA g_sysData;
+extern SYSDAT g_sys;
 
 /* Static Data Items */
 

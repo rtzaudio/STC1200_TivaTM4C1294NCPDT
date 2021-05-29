@@ -114,8 +114,8 @@
 #define DEBOUNCE_TIME       30
 
 /* Global STC-1200 System data */
-SYSDATA g_sysData;
-SYSPARMS g_sysParms;
+SYSDAT g_sys;
+SYSCFG g_cfg;
 
 /* SPI interface to AD9837 NCO master reference oscillator on daughter card */
 AD9837_DEVICE g_ad9837;
@@ -149,10 +149,11 @@ int main(void)
     Mailbox_Params mboxParams;
 
     /* default GUID values */
-    memset(g_sysData.ui8SerialNumber, 0xFF, 16);
-    memset(g_sysData.ui8MAC, 0xFF, 6);
+    memset(g_sys.ui8SerialNumber, 0xFF, 16);
+    memset(g_sys.ui8MAC, 0xFF, 6);
 
-    g_sysData.rtcFound = false;
+    g_sys.rtcFound      = false;
+    g_sys.varispeedMode = false;
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
@@ -308,7 +309,7 @@ void Init_Peripherals(void)
     i2cParams.transferMode        = I2C_MODE_BLOCKING;
     i2cParams.bitRate             = I2C_100kHz;
 
-    if ((g_sysData.handleI2C0 = I2C_open(STC1200_I2C0, &i2cParams)) == NULL)
+    if ((g_sys.handleI2C0 = I2C_open(STC1200_I2C0, &i2cParams)) == NULL)
     {
         System_printf("Error: Unable to openI2C0 port\n");
         System_flush();
@@ -317,25 +318,25 @@ void Init_Peripherals(void)
     /* Read the globally unique serial number from the AT24MAC EPROM.
      * We also read a 6-byte MAC address from this EPROM part.
      */
-    if (!ReadGUIDS(g_sysData.handleI2C0, g_sysData.ui8SerialNumber, g_sysData.ui8MAC))
+    if (!ReadGUIDS(g_sys.handleI2C0, g_sys.ui8SerialNumber, g_sys.ui8MAC))
     {
         System_printf("Read Serial Number Failed!\n");
         System_flush();
     }
 
     /* Create and initialize the MCP79410 RTC object attached to I2C0 also */
-    if ((g_sysData.handleRTC = MCP79410_create(g_sysData.handleI2C0, NULL)) == NULL)
+    if ((g_sys.handleRTC = MCP79410_create(g_sys.handleI2C0, NULL)) == NULL)
     {
         System_abort("MCP79410_create failed\n");
     }
 
     /* Determine if MCP79410 RTC chip is available or not */
-    g_sysData.rtcFound = MCP79410_Probe(g_sysData.handleRTC);
+    g_sys.rtcFound = MCP79410_Probe(g_sys.handleRTC);
 
     /* Only Rev-C or greater has MCP79410 RTC chip installed. Otherwise
      * configure CPU hibernate clock for RTC use.
      */
-    if (!g_sysData.rtcFound)
+    if (!g_sys.rtcFound)
     {
         /* Configure hibernate module clock */
         HibernateEnableExpClk(120000000);
@@ -351,7 +352,7 @@ void Init_Peripherals(void)
 
     SDSPI_Params_init(&sdParams);
 
-    if ((g_sysData.handleSD = SDSPI_open(Board_SPI_SDCARD, 0, &sdParams)) == NULL)
+    if ((g_sys.handleSD = SDSPI_open(Board_SPI_SDCARD, 0, &sdParams)) == NULL)
     {
         System_abort("Failed to open SDSPI!");
     }
@@ -372,16 +373,16 @@ void Init_Peripherals(void)
     uartParams.writeDataMode  = UART_DATA_BINARY;
     uartParams.readDataMode   = UART_DATA_BINARY;
     uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 250000;
+    uartParams.baudRate       = 115200;
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
-    if ((g_sysData.handleUartDCS = UART_open(Board_UART_RS232_COM2, &uartParams)) == NULL)
+    if ((g_sys.handleUartDCS = UART_open(Board_UART_RS232_COM2, &uartParams)) == NULL)
     {
         System_abort("Error initializing UART\n");
     }
 
-    g_sysData.handleDCS = TRACK_create(g_sysData.handleUartDCS, NULL);
+    g_sys.handleDCS = TRACK_create(g_sys.handleUartDCS, NULL);
 }
 
 //*****************************************************************************
@@ -400,14 +401,13 @@ void Init_Application(void)
     Semaphore_post(g_semaNDKStartup);
 
     /* Set default system parameters */
-    InitSysDefaults(&g_sysParms);
+    InitSysDefaults(&g_cfg);
 
     /* Load system configuration from EPROM */
-    SysParamsRead(&g_sysParms);
+    SysParamsRead(&g_cfg);
 
     /* Set default reference frequency */
-    g_sysData.ref_freq      = g_sysParms.ref_freq;
-    g_sysData.varispeedMode = false;
+    g_sys.ref_freq = g_cfg.ref_freq;
 
     /* Reset the capstan reference clock and set the default
      * output frequency to 9600Hz to the capstan board. The
@@ -420,13 +420,18 @@ void Init_Application(void)
     SMPTE_init();
 
     /* Get number of tracks DCS is configured for */
-    if (Track_GetCount(&g_sysData.trackCount))
+    if (Track_GetCount(&g_sys.trackCount))
     {
         /* Set flag indicating we have a working DCS */
-        g_sysData.dcsFound = true;
+        g_sys.dcsFound = true;
 
-        /* Send track configuration to DCS */
-        TRACK_SetAllStates(g_sysData.handleDCS);
+        /* Set transport tape speed */
+        Track_SetTapeSpeed(g_cfg.tapeSpeed);
+
+        /* Set all track states */
+        memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+
+        Track_ApplyAllStates(g_cfg.trackState);
     }
 
     /* Startup the debug console task */
@@ -474,6 +479,69 @@ void Init_Application(void)
 }
 
 //*****************************************************************************
+// Default Device initialization
+//*****************************************************************************
+
+int ConfigSave(int level)
+{
+    /* Copy the current runtime track state table to the configuration
+     * track state table and save to EEPROM. Next time the application
+     * loads it will load whatever track states are stored in EPROM.
+     */
+
+    if (level > 0)
+    {
+        /* Set current track states the defaults */
+        memcpy(g_cfg.trackState, g_sys.trackState, DCS_NUM_TRACKS);
+
+        /* Set current tape speed as the default */
+        g_cfg.tapeSpeed = (uint8_t)g_sys.tapeSpeed;
+    }
+
+    /* Write the parameters to EEPROM */
+    return SysParamsWrite(&g_cfg);
+}
+
+/* Load system configuration from EPROM */
+
+int ConfigLoad(int level)
+{
+    int rc;
+
+    if ((rc = SysParamsRead(&g_cfg)) == 0)
+    {
+        if (level > 0)
+        {
+            /* Set current track states the defaults */
+            memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+
+            /* Set current tape speed as the default */
+            g_sys.tapeSpeed = g_cfg.tapeSpeed;
+        }
+    }
+
+    return rc;
+}
+
+/* Reset current configuration to defaults */
+
+int ConfigReset(int level)
+{
+    InitSysDefaults(&g_cfg);
+
+    if (level > 0)
+    {
+        /* Set current track states the defaults */
+        memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+
+        /* Set current tape speed as the default */
+        g_sys.tapeSpeed = g_cfg.tapeSpeed;
+    }
+
+    return 0;
+}
+
+//*****************************************************************************
 // This function attempts to ready the unique serial number
 // from the I2C
 //*****************************************************************************
@@ -495,7 +563,7 @@ Void MainTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Blink LED fast when search in progress */
-        timeout =  (g_sysData.searching) ? 100 : 1000;
+        timeout =  (g_sys.searching) ? 100 : 1000;
 
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxCommand, &msgCmd, timeout))
@@ -535,7 +603,7 @@ Void MainTaskFxn(UArg arg0, UArg arg1)
 		case Board_BTN_CUE:
 
 			/* Store the current search home cue position */
-			CuePointSet(CUE_POINT_HOME, g_sysData.tapePosition, CF_ACTIVE);
+			CuePointSet(CUE_POINT_HOME, g_sys.tapePosition, CF_ACTIVE);
 
             /* Debounce button delay */
             Task_sleep(DEBOUNCE_TIME);
@@ -647,7 +715,7 @@ void gpioButtonSearchHwi(unsigned int index)
 void gpioButtonStopHwi(unsigned int index)
 {
     uint32_t key = Hwi_disable();
-    g_sysData.searchCancel = TRUE;
+    g_sys.searchCancel = TRUE;
     Hwi_restore(key);
 }
 

@@ -94,8 +94,8 @@
 
 /* External Data Items */
 
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 /* Static Data Items */
 static Hwi_Struct qeiHwiStruct;
@@ -243,7 +243,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 	/* Create interrupt signal event */
     Error_init(&eb);
-    g_sysData.handleEventQEI = Event_create(NULL, &eb);
+    g_sys.handleEventQEI = Event_create(NULL, &eb);
 
 	/* Initialize the quadrature encoder module */
 	QEI_initialize();
@@ -277,12 +277,12 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 	 * up or from the user pressing the tape counter reset button.
 	 */
 
-	g_sysData.tapePositionPrev = 0xFFFFFFFF;
+	g_sys.tapePositionPrev = 0xFFFFFFFF;
 
     while (TRUE)
     {
     	/* Wait for any ISR events to be posted */
-    	UInt events = Event_pend(g_sysData.handleEventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
+    	UInt events = Event_pend(g_sys.handleEventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
 
     	/* not used */
     	if (events & Event_Id_00)
@@ -293,38 +293,38 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	/* Quadrature encoder error interrupt */
     	if (events & Event_Id_01)
     	{
-    		System_printf("QEI Phase Error: %d\n", g_sysData.qei_error_cnt);
+    		System_printf("QEI Phase Error: %d\n", g_sys.qei_error_cnt);
     		System_flush();
     	}
 
     	/* Read the tape roller tachometer value */
-    	g_sysData.tapeTach = QEIVelocityGet(QEI_BASE_ROLLER);
+    	g_sys.tapeTach = QEIVelocityGet(QEI_BASE_ROLLER);
 
     	/* Get the tape direction status from the QEI controller */
-    	g_sysData.tapeDirection = QEIDirectionGet(QEI_BASE_ROLLER);
+    	g_sys.tapeDirection = QEIDirectionGet(QEI_BASE_ROLLER);
 
     	/* Set the tape direction output indicator pin either high or low
 		 * 1 = tape forward direction, 0 = tape rewind direction
     	 */
-    	if (g_sysData.tapeDirection > 0)
+    	if (g_sys.tapeDirection > 0)
     		GPIO_write(Board_TAPE_DIR, PIN_HIGH);
     	else
     		GPIO_write(Board_TAPE_DIR, PIN_LOW);
 
     	/* Read the absolute position from the QEI controller */
-    	g_sysData.tapePositionAbs = QEIPositionGet(QEI_BASE_ROLLER);
+    	g_sys.tapePositionAbs = QEIPositionGet(QEI_BASE_ROLLER);
 
     	/* Convert absolute tape position to signed relative position */
-    	g_sysData.tapePosition = POSITION_TO_INT(g_sysData.tapePositionAbs);
+    	g_sys.tapePosition = POSITION_TO_INT(g_sys.tapePositionAbs);
 
         /* Get the tape time member values */
-        PositionToTapeTime(g_sysData.tapePosition, &g_sysData.tapeTime);
+        PositionToTapeTime(g_sys.tapePosition, &g_sys.tapeTime);
 
     	/* Here we're determining if any motion is present by looking at the previous
     	 * position and comparing to the current position. If the position has changed,
     	 * then we assume tape is moving and set the motion indicator outputs accordingly.
     	 */
-    	if (g_sysData.tapePosition == g_sysData.tapePositionPrev)
+    	if (g_sys.tapePosition == g_sys.tapePositionPrev)
     	{
 			GPIO_write(Board_MOTION_FWD, PIN_HIGH);
 	    	GPIO_write(Board_MOTION_REW, PIN_HIGH);
@@ -333,10 +333,10 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	{
 
 			/* Position Changed - Update the previous position */
-			g_sysData.tapePositionPrev = g_sysData.tapePosition;
+			g_sys.tapePositionPrev = g_sys.tapePosition;
 
 			/* Update the direction outputs to the old Ampex controller */
-			if (g_sysData.tapeDirection > 0)
+			if (g_sys.tapeDirection > 0)
 			{
 				// FWD pin low - active direction
 				GPIO_write(Board_MOTION_FWD, PIN_LOW);
@@ -361,16 +361,16 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     		rcount = 0;
 
 			/* Blink 7-seg display during searches */
-			if (g_sysParms.searchBlink)
+			if (g_cfg.searchBlink)
 			{
-                if (g_sysData.searching)
-                    g_sysData.tapeTime.flags |= F_BLINK;
+                if (g_sys.searching)
+                    g_sys.tapeTime.flags |= F_BLINK;
                 else
-                    g_sysData.tapeTime.flags &= ~(F_BLINK);
+                    g_sys.tapeTime.flags &= ~(F_BLINK);
 			}
 
 			/* Refresh the 7-segment display with the new values */
-			Write7SegDisplay(uartHandle, &g_sysData.tapeTime);
+			Write7SegDisplay(uartHandle, &g_sys.tapeTime);
     	}
     }
 }
@@ -391,20 +391,20 @@ Void QEIHwi(UArg arg)
 
     if (ulIntStat & QEI_INTERROR)       	/* phase error detected */
     {
-    	g_sysData.qei_error_cnt++;
-    	Event_post(g_sysData.handleEventQEI, Event_Id_01);
+    	g_sys.qei_error_cnt++;
+    	Event_post(g_sys.handleEventQEI, Event_Id_01);
     }
     else if (ulIntStat & QEI_INTTIMER)  	/* velocity timer expired */
     {
-    	Event_post(g_sysData.handleEventQEI, Event_Id_02);
+    	Event_post(g_sys.handleEventQEI, Event_Id_02);
     }
     else if (ulIntStat & QEI_INTDIR)    	/* direction change */
     {
-    	Event_post(g_sysData.handleEventQEI, Event_Id_03);
+    	Event_post(g_sys.handleEventQEI, Event_Id_03);
     }
     else if (ulIntStat & QEI_INTINDEX)  	/* Index pulse detected */
     {
-    	Event_post(g_sysData.handleEventQEI, Event_Id_04);
+    	Event_post(g_sys.handleEventQEI, Event_Id_04);
     }
 
     QEIIntEnable(QEI_BASE_ROLLER, ulIntStat);

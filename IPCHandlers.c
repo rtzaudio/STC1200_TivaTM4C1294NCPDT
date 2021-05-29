@@ -84,7 +84,7 @@
 #include "PositionTask.h"
 
 /* External Data Items */
-extern SYSDATA g_sysData;
+extern SYSDAT g_sys;
 
 /* Static Function Prototypes */
 static uint32_t dtc_to_drc_lamp_mask(uint32_t bits);
@@ -160,15 +160,15 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
         /* Update the current transport LED mask. The DTC also
          * sends the tape speed along with the LED/lamp mask.
          */
-        g_sysData.ledMaskTransport = dtc_to_drc_lamp_mask(msg->param1.U);
-        g_sysData.tapeSpeed = msg->param2.U;
+        g_sys.ledMaskTransport = dtc_to_drc_lamp_mask(msg->param1.U);
+        g_sys.tapeSpeed = msg->param2.U;
         break;
 
     case OP_NOTIFY_TRANSPORT:
         /* The DTC sends this notification with the current
          * transport mode (stop, play, etc).
          */
-        g_sysData.transportMode = msg->param1.U;
+        g_sys.transportMode = msg->param1.U;
         break;
     }
 

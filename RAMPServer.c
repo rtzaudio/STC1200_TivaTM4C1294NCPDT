@@ -96,7 +96,7 @@
 #include "STC1200.h"
 
 /* External Data Items */
-extern SYSDATA g_sysData;
+extern SYSDAT g_sys;
 
 /* Static Function Prototypes */
 static RAMP_SVR_OBJECT g_svr;

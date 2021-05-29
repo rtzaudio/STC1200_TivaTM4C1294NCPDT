@@ -70,7 +70,7 @@
 #include "../STC1200.h"
 #include "../RAMPServer.h"
 
-extern SYSDATA g_sysData;
+extern SYSDAT g_sys;
 
 /* Global context for drawing */
 tContext g_context;
@@ -371,10 +371,10 @@ GrOffScreenMonoFlush(void *pvDisplayData)
      * DTC via LED status IPC notifications. We're just passing these
      * along to the DRC remote.
      */
-    uint32_t ledmask = (g_sysData.ledMaskRemote << 8) | (g_sysData.ledMaskTransport & 0xFF);
+    uint32_t ledmask = (g_sys.ledMaskRemote << 8) | (g_sys.ledMaskTransport & 0xFF);
 
     *p++ = ledmask;
-    *p++ = g_sysData.transportMode;
+    *p++ = g_sys.transportMode;
 
     /* Flush the screen buffer to the DRC remote display via RS-422! */
     RAMP_Send_Display(1000);

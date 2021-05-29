@@ -103,8 +103,8 @@
 #endif
 
 /* Global STC-1200 System data */
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 /* Static Function Prototypes */
 void netOpenHook(void);
@@ -177,9 +177,9 @@ void netOpenHook(void)
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd)
 {
     if (fAdd)
-        NtIPN2Str(IPAddr, g_sysData.ipAddr);
+        NtIPN2Str(IPAddr, g_sys.ipAddr);
     else
-        NtIPN2Str(0, g_sysData.ipAddr);
+        NtIPN2Str(0, g_sys.ipAddr);
 
     //System_printf("netIPUpdate() dhcp->%s\n", g_sysData.ipAddr);
 }
@@ -305,55 +305,55 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         UInt events = Event_pend(g_eventTransport, Event_Id_NONE, EVENT_MASK, 2500);
 
         /* Get the tape time member values */
-        PositionToTapeTime(g_sysData.tapePosition, &stateMsg.tapeTime);
+        PositionToTapeTime(g_sys.tapePosition, &stateMsg.tapeTime);
 
         int textlen = sizeof(STC_STATE_MSG);
 
-        uint32_t transportMode = g_sysData.transportMode;
+        uint32_t transportMode = g_sys.transportMode;
 
         /* If locate is active, set search bit flag */
-        if (g_sysData.searching)
+        if (g_sys.searching)
             transportMode |= STC_M_SEARCH;
 
         /* If loop mode is active, set loop mode bit flag */
-        if (g_sysData.autoLoop)
+        if (g_sys.autoLoop)
             transportMode |= STC_M_LOOP;
 
-        if (g_sysData.autoPunch)
+        if (g_sys.autoPunch)
             transportMode |= STC_M_PUNCH;
 
         int8_t tapedir = 0;
 
-        if (g_sysData.tapeSpeed)
-            tapedir = (g_sysData.tapeDirection > 0) ?  1 : -1;
+        if (g_sys.tapeTach > 0.0f)
+            tapedir = (g_sys.tapeDirection > 0) ?  1 : -1;
 
-        uint32_t maskTransport = g_sysData.ledMaskTransport;
+        uint32_t maskTransport = g_sys.ledMaskTransport;
 
         /* Simulate tape lifter button LED active flag */
-        if (g_sysData.transportMode & M_LIFTER)
+        if (g_sys.transportMode & M_LIFTER)
             maskTransport |= STC_L_LDEF;
 
         stateMsg.length             = textlen;
-        stateMsg.errorCount         = g_sysData.qei_error_cnt;
-        stateMsg.ledMaskButton      = g_sysData.ledMaskRemote;
+        stateMsg.errorCount         = g_sys.qei_error_cnt;
+        stateMsg.ledMaskButton      = g_sys.ledMaskRemote;
         stateMsg.ledMaskTransport   = maskTransport;
-        stateMsg.tapePosition       = g_sysData.tapePosition;
-        stateMsg.tapeVelocity       = (uint32_t)g_sysData.tapeTach;
+        stateMsg.tapePosition       = g_sys.tapePosition;
+        stateMsg.tapeVelocity       = (uint32_t)g_sys.tapeTach;
         stateMsg.transportMode      = (uint16_t)transportMode;
         stateMsg.tapeDirection      = tapedir;
-        stateMsg.tapeSpeed          = (uint8_t)g_sysData.tapeSpeed;
+        stateMsg.tapeSpeed          = (uint8_t)g_sys.tapeSpeed;
         stateMsg.tapeSize           = (uint8_t)2;
-        stateMsg.searchProgress     = (uint8_t)g_sysData.searchProgress;
-        stateMsg.searching          = g_sysData.searching;
+        stateMsg.searchProgress     = (uint8_t)g_sys.searchProgress;
+        stateMsg.searching          = g_sys.searching;
         stateMsg.monitorFlags       = 0;
 
         /* Copy the track state info */
         for (i=0; i < STC_MAX_TRACKS; i++)
-            stateMsg.trackState[i] = g_sysData.trackState[i];
+            stateMsg.trackState[i] = g_sys.trackState[i];
 
         /* Copy the cue memory status bits */
         for (i=0; i < STC_MAX_CUE_POINTS; i++)
-            stateMsg.cueState[i] = (uint8_t)g_sysData.cuePoint[i].flags;
+            stateMsg.cueState[i] = (uint8_t)g_sys.cuePoint[i].flags;
 
         /* Prepare to start sending state message buffer */
 
@@ -623,7 +623,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2: cue flags (CF_ACTIVE, etc)
              */
             if (msg.param1.I == -1)
-                ipos = g_sysData.tapePosition;
+                ipos = g_sys.tapePosition;
             else
                 ipos = msg.param1.I;
 
@@ -718,12 +718,12 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             if (msg.param1.U)
             {
                 SetButtonLedMask(STC_L_AUTO_PUNCH, 0);
-                g_sysData.autoPunch = TRUE;
+                g_sys.autoPunch = TRUE;
             }
             else
             {
                 SetButtonLedMask(0, STC_L_AUTO_PUNCH);
-                g_sysData.autoPunch = FALSE;
+                g_sys.autoPunch = FALSE;
             }
             notify = TRUE;
             break;
@@ -735,7 +735,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             if (msg.param1.U == STC_ALL_TRACKS)
                 Track_SetAll((uint8_t)msg.param2.U, 0);
             else
-                Track_SetState((size_t)msg.param1.U, (uint8_t)msg.param2.U, 0);
+                Track_SetState((size_t)msg.param1.U, (uint8_t)msg.param2.U);
             notify = true;
             break;
 
@@ -764,7 +764,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             break;
 
         case STC_CMD_TAPE_SPEED_SET:
-            //(uint8_t)msg.param1.U
+            /* Set transport tape speed */
+            Track_SetTapeSpeed((int)msg.param1.U);
             break;
 
         case STC_CMD_CANCEL:
@@ -772,6 +773,19 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = 0
              */
             LocateCancel();
+            break;
+
+        case STC_CMD_CONFIG_SET:
+            /* param1: 0=load, 1=store, 3=reset
+             * param2 = 0
+             */
+            if (msg.param1.U == 0)
+                ConfigLoad(1);
+            else if (msg.param1.U == 1)
+                ConfigSave(1);
+            else if (msg.param1.U == 2)
+                ConfigReset(1);
+            notify = TRUE;
             break;
         }
 

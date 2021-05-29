@@ -91,8 +91,8 @@
 #include "IPCCommands.h"
 #include "RemoteTask.h"
 
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 //*****************************************************************************
 // Type Definitions
@@ -128,6 +128,7 @@ MK_CMD(cue);
 MK_CMD(store);
 MK_CMD(rtz);
 MK_CMD(stat);
+MK_CMD(cfg);
 
 /* The dispatch table */
 #define CMD(func, help) {#func, cmd_ ## func, help}
@@ -151,6 +152,7 @@ cmd_t dispatch[] = {
     CMD(store, "Locator store {0-9}"),
     CMD(rtz, "Return to zero"),
     CMD(stat, "Displays machine status"),
+    CMD(cfg, "Configuration {save|load|reset}"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -184,8 +186,8 @@ static void parse_cmd(char *buf);
 static bool IsClockRunning(void);
 
 /*** External Data Items ***/
-extern SYSDATA g_sysData;
-extern SYSPARMS g_sysParms;
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
 
 //*****************************************************************************
 //
@@ -408,8 +410,8 @@ bool IsClockRunning(void)
 {
     bool running = true;
 
-    if (g_sysData.rtcFound)
-        running = MCP79410_IsRunning(g_sysData.handleRTC);
+    if (g_sys.rtcFound)
+        running = MCP79410_IsRunning(g_sys.handleRTC);
 
     if (!running)
         CLI_printf("clock not running - set time/date first\n");
@@ -454,7 +456,9 @@ void cmd_help(int argc, char *argv[])
 
     CLI_puts("\nAvailable Commands:\n\n");
 
-    while(i--)
+    //while(i--)
+
+    for(i=0; i < NUM_CMDS; i++)
     {
         cmd_t cmd = dispatch[i];
 
@@ -469,7 +473,7 @@ void cmd_help(int argc, char *argv[])
                 break;
         }
 
-        CLI_printf("%-10s%s\n", name, cmd.doc);
+        CLI_printf(" %-10s%s\n", name, cmd.doc);
     }
 }
 
@@ -487,15 +491,15 @@ void cmd_cls(int argc, char *argv[])
 
 void cmd_ip(int argc, char *argv[])
 {
-    CLI_printf("%s\n", g_sysData.ipAddr);
+    CLI_printf("%s\n", g_sys.ipAddr);
 }
 
 void cmd_mac(int argc, char *argv[])
 {
     char mac[32];
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-            g_sysData.ui8MAC[0], g_sysData.ui8MAC[1], g_sysData.ui8MAC[2],
-            g_sysData.ui8MAC[3], g_sysData.ui8MAC[4], g_sysData.ui8MAC[5]);
+            g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
+            g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
     CLI_printf("%s\n", mac);
 }
 
@@ -503,7 +507,7 @@ void cmd_sn(int argc, char *argv[])
 {
     char serialnum[64];
     /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sysData.ui8SerialNumber, 16);
+    GetHexStr(serialnum, g_sys.ui8SerialNumber, 16);
     CLI_printf("%s\n", serialnum);
 }
 
@@ -582,7 +586,7 @@ void cmd_rew(int argc, char *argv[])
 
 void cmd_speed(int argc, char *argv[])
 {
-    CLI_printf("%u IPS\n", g_sysData.tapeSpeed);
+    CLI_printf("%u IPS\n", g_sys.tapeSpeed);
 }
 
 void cmd_rtz(int argc, char *argv[])
@@ -603,7 +607,7 @@ void cmd_cue(int argc, char *argv[])
 
     loc = atoi(argv[0]);
 
-    if (g_sysData.remoteMode != REMOTE_MODE_CUE)
+    if (g_sys.remoteMode != REMOTE_MODE_CUE)
         Remote_PostSwitchPress(SW_CUE, 0);
 
     CLI_printf("SEARCH TO CUE MEMORY %d\n", loc);
@@ -657,7 +661,7 @@ void cmd_store(int argc, char *argv[])
     loc = atoi(argv[0]);
     CLI_printf("STORE TO MEMORY to %d\n", loc);
 
-    if (g_sysData.remoteMode != REMOTE_MODE_STORE)
+    if (g_sys.remoteMode != REMOTE_MODE_STORE)
         Remote_PostSwitchPress(SW_STORE, 0);
 
     switch(loc)
@@ -698,9 +702,9 @@ void cmd_store(int argc, char *argv[])
 void cmd_stat(int argc, char *argv[])
 {
     CLI_printf("\nPosition Status\n\n");
-    CLI_printf("  tape roller tach   : %u\n", (uint32_t)g_sysData.tapeTach);
-    CLI_printf("  tape roller errors : %u\n", g_sysData.qei_error_cnt);
-    CLI_printf("  encoder position   : %d\n", g_sysData.tapePosition);
+    CLI_printf("  tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
+    CLI_printf("  tape roller errors : %u\n", g_sys.qei_error_cnt);
+    CLI_printf("  encoder position   : %d\n", g_sys.tapePosition);
 }
 
 void cmd_time(int argc, char *argv[])
@@ -709,7 +713,7 @@ void cmd_time(int argc, char *argv[])
     char timeSet[] = "Time set!\n";
     char timeAs[]  = "Enter time as: hh:mm:ss\n";
 
-    if (g_sysData.rtcFound)
+    if (g_sys.rtcFound)
     {
         RTCC_Struct ts;
 
@@ -718,23 +722,23 @@ void cmd_time(int argc, char *argv[])
             if (!IsClockRunning())
                 return;
 
-            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+            MCP79410_GetTime(g_sys.handleRTC, &ts);
 
             CLI_printf(timeFmt, ts.hour, ts.min, ts.sec);
         }
         else if (argc == 3)
         {
             /* Get current time/date */
-            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+            MCP79410_GetTime(g_sys.handleRTC, &ts);
 
             ts.hour    = (uint8_t)atoi(argv[0]);
             ts.min     = (uint8_t)atoi(argv[1]);
             ts.sec     = (uint8_t)atoi(argv[2]);
 
-            MCP79410_SetHourFormat(g_sysData.handleRTC, H24);                // Set hour format to military time standard
-            MCP79410_EnableVbat(g_sysData.handleRTC);                        // Enable battery backup
-            MCP79410_SetTime(g_sysData.handleRTC, &ts);
-            MCP79410_EnableOscillator(g_sysData.handleRTC);                  // Start clock by enabling oscillator
+            MCP79410_SetHourFormat(g_sys.handleRTC, H24);                // Set hour format to military time standard
+            MCP79410_EnableVbat(g_sys.handleRTC);                        // Enable battery backup
+            MCP79410_SetTime(g_sys.handleRTC, &ts);
+            MCP79410_EnableOscillator(g_sys.handleRTC);                  // Start clock by enabling oscillator
 
             CLI_puts(timeSet);
         }
@@ -790,7 +794,7 @@ void cmd_date(int argc, char *argv[])
     char dateSet[] = "Date set!\n";
     char dateAs[]  = "Enter date as: mm/dd/yyyy\n";
 
-    if (g_sysData.rtcFound)
+    if (g_sys.rtcFound)
      {
         RTCC_Struct ts;
 
@@ -799,24 +803,24 @@ void cmd_date(int argc, char *argv[])
             if (!IsClockRunning())
                 return;
 
-            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+            MCP79410_GetTime(g_sys.handleRTC, &ts);
 
             CLI_printf(dateFmt, ts.month, ts.date, ts.year+2000);
         }
         else if (argc == 3)
         {
             /* Get current time/date */
-            MCP79410_GetTime(g_sysData.handleRTC, &ts);
+            MCP79410_GetTime(g_sys.handleRTC, &ts);
 
             ts.month   = (uint8_t)atoi(argv[0]);
             ts.date    = (uint8_t)atoi(argv[1]);
             ts.year    = (uint8_t)(atoi(argv[2]) - 2000);
             ts.weekday = (uint8_t)((ts.date % 7) + 1);
 
-            MCP79410_SetHourFormat(g_sysData.handleRTC, H24);                // Set hour format to military time standard
-            MCP79410_EnableVbat(g_sysData.handleRTC);                        // Enable battery backup
-            MCP79410_SetTime(g_sysData.handleRTC, &ts);
-            MCP79410_EnableOscillator(g_sysData.handleRTC);                  // Start clock by enabling oscillator
+            MCP79410_SetHourFormat(g_sys.handleRTC, H24);                // Set hour format to military time standard
+            MCP79410_EnableVbat(g_sys.handleRTC);                        // Enable battery backup
+            MCP79410_SetTime(g_sys.handleRTC, &ts);
+            MCP79410_EnableOscillator(g_sys.handleRTC);                  // Start clock by enabling oscillator
 
             CLI_puts(dateSet);
         }
@@ -866,6 +870,36 @@ void cmd_date(int argc, char *argv[])
         {
             CLI_puts(dateAs);
         }
+    }
+}
+
+void cmd_cfg(int argc, char *argv[])
+{
+    if (argc == 1)
+    {
+        if (strcmp(argv[0], "save") == 0)
+        {
+            ConfigSave(1);
+            CLI_puts("Configuration Saved\n");
+        }
+        else if (strcmp(argv[0], "load") == 0)
+        {
+            ConfigLoad(1);
+            CLI_puts("Configuration Loaded\n");
+        }
+        else if (strcmp(argv[0], "reset") == 0)
+        {
+            ConfigReset(1);
+            CLI_puts("Configuration Reset\n");
+        }
+        else
+        {
+            CLI_puts("Invalid Option\n");
+        }
+    }
+    else
+    {
+        CLI_puts("Usage: cfg {save|reset|load}\n");
     }
 }
 

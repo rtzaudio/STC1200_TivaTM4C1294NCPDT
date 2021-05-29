@@ -122,7 +122,7 @@ typedef enum _LocateState {
 
 /*** External Data Items ***/
 
-extern SYSDATA g_sysData;
+extern SYSDAT g_sys;
 
 extern Mailbox_Handle g_mailboxLocate;
 
@@ -143,8 +143,8 @@ void CuePointClear(size_t index)
 	{
 	    uint32_t key = Hwi_disable();
 
-		g_sysData.cuePoint[index].ipos  = 0;
-		g_sysData.cuePoint[index].flags = CF_NONE;
+		g_sys.cuePoint[index].ipos  = 0;
+		g_sys.cuePoint[index].flags = CF_NONE;
 
 		Hwi_restore(key);
 	}
@@ -167,8 +167,8 @@ void CuePointClearAll(void)
     {
         uint32_t key = Hwi_disable();
 
-        g_sysData.cuePoint[i].ipos  = 0;
-        g_sysData.cuePoint[i].flags = CF_NONE;
+        g_sys.cuePoint[i].ipos  = 0;
+        g_sys.cuePoint[i].flags = CF_NONE;
 
         Hwi_restore(key);
     }
@@ -189,14 +189,14 @@ void CuePointSet(size_t index, int ipos, uint32_t cue_flags)
     Semaphore_pend(g_semaCue, BIOS_WAIT_FOREVER);
 
     if (!ipos)
-        ipos = g_sysData.tapePosition;
+        ipos = g_sys.tapePosition;
 
     if (index < MAX_CUE_POINTS)
     {
         uint32_t key = Hwi_disable();
 
-        g_sysData.cuePoint[index].ipos  = ipos;
-        g_sysData.cuePoint[index].flags = cue_flags;
+        g_sys.cuePoint[index].ipos  = ipos;
+        g_sys.cuePoint[index].flags = cue_flags;
 
         Hwi_restore(key);
     }
@@ -221,7 +221,7 @@ void CuePointMask(size_t index, uint32_t setmask, uint32_t clearmask)
         uint32_t key = Hwi_disable();
 
         /* get current cue bit mask */
-        uint32_t cue_flags = g_sysData.cuePoint[index].flags;
+        uint32_t cue_flags = g_sys.cuePoint[index].flags;
 
         /* set any mask bits specified */
         cue_flags |= setmask;
@@ -230,7 +230,7 @@ void CuePointMask(size_t index, uint32_t setmask, uint32_t clearmask)
         cue_flags &= ~(clearmask);
 
         /* save the updated bit mask */
-        g_sysData.cuePoint[index].flags = cue_flags;
+        g_sys.cuePoint[index].flags = cue_flags;
 
         Hwi_restore(key);
     }
@@ -251,10 +251,10 @@ void CuePointGet(size_t index, int* ipos, uint32_t* flags)
         uint32_t key = Hwi_disable();
 
         if (ipos)
-            *ipos = g_sysData.cuePoint[index].ipos;
+            *ipos = g_sys.cuePoint[index].ipos;
 
         if (flags)
-            *flags = g_sysData.cuePoint[index].flags;
+            *flags = g_sys.cuePoint[index].flags;
 
         Hwi_restore(key);
     }
@@ -272,7 +272,7 @@ void CuePointTimeGet(size_t index, TAPETIME* tapeTime)
 
     if (index < MAX_CUE_POINTS)
     {
-        int cuePosition = g_sysData.cuePoint[index].ipos;
+        int cuePosition = g_sys.cuePoint[index].ipos;
 
         PositionToTapeTime(cuePosition, tapeTime);
 
@@ -292,7 +292,7 @@ Bool IsCuePointFlags(size_t index, uint32_t flags)
     {
         uint32_t key = Hwi_disable();
 
-        status = g_sysData.cuePoint[index].flags & flags;
+        status = g_sys.cuePoint[index].flags & flags;
 
         Hwi_restore(key);
     }
@@ -313,7 +313,7 @@ Bool LocateSearch(size_t cuePointIndex, uint32_t cue_flags)
         return FALSE;
 
     /* Make sure the memory location has a cue point stored */
-    if (!(g_sysData.cuePoint[cuePointIndex].flags & CF_ACTIVE))
+    if (!(g_sys.cuePoint[cuePointIndex].flags & CF_ACTIVE))
         return FALSE;
 
     msgLocate.command = LOCATE_SEARCH;
@@ -349,17 +349,17 @@ Bool LocateLoop(uint32_t cue_flags)
 Bool LocateCancel(void)
 {
     uint32_t key = Hwi_disable();
-    g_sysData.searchCancel = TRUE;
+    g_sys.searchCancel = TRUE;
     Hwi_restore(key);
     return TRUE;
 }
 
 Bool IsLocating(void)
 {
-    if (g_sysData.searching)
+    if (g_sys.searching)
         return TRUE;
 
-    if (g_sysData.autoLoop)
+    if (g_sys.autoLoop)
         return TRUE;
 
     return FALSE;
@@ -367,17 +367,17 @@ Bool IsLocating(void)
 
 Bool IsLocatorSearching(void)
 {
-    return g_sysData.searching;
+    return g_sys.searching;
 }
 
 Bool IsLocatorAutoLoop(void)
 {
-    return g_sysData.autoLoop;
+    return g_sys.autoLoop;
 }
 
 Bool IsLocatorAutoPunch(void)
 {
-    return g_sysData.autoPunch;
+    return g_sys.autoPunch;
 }
 
 //*****************************************************************************
@@ -386,7 +386,7 @@ Bool IsLocatorAutoPunch(void)
 
 Bool IsTransportHaltMode(void)
 {
-    uint32_t mode = (g_sysData.transportMode & MODE_MASK);
+    uint32_t mode = (g_sys.transportMode & MODE_MASK);
 
     /* Abort if transport halted, must be tape out? */
     if ((mode == MODE_HALT) || (mode == MODE_THREAD))
@@ -420,7 +420,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     LocateMessage msg;
 
     /* Get current transport mode & speed from DTC */
-    Transport_GetMode(&g_sysData.transportMode, &g_sysData.tapeSpeed);
+    Transport_GetMode(&g_sys.transportMode, &g_sys.tapeSpeed);
 
     /* Clear SEARCHING_OUT status i/o pin */
     GPIO_write(Board_SEARCHING, PIN_HIGH);
@@ -429,12 +429,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
     CuePointSet(CUE_POINT_HOME, 0, CF_ACTIVE);
 
     /* Initialize LOC-0 to zero */
-    CuePointSet(g_sysData.cueIndex, 0, CF_ACTIVE);
+    CuePointSet(g_sys.cueIndex, 0, CF_ACTIVE);
 
-    g_sysData.searchCancel = false;             /* true if search canceling   */
-    g_sysData.searching    = false;             /* true if search in progress */
-    g_sysData.autoLoop     = false;             /* true if loop mode running  */
-    g_sysData.autoPunch    = false;
+    g_sys.searchCancel = false;             /* true if search canceling   */
+    g_sys.searching    = false;             /* true if search in progress */
+    g_sys.autoLoop     = false;             /* true if loop mode running  */
+    g_sys.autoPunch    = false;
 
     /*
      * ENTER THE MAIN LOCATOR SEARCH LOOP!
@@ -494,7 +494,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         }
 
         /* Is the cue point is active? */
-        if ((g_sysData.cuePoint[cue_index].flags & CF_ACTIVE) == 0)
+        if ((g_sys.cuePoint[cue_index].flags & CF_ACTIVE) == 0)
         {
 #if (TTY_DEBUG_MSGS > 0)
             CLI_printf("LOCATE CUE %u NOT ACTIVE - IGNORING!\n", cue_index);
@@ -513,16 +513,16 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
         Transport_Stop();
 
         /* Save cue from point distance */
-        cue_from = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
+        cue_from = g_sys.cuePoint[cue_index].ipos - g_sys.tapePosition;
 
         if (!cue_from)
             cue_from = 1;
 
         /* Clear the global search cancel flag */
         key = Hwi_disable();
-        g_sysData.searching = TRUE;
-        g_sysData.autoLoop  = looping;
-        g_sysData.searchProgress = 0;
+        g_sys.searching = TRUE;
+        g_sys.autoLoop  = looping;
+        g_sys.searchProgress = 0;
         Hwi_restore(key);
 
         /* Send TCP state change notification */
@@ -551,12 +551,12 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             }
 
 			/* Get the signed and absolute position(distance) cue_from the cue point */
-            cue_dist = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
+            cue_dist = g_sys.cuePoint[cue_index].ipos - g_sys.tapePosition;
 
             abs_dist = abs(cue_dist);
 
 			/* v = d/t */
-			if ((velocity = g_sysData.tapeTach) < 1.0f)
+			if ((velocity = g_sys.tapeTach) < 1.0f)
 			    velocity = 1.0f;
 
 			/* d = v * t */
@@ -573,7 +573,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             if (progress < 0.0f)
                 progress = 0.0f;
 
-            g_sysData.searchProgress = 100 - (int32_t)progress;
+            g_sys.searchProgress = 100 - (int32_t)progress;
 
 #if (TTY_DEBUG_MSGS > 0)
             //if (state >= STATE_SHUTTLE_FAR)
@@ -594,7 +594,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			     * button interrupt handler in the program main.
 			     */
 		        key = Hwi_disable();
-			    g_sysData.searchCancel = false;
+			    g_sys.searchCancel = false;
 		        Hwi_restore(key);
 
                 cancel = false;
@@ -603,14 +603,14 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #if (TTY_DEBUG_MSGS > 0)
 			    CLI_printf("BEGIN LOCATE[%u] ", cue_index);
 #endif
-			    if (g_sysData.cuePoint[cue_index].ipos > g_sysData.tapePosition)
+			    if (g_sys.cuePoint[cue_index].ipos > g_sys.tapePosition)
 		        {
 #if (TTY_DEBUG_MSGS > 0)
                     CLI_printf("FWD > ");
 #endif
 		            dir = DIR_FWD;
 		        }
-		        else if (g_sysData.cuePoint[cue_index].ipos < g_sysData.tapePosition)
+		        else if (g_sys.cuePoint[cue_index].ipos < g_sys.tapePosition)
 		        {
 #if (TTY_DEBUG_MSGS > 0)
                     CLI_printf("REW < ");
@@ -774,7 +774,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #if (TTY_DEBUG_MSGS > 0)
                         CLI_printf("OVERSHOOT FWD: %d, %d\n", cue_dist, cue_from);
 #endif
-                        g_sysData.searchProgress = 100;
+                        g_sys.searchProgress = 100;
 
                         Transport_Stop();
 
@@ -794,7 +794,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 #if (TTY_DEBUG_MSGS > 0)
                         CLI_printf("OVERSHOOT REW: %d, %d\n", cue_dist, cue_from);
 #endif
-                        g_sysData.searchProgress = 100;
+                        g_sys.searchProgress = 100;
 
                         Transport_Stop();
 
@@ -810,7 +810,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                 if (time < 15.0f)
                 {
-                    g_sysData.searchProgress = 100;
+                    g_sys.searchProgress = 100;
                     Transport_Stop();
 #if (TTY_DEBUG_MSGS > 0)
                     CLI_printf("ZERO CROSSED cue=%d, abs=%d\n", cue_dist, abs_dist);
@@ -830,7 +830,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
             case STATE_BEGIN_LOOP:
 
-                g_sysData.searching = FALSE;
+                g_sys.searching = FALSE;
 
                 if (cue_flags & CF_AUTO_REC)
                     Transport_Play(M_RECORD);
@@ -848,7 +848,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                 /* Look for tape position to reach/pass mark-out point */
 
-                out_dist = g_sysData.cuePoint[CUE_POINT_MARK_OUT].ipos - g_sysData.tapePosition;
+                out_dist = g_sys.cuePoint[CUE_POINT_MARK_OUT].ipos - g_sys.tapePosition;
 
                 /* d = v * t */
                 /* t = d/v */
@@ -859,7 +859,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 if (mark < 10.0f)
                 {
 #if (TTY_DEBUG_MSGS > 0)
-                    CLI_printf("MARK-OUT REACHED pos=%d, out=%f\n", g_sysData.tapePosition, mark);
+                    CLI_printf("MARK-OUT REACHED pos=%d, out=%f\n", g_sys.tapePosition, mark);
 #endif
                     state = STATE_LOOP;
                     break;
@@ -884,13 +884,13 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 	        /* Send TCP state change notification */
 	        //Event_post(g_eventTransport, Event_Id_00);
 
-            if (done || g_sysData.searchCancel)
+            if (done || g_sys.searchCancel)
             {
 #if (TTY_DEBUG_MSGS > 0)
                 if (done)
                     CLI_printf("*** SEARCH DONE STATE 1 ***\n");
 
-                if (g_sysData.searchCancel)
+                if (g_sys.searchCancel)
                     CLI_printf("*** SEARCH CANCELED STATE 1 ***\n");
 #endif
                 break;
@@ -932,7 +932,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     }
 
                     /* Is the cue point is active? */
-                    if (g_sysData.cuePoint[cue_index].flags == 0)
+                    if (g_sys.cuePoint[cue_index].flags == 0)
                     {
 #if (TTY_DEBUG_MSGS > 0)
                         CLI_printf("*** CUE POINT %d IS NOT ACTIVE! ***\n", cue_index);
@@ -942,10 +942,10 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
                     /* Clear the global search cancel flag */
                     key = Hwi_disable();
-                    g_sysData.searching = TRUE;
-                    g_sysData.autoLoop  = FALSE;
+                    g_sys.searching = TRUE;
+                    g_sys.autoLoop  = FALSE;
                     //g_sysData.searchCancel = FALSE;
-                    g_sysData.searchProgress = 0;
+                    g_sys.searchProgress = 0;
                     Hwi_restore(key);
 
                     /* Set SEARCHING_OUT status i/o pin */
@@ -959,7 +959,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     Transport_Stop();
 
                     /* Save cue from distance */
-                    cue_from = g_sysData.cuePoint[cue_index].ipos - g_sysData.tapePosition;
+                    cue_from = g_sys.cuePoint[cue_index].ipos - g_sys.tapePosition;
 
                     if (!cue_from)
                         cue_from = 1;
@@ -979,7 +979,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             }
 
             /* Check for cancel search request */
-            cancel = g_sysData.searchCancel;
+            cancel = g_sys.searchCancel;
 
 	        /* Exit if user search cancel */
             if (done || cancel)
@@ -1004,8 +1004,8 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 
         /* Clear the search in progress flag */
         key = Hwi_disable();
-        g_sysData.searching = FALSE;
-        g_sysData.autoLoop  = FALSE;
+        g_sys.searching = FALSE;
+        g_sys.autoLoop  = FALSE;
         //g_sysData.searchCancel = FALSE;
         Hwi_restore(key);
 
@@ -1033,7 +1033,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             }
 	    }
 
-	    g_sysData.searchCancel = FALSE;
+	    g_sys.searchCancel = FALSE;
 
 #if (TTY_DEBUG_MSGS > 0)
 	    CLI_prompt();

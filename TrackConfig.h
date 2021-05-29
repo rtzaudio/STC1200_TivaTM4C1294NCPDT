@@ -46,11 +46,11 @@ Void TRACK_Params_init(TRACK_Params *params);
 int TRACK_Command(TRACK_Handle handle,
                   DCS_IPCMSG_HDR* request, DCS_IPCMSG_HDR* reply);
 
-int TRACK_SetAllStates(TRACK_Handle handle);
-
+bool Track_ApplyState(size_t track, uint8_t state);
+bool Track_ApplyAllStates(uint8_t* trackStates);
+bool Track_SetTapeSpeed(int speed);
 bool Track_GetCount(uint32_t* count);
-
-bool Track_SetState(size_t track, uint8_t mode, uint8_t flags);
+bool Track_SetState(size_t track, uint8_t modeflags);
 bool Track_GetState(size_t track, uint8_t* modeflags);
 bool Track_SetAll(uint8_t mode, uint8_t flags);
 bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
