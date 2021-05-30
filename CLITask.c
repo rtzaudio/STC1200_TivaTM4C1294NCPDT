@@ -701,10 +701,14 @@ void cmd_store(int argc, char *argv[])
 
 void cmd_stat(int argc, char *argv[])
 {
-    CLI_printf("\nPosition Status\n\n");
+    CLI_printf("\nSystem Status\n\n");
     CLI_printf("  tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
     CLI_printf("  tape roller errors : %u\n", g_sys.qei_error_cnt);
     CLI_printf("  encoder position   : %d\n", g_sys.tapePosition);
+    CLI_printf("  DCS controller     : %d channels\n", g_sys.trackCount);
+    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "MCP79410 external" : "CPU internal");
+    CLI_printf("  Tape Speed         : %d IPS", g_cfg.tapeSpeed);
+    CLI_puts("\n");
 }
 
 void cmd_time(int argc, char *argv[])
