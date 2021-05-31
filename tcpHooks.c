@@ -751,7 +751,15 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             /* param1 = new transport mode
              * param2 = 0
              */
-            Track_ModeAll((uint8_t)msg.param1.U);
+            Track_SetModeAll((uint8_t)msg.param1.U);
+            notify = true;
+            break;
+
+        case STC_CMD_TRACK_TOGGLE_ALL:
+            /* param1 = bit flags to toggle
+             * param2 = 0
+             */
+            Track_ToggleMaskAll((uint8_t)msg.param1.U);
             notify = true;
             break;
 

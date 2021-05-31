@@ -154,6 +154,7 @@ typedef struct _STC_STATE_MSG {
 #define STC_TRACK_MASK      0x07        /* low 3-bits are track mode  */
 
 /* Upper bits indicate ready/record state */
+#define STC_T_MONITOR       0x20        /* track standby monitor mode */
 #define STC_T_RECORD        0x40        /* track is recording now     */
 #define STC_T_READY         0x80        /* track is armed for record  */
 
@@ -259,7 +260,7 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_CUEPOINT_STORE      12
 #define STC_CMD_CUEPOINT_SET        13
 #define STC_CMD_CUEPOINT_GET        14
-#define STC_CMD_TRACK_ARM           15  /* param1=index                    */
+#define STC_CMD_TRACK_TOGGLE_ALL    15  /* param1=mask to toggle           */
 #define STC_CMD_TRACK_SET_STATE     16  /* param1=index, param2=flags      */
 #define STC_CMD_TRACK_GET_STATE     17  /* param1=index, param2=flags      */
 #define STC_CMD_TRACK_MASK_ALL      18  /* param1=setmask, param2=clrmask  */

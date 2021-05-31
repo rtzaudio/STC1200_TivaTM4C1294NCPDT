@@ -50,10 +50,11 @@ bool Track_ApplyState(size_t track, uint8_t state);
 bool Track_ApplyAllStates(uint8_t* trackStates);
 bool Track_SetTapeSpeed(int speed);
 bool Track_GetCount(uint32_t* count);
-bool Track_SetState(size_t track, uint8_t modeflags);
-bool Track_GetState(size_t track, uint8_t* modeflags);
+bool Track_SetState(size_t track, uint8_t trackState);
+bool Track_GetState(size_t track, uint8_t* trackStates);
 bool Track_SetAll(uint8_t mode, uint8_t flags);
+bool Track_SetModeAll(uint8_t setmode);
 bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
-bool Track_ModeAll(uint8_t setmode);
+bool Track_ToggleMaskAll(uint8_t flags);
 
 #endif /* _TRACKCONFIG_H_ */

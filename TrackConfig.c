@@ -298,25 +298,25 @@ bool Track_ApplyAllStates(uint8_t* trackStates)
     return success;
 }
 
-bool Track_GetState(size_t track, uint8_t* modeflags)
+bool Track_GetState(size_t track, uint8_t* trackState)
 {
     if (track >= MAX_TRACKS)
         return false;
 
-    if (modeflags)
-        *modeflags = g_sys.trackState[track];
+    if (trackState)
+        *trackState = g_sys.trackState[track];
 
     return true;
 }
 
-bool Track_SetState(size_t track, uint8_t modeflags)
+bool Track_SetState(size_t track, uint8_t trackState)
 {
     if (track >= MAX_TRACKS)
         return false;
 
-    g_sys.trackState[track] = modeflags;
+    g_sys.trackState[track] = trackState;
 
-    Track_ApplyState(track, modeflags);
+    Track_ApplyState(track, trackState);
 
     return true;
 }
@@ -326,7 +326,25 @@ bool Track_SetAll(uint8_t mode, uint8_t flags)
     size_t i;
 
     for (i=0; i < MAX_TRACKS; i++)
-        g_sys.trackState[i] = mode | flags;
+        g_sys.trackState[i] = (mode & STC_TRACK_MASK) | flags;
+
+    /* Update DCS channel switcher states */
+    Track_ApplyAllStates(g_sys.trackState);
+
+    return true;
+}
+
+bool Track_SetModeAll(uint8_t mode)
+{
+    size_t i;
+    uint8_t mask;
+
+    for (i=0; i < MAX_TRACKS; i++)
+    {
+        mask = g_sys.trackState[i] & ~(STC_TRACK_MASK);
+        /* Store the new track flags, mode preserved */
+        g_sys.trackState[i] = (mode & STC_TRACK_MASK) | mask;
+    }
 
     /* Update DCS channel switcher states */
     Track_ApplyAllStates(g_sys.trackState);
@@ -358,16 +376,18 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask)
     return true;
 }
 
-bool Track_ModeAll(uint8_t setmode)
+bool Track_ToggleMaskAll(uint8_t flags)
 {
     size_t i;
+    uint8_t mode;
     uint8_t mask;
 
     for (i=0; i < MAX_TRACKS; i++)
     {
-        mask = g_sys.trackState[i] & ~(STC_TRACK_MASK);
+        mode = g_sys.trackState[i] & STC_TRACK_MASK;
+        mask = g_sys.trackState[i] ^ flags;
         /* Store the new track flags, mode preserved */
-        g_sys.trackState[i] = setmode | mask;
+        g_sys.trackState[i] = mode | (mask & ~(STC_TRACK_MASK));
     }
 
     /* Update DCS channel switcher states */
