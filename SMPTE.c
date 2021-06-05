@@ -84,31 +84,6 @@
 static SPI_Handle  handle;
 
 //*****************************************************************************
-// Write a command to the SMPTE slave board
-//*****************************************************************************
-
-static uint16_t SMPTE_write(uint16_t value)
-{
-    uint16_t ulReply = 0;
-    SPI_Transaction transaction;
-
-    transaction.count = 1;
-    transaction.txBuf = (Ptr)&value;
-    transaction.rxBuf = (Ptr)&ulReply;
-
-    /*Select the AD9837 chip select */
-    GPIO_write(Board_SMPTE_FS, PIN_LOW);
-
-    /* Send the SPI transaction */
-    SPI_transfer(handle, &transaction);
-
-    /* Release the chip select to high */
-    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
-
-    return ulReply;
-}
-
-//*****************************************************************************
 // Initialize SPI0 to expansion connector for SMPTE daughter card
 //*****************************************************************************
 
@@ -136,14 +111,49 @@ int32_t SMPTE_init(void)
 	return 0;
 }
 
+//*****************************************************************************
+// Write a command to the SMPTE slave board
+//*****************************************************************************
+
+static uint16_t SMPTE_Command(uint16_t opcode)
+{
+    uint16_t reply = 0;
+    SPI_Transaction transaction;
+
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&opcode;
+    transaction.rxBuf = (Ptr)&reply;
+
+    /*Select the AD9837 chip select */
+    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+
+    /* Send the SPI transaction */
+    SPI_transfer(handle, &transaction);
+
+    /* Release the chip select to high */
+    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
+    return reply;
+}
+
 int32_t SMPTE_stripe_start()
 {
-    return SMPTE_write(0xFE21);
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
+          SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
+          SMPTE_GENCTL_ENABLE;
+
+    return SMPTE_Command(cmd);
 }
 
 int32_t SMPTE_stripe_stop()
 {
-    return SMPTE_write(0xFE20);
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) | SMPTE_GENCTL_DISABLE;
+
+   return SMPTE_Command(cmd);
 }
 
 /* End-Of-File */
