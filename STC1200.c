@@ -153,6 +153,7 @@ int main(void)
     memset(g_sys.ui8MAC, 0xFF, 6);
 
     g_sys.rtcFound      = false;
+    g_sys.smpteFound    = false;
     g_sys.varispeedMode = false;
 
     /* Now call all the board initialization functions for TI-RTOS */
@@ -418,6 +419,13 @@ void Init_Application(void)
 
     /* Initialize SMPTE daughter card if installed */
     SMPTE_init();
+
+    //if (SMPTE_probe())
+    {
+        //g_sys.smpteFound = true;
+       // SMPTE_generator_stop();
+    }
+    g_sys.smpteFound = true;
 
     /* Get number of tracks DCS is configured for */
     if (Track_GetCount(&g_sys.trackCount))

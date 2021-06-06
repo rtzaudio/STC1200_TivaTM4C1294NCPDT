@@ -521,15 +521,38 @@ void cmd_smpte(int argc, char *argv[])
 
     CLI_puts("SMPTE generator ");
 
+    if (!g_sys.smpteFound)
+    {
+        CLI_puts("not installed!\n");
+        return;
+    }
+
     if (strcmp(argv[0], "start") == 0)
     {
-        SMPTE_stripe_start();
+        SMPTE_generator_start();
         CLI_puts("START\n");
+    }
+    else if (strcmp(argv[0], "stop") == 0)
+    {
+        SMPTE_generator_stop();
+        CLI_puts("STOP\n");
+    }
+    else if (strcmp(argv[0], "resume") == 0)
+    {
+        SMPTE_generator_resume();
+        CLI_puts("RESUME\n");
+    }
+    else if (strcmp(argv[0], "revid") == 0)
+    {
+        char buf[16];
+        uint16_t revid = 0;
+        SMPTE_get_revid(&revid);
+        sprintf(buf, "REVID %04X\n", revid);
+        CLI_puts(buf);
     }
     else
     {
-        SMPTE_stripe_stop();
-        CLI_puts("STOP\n");
+        CLI_puts("\n\nUsage: smpte {start|stop|resume|revid}\n");
     }
 }
 
@@ -702,11 +725,15 @@ void cmd_store(int argc, char *argv[])
 void cmd_stat(int argc, char *argv[])
 {
     CLI_printf("\nSystem Status\n\n");
-    CLI_printf("  tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
-    CLI_printf("  tape roller errors : %u\n", g_sys.qei_error_cnt);
-    CLI_printf("  encoder position   : %d\n", g_sys.tapePosition);
-    CLI_printf("  DCS controller     : %d channels\n", g_sys.trackCount);
-    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "MCP79410 external" : "CPU internal");
+    CLI_printf("  Tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
+    CLI_printf("  Tape roller errors : %u\n", g_sys.qei_error_cnt);
+    CLI_printf("  Encoder position   : %d\n", g_sys.tapePosition);
+    CLI_printf("  DCS controller     : ");
+    if (g_sys.dcsFound)
+        CLI_printf("%d track\n", g_sys.trackCount);
+    else
+        CLI_printf("(n/a)\n");
+    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC ext" : "cpu");
     CLI_printf("  Tape Speed         : %d IPS", g_cfg.tapeSpeed);
     CLI_puts("\n");
 }

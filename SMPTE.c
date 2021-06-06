@@ -87,11 +87,11 @@ static SPI_Handle  handle;
 // Initialize SPI0 to expansion connector for SMPTE daughter card
 //*****************************************************************************
 
-int32_t SMPTE_init(void)
+bool SMPTE_init(void)
 {
     SPI_Params spiParams;
 
-    /* Open SPI port to AD9732  on the STC SMPTE daughter card */
+    /* Open SPI port to STC SMPTE daughter card */
 
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
@@ -101,22 +101,22 @@ int32_t SMPTE_init(void)
     spiParams.frameFormat   = SPI_POL1_PHA0;
     spiParams.bitRate       = 250000;
     spiParams.dataSize      = 16;
-    spiParams.transferCallbackFxn = NULL;
 
     handle = SPI_open(Board_SPI_EXPIO_SMPTE, &spiParams);
 
     if (handle == NULL)
         System_abort("Error initializing SPI0\n");
 
-	return 0;
+	return true;
 }
 
 //*****************************************************************************
-// Write a command to the SMPTE slave board
+// Read/Write a command to the SMPTE slave board
 //*****************************************************************************
 
-static uint16_t SMPTE_Command(uint16_t opcode)
+static bool SMPTE_Write(uint16_t opcode)
 {
+    bool success;
     uint16_t reply = 0;
     SPI_Transaction transaction;
 
@@ -124,19 +124,89 @@ static uint16_t SMPTE_Command(uint16_t opcode)
     transaction.txBuf = (Ptr)&opcode;
     transaction.rxBuf = (Ptr)&reply;
 
-    /*Select the AD9837 chip select */
+    /* Assert the SPI chip select */
     GPIO_write(Board_SMPTE_FS, PIN_LOW);
-
     /* Send the SPI transaction */
-    SPI_transfer(handle, &transaction);
-
+    success = SPI_transfer(handle, &transaction);
     /* Release the chip select to high */
     GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
-    return reply;
+    return success;
 }
 
-int32_t SMPTE_stripe_start()
+static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
+{
+    bool success;
+    uint16_t txbuf[2];
+    uint16_t rxbuf[2];
+    SPI_Transaction transaction;
+
+    /* Set the read flag to send response */
+    txbuf[0] = opcode | SMPTE_F_READ;
+    txbuf[1] = 0xFF;
+
+    /* Send the command */
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&txbuf[0];
+    transaction.rxBuf = (Ptr)&rxbuf[0];
+
+    /* Send the SPI transaction */
+    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    success = SPI_transfer(handle, &transaction);
+    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
+    /* Set the read flag to send response */
+    txbuf[0] = opcode;
+    txbuf[1] = 0xFF;
+
+    /* Send the command */
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&txbuf[1];
+    transaction.rxBuf = (Ptr)&rxbuf[1];
+
+    Task_sleep(3);
+
+    /* Send the SPI transaction */
+    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    success = SPI_transfer(handle, &transaction);
+    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
+    if (success)
+        *result = rxbuf[1];
+
+    return success;
+}
+
+//*****************************************************************************
+// SMPTE Controller Commands
+//*****************************************************************************
+
+bool SMPTE_probe(void)
+{
+    uint16_t cmd;
+    uint16_t revid = 0;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_REVID);
+
+    if (!SMPTE_Read(cmd, &revid))
+        return false;
+
+    return (revid == SMPTE_REVID) ? true : false;
+}
+
+bool SMPTE_get_revid(uint16_t *revid)
+{
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_REVID);
+
+    if (!SMPTE_Read(cmd, revid))
+        return false;
+
+    return true;
+}
+
+bool SMPTE_generator_start()
 {
     uint16_t cmd;
 
@@ -144,16 +214,30 @@ int32_t SMPTE_stripe_start()
           SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
           SMPTE_GENCTL_ENABLE;
 
-    return SMPTE_Command(cmd);
+    return SMPTE_Write(cmd);
 }
 
-int32_t SMPTE_stripe_stop()
+bool SMPTE_generator_resume()
 {
     uint16_t cmd;
 
-    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) | SMPTE_GENCTL_DISABLE;
+    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
+          SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
+          SMPTE_GENCTL_RESUME |
+          SMPTE_GENCTL_ENABLE;
 
-   return SMPTE_Command(cmd);
+    return SMPTE_Write(cmd);
+}
+
+bool SMPTE_generator_stop()
+{
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
+          SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
+          SMPTE_GENCTL_DISABLE;
+
+   return SMPTE_Write(cmd);
 }
 
 /* End-Of-File */
