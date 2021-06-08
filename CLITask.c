@@ -733,6 +733,11 @@ void cmd_stat(int argc, char *argv[])
         CLI_printf("%d track\n", g_sys.trackCount);
     else
         CLI_printf("(n/a)\n");
+    CLI_printf("  SMPTE controller   : ");
+    if (g_sys.smpteFound)
+        CLI_printf("found\n", g_sys.trackCount);
+    else
+        CLI_printf("(n/a)\n");
     CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC ext" : "cpu");
     CLI_printf("  Tape Speed         : %d IPS", g_cfg.tapeSpeed);
     CLI_puts("\n");

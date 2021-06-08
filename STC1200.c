@@ -420,12 +420,11 @@ void Init_Application(void)
     /* Initialize SMPTE daughter card if installed */
     SMPTE_init();
 
-    //if (SMPTE_probe())
+    if (SMPTE_probe())
     {
-        //g_sys.smpteFound = true;
-       // SMPTE_generator_stop();
+        g_sys.smpteFound = true;
+        SMPTE_generator_stop();
     }
-    g_sys.smpteFound = true;
 
     /* Get number of tracks DCS is configured for */
     if (Track_GetCount(&g_sys.trackCount))
