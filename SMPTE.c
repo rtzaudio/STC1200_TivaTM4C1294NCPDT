@@ -143,7 +143,7 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
 
     /* Set the read flag to send response */
     txbuf[0] = opcode | SMPTE_F_READ;
-    txbuf[1] = 0xFF;
+    rxbuf[0] = 0;
 
     /* Send the command */
     transaction.count = 1;
@@ -156,15 +156,15 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
     GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     /* Set the read flag to send response */
-    txbuf[0] = opcode;
-    txbuf[1] = 0xFF;
+    txbuf[1] = opcode;
+    rxbuf[1] = 0;
 
     /* Send the command */
     transaction.count = 1;
     transaction.txBuf = (Ptr)&txbuf[1];
     transaction.rxBuf = (Ptr)&rxbuf[1];
 
-    Task_sleep(3);
+    Task_sleep(5);
 
     /* Send the SPI transaction */
     GPIO_write(Board_SMPTE_FS, PIN_LOW);
