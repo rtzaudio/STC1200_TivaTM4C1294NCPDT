@@ -32,7 +32,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        16          /* firmware revision */
+#define FIRMWARE_REV        17          /* firmware revision */
 #define FIRMWARE_BUILD      2           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  2           /* min build req'd to force reset */
 
@@ -68,9 +68,11 @@ typedef struct _SYSCFG
     uint32_t    jog_vel_near;       /* vel for near distance from locate point */
     /* NCO reference freq */
     float       ref_freq;           /* default reference freq */
-    /* shadow copy of track state */
+    /* shadow copy of track config */
     uint8_t     trackState[MAX_TRACKS];
     uint8_t     tapeSpeed;          /* 15=low speed, 30=high speed */
+    /* SMPTE board config */
+    uint16_t    smpteFPS;           /* frames per sec config */
 } SYSCFG;
 
 //*****************************************************************************

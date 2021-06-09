@@ -15,7 +15,28 @@
 
 #include "..\STC_SMPTE_TivaTM4C123AE6PM\STC_SMPTE_SPI.h"
 
+/*** DATA STRUCTURES *******************************************************/
+
+typedef struct SMPTE_Params {
+    SPI_Handle          spiHandle;
+    uint32_t            gpioCS;         /* Chip select in Board.h */
+} SMPTE_Params;
+
+typedef struct SMPTE_Object {
+    SPI_Handle          spiHandle;
+    uint32_t            gpioCS;         /* Chip select in Board.h */
+    GateMutex_Struct    gate;
+} SMPTE_Object;
+
+typedef SMPTE_Object *SMPTE_Handle;
+
 /*** Function Prototypes ***************************************************/
+
+SMPTE_Handle SMPTE_construct(SMPTE_Object *obj, SMPTE_Params *params);
+SMPTE_Handle SMPTE_create(SMPTE_Params *params);
+Void SMPTE_Params_init(SMPTE_Params *params);
+Void SMPTE_delete(SMPTE_Handle handle);
+Void SMPTE_destruct(SMPTE_Handle handle);
 
 bool SMPTE_init(void);
 bool SMPTE_probe(void);

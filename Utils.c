@@ -104,6 +104,7 @@
 #include "IPCCommands.h"
 #include "IPCMessage.h"
 #include "Utils.h"
+#include "SMPTE.h"
 
 //*****************************************************************************
 // This function reads the unique 128-serial number and 48-bit MAC address
@@ -189,6 +190,8 @@ void InitSysDefaults(SYSCFG* p)
     /** Master Reference Clock */
     p->ref_freq     = REF_FREQ;             /* default ref clock 9600.0 Hz  */
     p->tapeSpeed    = 30;                   /* default tape speed high      */
+    /** SMPE card config */
+    p->smpteFPS     = SMPTE_GENCTL_FPS30;
 
     /* Initial track state zero for all channels */
     memset(p->trackState, 0, STC_MAX_TRACKS);

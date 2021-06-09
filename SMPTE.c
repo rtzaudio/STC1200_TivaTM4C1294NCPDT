@@ -44,9 +44,11 @@
 /* XDCtools Header files */
 #include <xdc/std.h>
 #include <xdc/cfg/global.h>
+#include <xdc/runtime/Assert.h>
+#include <xdc/runtime/Diags.h>
 #include <xdc/runtime/System.h>
 #include <xdc/runtime/Error.h>
-#include <xdc/runtime/Gate.h>
+#include <xdc/runtime/Memory.h>
 
 /* BIOS Header files */
 #include <ti/sysbios/BIOS.h>
@@ -65,9 +67,6 @@
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/UART.h>
 
-/* NDK BSD support */
-#include <sys/socket.h>
-
 #include <file.h>
 #include <stdio.h>
 #include <string.h>
@@ -81,7 +80,70 @@
 #include "Board.h"
 #include "SMPTE.h"
 
-static SPI_Handle  handle;
+/* Global STC-1200 System data */
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
+
+/* Default AT45DB parameters structure */
+const SMPTE_Params SMPTE_defaultParams = {
+    NULL,
+    Board_SMPTE_FS
+};
+
+static SMPTE_Handle g_smpteHandle;
+
+//*****************************************************************************
+// SMPTE Controller Construction/Destruction
+//*****************************************************************************
+
+SMPTE_Handle SMPTE_construct(SMPTE_Object *obj, SMPTE_Params *params)
+{
+    /* Initialize the object's fields */
+    obj->spiHandle = params->spiHandle;
+    obj->gpioCS    = params->gpioCS;
+
+    GateMutex_construct(&(obj->gate), NULL);
+
+    return (SMPTE_Handle)obj;
+}
+
+SMPTE_Handle SMPTE_create(SMPTE_Params *params)
+{
+    SMPTE_Handle handle;
+    Error_Block eb;
+
+    Error_init(&eb);
+
+    handle = Memory_alloc(NULL, sizeof(SMPTE_Object), NULL, &eb);
+
+    if (handle == NULL)
+        return NULL;
+
+    handle = SMPTE_construct(handle, params);
+
+    return handle;
+}
+
+Void SMPTE_delete(SMPTE_Handle handle)
+{
+    SMPTE_destruct(handle);
+
+    Memory_free(NULL, handle, sizeof(SMPTE_Object));
+}
+
+Void SMPTE_destruct(SMPTE_Handle handle)
+{
+    Assert_isTrue((handle != NULL), NULL);
+
+    GateMutex_destruct(&(handle->gate));
+}
+
+Void SMPTE_Params_init(SMPTE_Params *params)
+{
+    Assert_isTrue(params != NULL, NULL);
+
+    *params = SMPTE_defaultParams;
+}
 
 //*****************************************************************************
 // Initialize SPI0 to expansion connector for SMPTE daughter card
@@ -89,9 +151,9 @@ static SPI_Handle  handle;
 
 bool SMPTE_init(void)
 {
+    SPI_Handle spiHandle;
     SPI_Params spiParams;
-
-    /* Open SPI port to STC SMPTE daughter card */
+    SMPTE_Params smpteParams;
 
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
@@ -102,10 +164,18 @@ bool SMPTE_init(void)
     spiParams.bitRate       = 250000;
     spiParams.dataSize      = 16;
 
-    handle = SPI_open(Board_SPI_EXPIO_SMPTE, &spiParams);
+    spiHandle = SPI_open(Board_SPI_EXPIO_SMPTE, &spiParams);
 
-    if (handle == NULL)
+    if (spiHandle == NULL)
         System_abort("Error initializing SPI0\n");
+
+    /* Create the SMPTE object handle */
+    SMPTE_Params_init(&smpteParams);
+
+    smpteParams.spiHandle = spiHandle;
+    smpteParams.gpioCS    = Board_SMPTE_FS;
+
+    g_smpteHandle = SMPTE_create(&smpteParams);
 
 	return true;
 }
@@ -119,6 +189,10 @@ static bool SMPTE_Write(uint16_t opcode)
     bool success;
     uint16_t reply = 0;
     SPI_Transaction transaction;
+    IArg key;
+
+    /* Serialize access to SMPTE controller */
+    key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
 
     transaction.count = 1;
     transaction.txBuf = (Ptr)&opcode;
@@ -126,10 +200,15 @@ static bool SMPTE_Write(uint16_t opcode)
 
     /* Assert the SPI chip select */
     GPIO_write(Board_SMPTE_FS, PIN_LOW);
+
     /* Send the SPI transaction */
-    success = SPI_transfer(handle, &transaction);
+    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+
     /* Release the chip select to high */
     GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
+    /* Leave safe access to SMPTE controller */
+    GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
 
     return success;
 }
@@ -140,6 +219,10 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
     uint16_t txbuf[2];
     uint16_t rxbuf[2];
     SPI_Transaction transaction;
+    IArg key;
+
+    /* Serialize access to SMPTE controller */
+    key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
 
     /* Set the read flag to send response */
     txbuf[0] = opcode | SMPTE_F_READ;
@@ -152,7 +235,7 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
 
     /* Send the SPI transaction */
     GPIO_write(Board_SMPTE_FS, PIN_LOW);
-    success = SPI_transfer(handle, &transaction);
+    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
     GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     /* Set the read flag to send response */
@@ -168,11 +251,14 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
 
     /* Send the SPI transaction */
     GPIO_write(Board_SMPTE_FS, PIN_LOW);
-    success = SPI_transfer(handle, &transaction);
+    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
     GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     if (success)
         *result = rxbuf[1];
+
+    /* Leave thread safe access to SMPTE controller */
+    GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
 
     return success;
 }
@@ -211,7 +297,7 @@ bool SMPTE_generator_start()
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
-          SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
+          SMPTE_GENCTL_FPS(g_cfg.smpteFPS) |
           SMPTE_GENCTL_ENABLE;
 
     return SMPTE_Write(cmd);
@@ -222,7 +308,7 @@ bool SMPTE_generator_resume()
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
-          SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
+          SMPTE_GENCTL_FPS(g_cfg.smpteFPS) |
           SMPTE_GENCTL_RESUME |
           SMPTE_GENCTL_ENABLE;
 
@@ -234,7 +320,7 @@ bool SMPTE_generator_stop()
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
-          SMPTE_GENCTL_FPS(SMPTE_GENCTL_FPS30) |
+          SMPTE_GENCTL_FPS(g_cfg.smpteFPS) |
           SMPTE_GENCTL_DISABLE;
 
    return SMPTE_Write(cmd);
