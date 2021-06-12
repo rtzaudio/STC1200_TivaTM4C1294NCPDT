@@ -296,9 +296,9 @@ bool SMPTE_generator_start()
 {
     uint16_t cmd;
 
-    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
-          SMPTE_GENCTL_FPS(g_cfg.smpteFPS) |
-          SMPTE_GENCTL_ENABLE;
+    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
+          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
+          SMPTE_ENCCTL_ENABLE;
 
     return SMPTE_Write(cmd);
 }
@@ -307,10 +307,10 @@ bool SMPTE_generator_resume()
 {
     uint16_t cmd;
 
-    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
-          SMPTE_GENCTL_FPS(g_cfg.smpteFPS) |
-          SMPTE_GENCTL_RESUME |
-          SMPTE_GENCTL_ENABLE;
+    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
+          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
+          SMPTE_ENCCTL_RESUME |
+          SMPTE_ENCCTL_ENABLE;
 
     return SMPTE_Write(cmd);
 }
@@ -319,9 +319,9 @@ bool SMPTE_generator_stop()
 {
     uint16_t cmd;
 
-    cmd = SMPTE_REG_SET(SMPTE_REG_GENCTL) |
-          SMPTE_GENCTL_FPS(g_cfg.smpteFPS) |
-          SMPTE_GENCTL_DISABLE;
+    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
+          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
+          SMPTE_ENCCTL_DISABLE;
 
    return SMPTE_Write(cmd);
 }

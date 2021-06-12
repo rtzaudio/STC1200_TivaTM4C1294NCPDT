@@ -191,7 +191,7 @@ void InitSysDefaults(SYSCFG* p)
     p->ref_freq     = REF_FREQ;             /* default ref clock 9600.0 Hz  */
     p->tapeSpeed    = 30;                   /* default tape speed high      */
     /** SMPE card config */
-    p->smpteFPS     = SMPTE_GENCTL_FPS30;
+    p->smpteFPS     = SMPTE_ENCCTL_FPS30;
 
     /* Initial track state zero for all channels */
     memset(p->trackState, 0, STC_MAX_TRACKS);

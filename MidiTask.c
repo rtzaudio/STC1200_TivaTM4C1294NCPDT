@@ -77,7 +77,8 @@
 #include "STC1200.h"
 #include "MidiTask.h"
 #include "IPCCommands.h"
-//#include "CLITask.h"
+#include "IPCMessage.h"
+#include "CLITask.h"
 
 /* External Data Items */
 
@@ -211,6 +212,8 @@ Void MidiWriterTaskFxn(UArg arg0, UArg arg1)
 // MIDI MCC Task
 //*****************************************************************************
 
+#define DEBUG_MIDI   0
+
 Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
 {
     int rc = 0;
@@ -221,7 +224,7 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
 
     while (true)
     {
-#if 0
+#if (DEBUG_MIDI > 0)
         uint8_t b;
 
         /* Read a byte looking for 0xF0 Preamble */
@@ -238,8 +241,7 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
             if ((rc++ % 16) == 15)
                 CLI_printf("\n");
         }
-
-#else
+#endif
     	/* Attempt to read a MIDI MCC command */
 
     	memset(&rxBuffer, 0, sizeof(rxBuffer));
@@ -250,77 +252,107 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
         {
             if (rc < -1)
             {
-                //CLI_printf("MidiRxError %d\n", rc);
+#if (DEBUG_MIDI > 0)
+                CLI_printf("MidiRxError %d\n", rc);
+#endif
             }
         }
         else
     	{
-            //CLI_printf("MMC(%d)-", g_midi.deviceID);
-
+#if (DEBUG_MIDI > 1)
+            CLI_printf("MMC(%d)-", g_midi.deviceID);
+#endif
     		switch(rxBuffer[0])
     		{
                 case MCC_STOP:
-                    //CLI_printf("STOP\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("STOP\n");
+#endif
                     Transport_Stop();
                     break;
 
                 case MCC_PLAY:
-                    //CLI_printf("PLAY\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("PLAY\n");
                     Transport_Play(0);
+#endif
                     break;
 
                 case MCC_DEFERRED_PLAY:
-                    //CLI_printf("DEF-PLAY\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("DEF-PLAY\n");
+#endif
                     break;
 
                 case MCC_FAST_FORWARD:
                     Transport_Fwd(0, 0);
-                    //CLI_printf("FFWD\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("FFWD\n");
+#endif
                     break;
 
                 case MCC_REWIND:
                     Transport_Rew(0, 0);
-                    //CLI_printf("REW\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("REW\n");
+#endif
                     break;
 
                 case MCC_RECORD_STROBE:
-                    //CLI_printf("REC-STROBE\n");
+                    Transport_Play(M_RECORD);
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("REC-STROBE\n");
+#endif
                     break;
 
                 case MCC_RECORD_EXIT:
-                    //CLI_printf("REC-EXIT\n");
+                    Transport_Play(0);
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("REC-EXIT\n");
+#endif
                     break;
 
                 case MCC_RECORD_PAUSE:
-                    //CLI_printf("REC-PAUSE\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("REC-PAUSE\n");
+#endif
                     break;
 
                 case MCC_PAUSE:
-                    //CLI_printf("PAUSE\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("PAUSE\n");
+#endif
                     break;
 
                 case MCC_EJECT:
-                    //CLI_printf("EJECT\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("EJECT\n");
+#endif
                     break;
 
                 case MCC_CHASE:
-                    //CLI_printf("CHASE\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("CHASE\n");
+#endif
                     break;
 
                 case MCC_COMMAND_ERROR_RESET:
-                    //CLI_printf("CMD ERROR RESET\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("CMD ERROR RESET\n");
+#endif
                     break;
 
                 case MCC_MMC_RESET:
-                    //CLI_printf("RESET\n");
+#if (DEBUG_MIDI > 1)
+                    CLI_printf("RESET\n");
+#endif
                     break;
 
                 default:
-                    //CLI_printf("UNKNOWN %02x\n", rxBuffer[0]);
+                    CLI_printf("UNKNOWN %02x\n", rxBuffer[0]);
                     break;
     		}
     	}
-#endif
     }
 }
 
