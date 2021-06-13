@@ -106,10 +106,10 @@ static MIDI_Handle g_midiHandle;
 
 /* Static Function Prototypes */
 
-static Void MidiWriterTaskFxn(UArg arg0, UArg arg1);
-static Void MidiReaderTaskFxn(UArg arg0, UArg arg1);
-static int Midi_RxCommand(MIDI_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead);
-static int Midi_TxResponse(MIDI_Handle handle, uint8_t* pBuffer, size_t uNumBytesToWrite);
+static Void MasterTaskFxn(UArg arg0, UArg arg1);
+static Void SlaveTaskFxn(UArg arg0, UArg arg1);
+static int SlaveRxCommand(MIDI_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, int* puNumBytesRead);
+static int SlaveTxResponse(MIDI_Handle handle, uint8_t* pBuffer, int uNumBytesToWrite);
 
 //*****************************************************************************
 // MIDI Controller Construction/Destruction
@@ -240,8 +240,8 @@ Bool MIDI_Server_startup(void)
     taskParams.arg0      = 0;
     taskParams.arg1      = 0;
 
-    if (!Task_create((Task_FuncPtr)MidiReaderTaskFxn, &taskParams, &eb))
-        System_abort("MidiReaderTaskFxn create failed\n");
+    if (!Task_create((Task_FuncPtr)SlaveTaskFxn, &taskParams, &eb))
+        System_abort("SlaveTaskFxn create failed\n");
 
     Error_init(&eb);
     Task_Params_init(&taskParams);
@@ -251,8 +251,8 @@ Bool MIDI_Server_startup(void)
     taskParams.arg0      = 0;
     taskParams.arg1      = 0;
 
-    if (!Task_create((Task_FuncPtr)MidiWriterTaskFxn, &taskParams, &eb))
-        System_abort("MidiWriterTaskFxn create failed\n");
+    if (!Task_create((Task_FuncPtr)MasterTaskFxn, &taskParams, &eb))
+        System_abort("MasterTaskFxn create failed\n");
 
     return TRUE;
 }
@@ -270,7 +270,7 @@ Bool MidiQueueResponse(MidiMessage* msg)
 //
 //*****************************************************************************
 
-Void MidiWriterTaskFxn(UArg arg0, UArg arg1)
+Void MasterTaskFxn(UArg arg0, UArg arg1)
 {
     MidiMessage msgMidi;
 
@@ -278,52 +278,32 @@ Void MidiWriterTaskFxn(UArg arg0, UArg arg1)
     {
         if (Mailbox_pend(g_mailboxMidi, &msgMidi, BIOS_WAIT_FOREVER))
         {
-            Midi_TxResponse(g_midiHandle, msgMidi.data, msgMidi.length);
+            SlaveTxResponse(g_midiHandle, msgMidi.data, msgMidi.length);
         }
     }
 }
 
 //*****************************************************************************
-// MIDI MCC Task
+// MIDI MMC Slave Task
 //*****************************************************************************
 
-#define DEBUG_MIDI   0
-
-Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
+Void SlaveTaskFxn(UArg arg0, UArg arg1)
 {
     bool reply;
     int rc = 0;
     uint8_t deviceID;
-	size_t	uNumBytesRead;
+	int	numBytes;
 
 	static uint8_t rxBuffer[MIDI_MAX_PACKET_SIZE];
 
 
     while (true)
     {
-#if (DEBUG_MIDI > 0)
-        uint8_t b;
-
-        /* Read a byte looking for 0xF0 Preamble */
-        if (UART_read(g_midi.uartHandle, &b, 1) == 1)
-        {
-            CLI_printf("%02x ", b);
-
-            if (b == 0xF7)
-            {
-                CLI_printf("\n");
-                rc = 0;
-            }
-
-            if ((rc++ % 16) == 15)
-                CLI_printf("\n");
-        }
-#endif
-    	/* Attempt to read a MIDI MCC command */
+    	/* Read a MIDI MCC command */
 
     	memset(&rxBuffer, 0, sizeof(rxBuffer));
 
-    	rc = Midi_RxCommand(g_midiHandle, &deviceID, rxBuffer, &uNumBytesRead);
+    	rc = SlaveRxCommand(g_midiHandle, &deviceID, rxBuffer, &numBytes);
 
         if (rc != 0)
         {
@@ -341,19 +321,23 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
   		switch(rxBuffer[0])
    		{
         case MCC_STOP:
+            /* Change transport to stop mode */
             Transport_Stop();
             break;
 
         case MCC_PLAY:
         case MCC_DEFERRED_PLAY:
+            /* Change transport to play mode */
             Transport_Play(0);
             break;
 
         case MCC_FAST_FORWARD:
+            /* Change transport for fast forward mode */
             Transport_Fwd(0, 0);
             break;
 
         case MCC_REWIND:
+            /* Change transport to rewind mode */
             Transport_Rew(0, 0);
             break;
 
@@ -395,19 +379,19 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
    		if (reply)
    		{
    		    /* If closed loop, send the reply */
-   		    Midi_TxResponse(g_midiHandle, rxBuffer, uNumBytesRead);
+   		    SlaveTxResponse(g_midiHandle, rxBuffer, numBytes);
    		}
     }
 }
 
 //*****************************************************************************
-//
+// Receive a MIDI MCC command request from a master.
 //*****************************************************************************
 
-int Midi_RxCommand(MIDI_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, size_t* puNumBytesRead)
+int SlaveRxCommand(MIDI_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, int* puNumBytesRead)
 {
 	uint8_t b;
-	size_t i;
+	int i;
     int rc = 0;
 
     *puNumBytesRead = 0;
@@ -472,10 +456,10 @@ int Midi_RxCommand(MIDI_Handle handle, uint8_t* pbyDeviceID, uint8_t* pBuffer, s
 }
 
 //*****************************************************************************
-//
+// Send a MIDI MCR response packet back to the master.
 //*****************************************************************************
 
-int Midi_TxResponse(MIDI_Handle handle, uint8_t* pBuffer, size_t uNumBytesToWrite)
+int SlaveTxResponse(MIDI_Handle handle, uint8_t* pBuffer, int uNumBytesToWrite)
 {
 	uint8_t b;
 	uint8_t hdr[4];
