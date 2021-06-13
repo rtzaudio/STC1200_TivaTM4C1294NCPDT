@@ -12,6 +12,21 @@
 #ifndef _MIDITASK_H_
 #define _MIDITASK_H_
 
+/*** DATA STRUCTURES *******************************************************/
+
+typedef struct MIDI_Params {
+    UART_Handle         uartHandle;
+    uint8_t             deviceID;
+} MIDI_Params;
+
+typedef struct MIDI_Object {
+    UART_Handle         uartHandle;
+    uint8_t             deviceID;
+    GateMutex_Struct    gate;
+} MIDI_Object;
+
+typedef MIDI_Object *MIDI_Handle;
+
 /*** MIDI MACHNE CONTROL (MMC) *********************************************/
 
 #define MIDI_MCC                0x06    /* Motion Control Command  */
@@ -121,11 +136,6 @@
 
 #define MIDI_MAX_PACKET_SIZE        48
 
-typedef struct _MIDI_SERVICE {
-    UART_Handle uartHandle;
-    uint8_t     deviceID;
-} MIDI_SERVICE;
-
 typedef struct MidiMessage {
     uint8_t     length;
     uint8_t     data[8];
@@ -133,8 +143,14 @@ typedef struct MidiMessage {
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-Bool Midi_Server_init(void);
-Bool Midi_Server_startup(void);
+MIDI_Handle MIDI_construct(MIDI_Object *obj, MIDI_Params *params);
+MIDI_Handle MIDI_create(MIDI_Params *params);
+Void MIDI_Params_init(MIDI_Params *params);
+Void MIDI_delete(MIDI_Handle handle);
+Void MIDI_destruct(MIDI_Handle handle);
+
+Bool MIDI_Server_init(void);
+Bool MIDI_Server_startup(void);
 
 Bool MidiQueueResponse(MidiMessage* msg);
 

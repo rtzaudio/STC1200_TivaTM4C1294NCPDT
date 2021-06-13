@@ -195,7 +195,7 @@ int main(void)
     IPC_Server_init();
 
     /* Allocate MIDI server resources */
-    Midi_Server_init();
+    MIDI_Server_init();
 
     /* Create task with priority 15 */
 
@@ -467,7 +467,7 @@ void Init_Application(void)
     Task_create((Task_FuncPtr)LocateTaskFxn, &taskParams, &eb);
 
     /* Startup the MIDI services tasks */
-    Midi_Server_startup();
+    MIDI_Server_startup();
 
     /* Startup the CLI on COM1 */
     CLI_startup();

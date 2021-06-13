@@ -105,6 +105,7 @@
 #include "IPCMessage.h"
 #include "Utils.h"
 #include "SMPTE.h"
+#include "MIDITask.h"
 
 //*****************************************************************************
 // This function reads the unique 128-serial number and 48-bit MAC address
@@ -179,9 +180,9 @@ void InitSysDefaults(SYSCFG* p)
     /** Default servo parameters **/
     p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     p->build        = FIRMWARE_BUILD;
-    p->debug        = 0;                    /* debug mode 0=off             */
-    p->searchBlink  = TRUE;
+    p->length       = sizeof(SYSCFG);
     /** Remote Parameters **/
+    p->searchBlink  = TRUE;
     p->showLongTime = FALSE;
     /** Locator Parameters **/
     p->jog_vel_far  = JOG_VEL_FAR;          /* 0 for DTC default velocity   */
@@ -192,6 +193,7 @@ void InitSysDefaults(SYSCFG* p)
     p->tapeSpeed    = 30;                   /* default tape speed high      */
     /** SMPE card config */
     p->smpteFPS     = SMPTE_ENCCTL_FPS30;
+    p->midiDevID    = MIDI_DEVID_ALL_CALL;  /* respond to any midi dev id   */
 
     /* Initial track state zero for all channels */
     memset(p->trackState, 0, STC_MAX_TRACKS);
@@ -244,11 +246,8 @@ int SysParamsRead(SYSCFG* sp)
     {
         System_printf("ERROR Reading System Parameters - Using Defaults...\n");
         System_flush();
-
         InitSysDefaults(sp);
-
         SysParamsWrite(sp);
-
         return -1;
     }
 
@@ -259,11 +258,8 @@ int SysParamsRead(SYSCFG* sp)
     {
         System_printf("WARNING New Firmware Version - Using Defaults...\n");
         System_flush();
-
         InitSysDefaults(sp);
-
         SysParamsWrite(sp);
-
         return -1;
     }
 
@@ -271,15 +267,12 @@ int SysParamsRead(SYSCFG* sp)
      * then reset and store system defaults. This is to avoid loading old
      * configuration parameters store from an earlier build version.
      */
-    if (sp->build < FIRMWARE_MIN_BUILD)
+    if ((sp->build < FIRMWARE_MIN_BUILD) || (sp->length != sizeof(SYSCFG)))
     {
         System_printf("WARNING New Firmware BUILD - Resetting Defaults...\n");
         System_flush();
-
         InitSysDefaults(sp);
-
         SysParamsWrite(sp);
-
         return -1;
     }
 

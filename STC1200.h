@@ -32,9 +32,9 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        1           /* firmware version */
-#define FIRMWARE_REV        17          /* firmware revision */
-#define FIRMWARE_BUILD      2           /* firmware build number */
-#define FIRMWARE_MIN_BUILD  2           /* min build req'd to force reset */
+#define FIRMWARE_REV        18          /* firmware revision */
+#define FIRMWARE_BUILD      1           /* firmware build number */
+#define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
 #if (FIRMWARE_MIN_BUILD > FIRMWARE_BUILD)
 #error "STC build option FIRMWARE_MIN_BUILD set incorrectly"
@@ -56,8 +56,7 @@ typedef struct _SYSCFG
     uint32_t    magic;
     uint32_t    version;
     uint32_t    build;
-    /** System Parameters **/
-    uint32_t    debug;              /* debug level */
+    uint32_t    length;              /* debug level */
     /** Remote Parameters **/
     bool        showLongTime;
     /** Locator Parameters **/
@@ -73,6 +72,9 @@ typedef struct _SYSCFG
     uint8_t     tapeSpeed;          /* 15=low speed, 30=high speed */
     /* SMPTE board config */
     uint16_t    smpteFPS;           /* frames per sec config */
+    /* MIDI config */
+    uint8_t     midiDevID;          /* midi device ID */
+    uint8_t     reserved;
 } SYSCFG;
 
 //*****************************************************************************
