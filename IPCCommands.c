@@ -118,6 +118,16 @@ Bool Transport_PostButtonPress(uint32_t btn_mask)
     return IPC_Notify(&msg, IPC_TIMEOUT);
 }
 
+Bool Transport_RecStrobe(void)
+{
+    return Transport_PostButtonPress(S_PLAY|S_REC);
+}
+
+Bool Transport_RecExit(void)
+{
+    return Transport_PostButtonPress(S_STOP|S_REC);
+}
+
 Bool Transport_Stop(void)
 {
     IPC_MSG msg;

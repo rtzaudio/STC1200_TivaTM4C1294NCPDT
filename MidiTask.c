@@ -345,10 +345,8 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
             break;
 
         case MCC_PLAY:
-            Transport_Play(0);
-            break;
-
         case MCC_DEFERRED_PLAY:
+            Transport_Play(0);
             break;
 
         case MCC_FAST_FORWARD:
@@ -360,11 +358,13 @@ Void MidiReaderTaskFxn(UArg arg0, UArg arg1)
             break;
 
         case MCC_RECORD_STROBE:
-            Transport_Play(M_RECORD);
+            /* Toggle Record, if in play */
+            Transport_RecStrobe();
             break;
 
         case MCC_RECORD_EXIT:
-            Transport_Play(0);
+            /* Exit record, but remain in play */
+            Transport_RecExit();
             break;
 
         case MCC_RECORD_PAUSE:
