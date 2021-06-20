@@ -135,7 +135,7 @@ MK_CMD(dir);
 MK_CMD(cd);
 MK_CMD(del);
 MK_CMD(xmdm);
-
+MK_CMD(cwd);
 
 /* The dispatch table */
 #define CMD(func, help) {#func, cmd_ ## func, help}
@@ -163,6 +163,7 @@ cmd_t dispatch[] = {
     CMD(dir, "List directory"),
     CMD(cd, "Change directory"),
     CMD(del, "Delete a file"),
+    CMD(cwd, "Display current working dir"),
     CMD(xmdm, "Send/Receive File"),
 };
 
@@ -189,7 +190,6 @@ static char  s_args[MAX_ARGS][MAX_ARG_LEN];
 
 /* Current Working Directory */
 static char s_cwd[MAX_PATH] = "\\";
-static char s_drive = '0';
 
 /*** Function Prototypes ***/
 static int parse_args(char *buf);
@@ -197,6 +197,7 @@ static void parse_cmd(char *buf);
 static bool IsClockRunning(void);
 static char *FSErrorString(int errno);
 static FRESULT dir_list(char* path);
+static char* _getcwd(void);
 
 /*** External Data Items ***/
 extern SYSDAT g_sys;
@@ -306,8 +307,6 @@ void CLI_printf(const char *fmt, ...)
 void CLI_prompt(void)
 {
     CLI_putc(LF);
-    CLI_putc(s_drive);
-    CLI_putc(':');
     CLI_puts(s_cwd);
     CLI_putc('>');
 }
@@ -333,6 +332,12 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
     uint8_t ch;
     int cnt = 0;
 
+    f_chdir("0://.");
+
+    /* Get the current working directory of the SD drive */
+    _getcwd();
+
+    /* Display initial welcome and prompt */
     CLI_home();
     CLI_about();
     CLI_puts("\nEnter 'help' to view a list valid commands\n");
@@ -380,7 +385,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
             {
                 if (cnt < MAX_CHARS)
                 {
-                    if (isalnum((int)ch) || strchr(s_delim, (int)ch) || (ch == '.'))
+                    if (isalnum((int)ch) || strchr(s_delim, (int)ch) || (ch == '.') || (ch == '*'))
                     {
                         s_cmdbuf[cnt++] = tolower(ch);
                         s_cmdbuf[cnt] = 0;
@@ -595,6 +600,20 @@ FRESULT dir_list(char* path)
     }
 
     return res;
+}
+
+char* _getcwd(void)
+{
+    FRESULT res;
+
+    res = f_getcwd(s_cwd, sizeof(s_cwd)-1);
+
+    if (res != FR_OK)
+    {
+        s_cwd[0] = 0;
+    }
+
+    return s_cwd;
 }
 
 //*****************************************************************************
@@ -1091,80 +1110,48 @@ void cmd_cfg(int argc, char *argv[])
 
 void cmd_cd(int argc, char *argv[])
 {
-    char *p;
-    char *cmd = argv[0];
-    char cwd[MAX_PATH];
     FRESULT res;
 
-    if (argc)
+    if (argc == 1)
     {
-        strncpy(cwd, s_cwd, MAX_PATH-1);
-        cwd[MAX_PATH-1] = 0;
+        /* Attempt to change to the directory path */
+        res = f_chdir(argv[0]);
 
-        if (strlen(argv[0]) > 0)
-        {
-            if (strcmp(cmd, "..") == 0)
-            {
-                if (strlen(cwd) > 1)
-                {
-                    /* Search reverse for last slash */
-                    if ((p = strrchr(cwd, '\\')) != NULL)
-                    {
-                        /* If we're at root, terminate after root slash.
-                         * Otherwise, terminate at the slash to trim path.
-                         */
-                        if (p == &cwd[0])
-                            *(p+1) = 0;
-                        else
-                            *p = 0;
+        _getcwd();
 
-                        strcpy(s_cwd, cwd);
-                    }
-                }
-            }
-            else
-            {
-                if (*cmd == '\\')
-                {
-                    strcpy(cwd, cmd);
-                }
-                else
-                {
-                    if (strlen(cwd) >  1)
-                        strcat(cwd, "\\");
-
-                    strcat(cwd, cmd);
-                }
-
-                strcpy(s_cwd, cwd);
-            }
-        }
+        if (res == FR_OK)
+            CLI_printf("%s\n", s_cwd);
+        else
+            CLI_puts("Cannot find path specified.\n");
     }
-
-    /* Attempt to change to the directory path */
-    res = f_chdir(s_cwd);
-
-    if (res == FR_OK)
-        CLI_printf("%c:%s\n", s_drive, s_cwd);
     else
-        CLI_puts("Cannot find path specified.\n");
+    {
+        _getcwd();
+
+        CLI_printf("%s\n", s_cwd);
+    }
 }
 
 void cmd_dir(int argc, char *argv[])
 {
-    static char buff[MAX_PATH];
+    static char buf[MAX_PATH];
 
-    CLI_printf("\n Directory of %c:%s\n\n", s_drive, s_cwd);
+    CLI_printf("\n Directory of %s\n\n", s_cwd);
 
-    strcpy(buff, "/");
+    strcpy(buf, ".");
 
     if (argc >= 1)
     {
-        strncpy(buff, argv[0], sizeof(buff)-1);
-        buff[sizeof(buff)-1] = 0;
+        strncpy(buf, argv[0], sizeof(buf)-1);
+        buf[sizeof(buf)-1] = 0;
     }
 
-    dir_list(buff);
+    dir_list(buf);
+}
+
+void cmd_cwd(int argc, char *argv[])
+{
+    CLI_printf("%s\n", _getcwd());
 }
 
 void cmd_del(int argc, char *argv[])
@@ -1173,7 +1160,7 @@ void cmd_del(int argc, char *argv[])
 
     if ((res = f_unlink(argv[0])) != FR_OK)
     {
-        CLI_printf("%s", FSErrorString(res));
+        CLI_printf("%s ", FSErrorString(res));
     }
     CLI_putc('\n');
 }
