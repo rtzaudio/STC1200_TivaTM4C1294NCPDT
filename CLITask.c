@@ -64,6 +64,7 @@
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/I2C.h>
 #include <ti/drivers/UART.h>
+#include <ti/mw/fatfs/ff.h>
 
 #include <file.h>
 #include <stdio.h>
@@ -90,6 +91,7 @@
 #include "IPCMessage.h"
 #include "IPCCommands.h"
 #include "RemoteTask.h"
+#include "xmodem.h"
 
 extern SYSDAT g_sys;
 extern SYSCFG g_cfg;
@@ -129,6 +131,11 @@ MK_CMD(store);
 MK_CMD(rtz);
 MK_CMD(stat);
 MK_CMD(cfg);
+MK_CMD(dir);
+MK_CMD(cd);
+MK_CMD(del);
+MK_CMD(xmdm);
+
 
 /* The dispatch table */
 #define CMD(func, help) {#func, cmd_ ## func, help}
@@ -153,6 +160,10 @@ cmd_t dispatch[] = {
     CMD(rtz, "Return to zero"),
     CMD(stat, "Displays machine status"),
     CMD(cfg, "Configuration {save|load|reset}"),
+    CMD(dir, "List directory"),
+    CMD(cd, "Change directory"),
+    CMD(del, "Delete a file"),
+    CMD(xmdm, "Send/Receive File"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -177,13 +188,15 @@ static char* s_argv[MAX_ARGS];
 static char  s_args[MAX_ARGS][MAX_ARG_LEN];
 
 /* Current Working Directory */
-//static char s_cwd[MAX_PATH] = "\\";
-//static char s_drive = '0';
+static char s_cwd[MAX_PATH] = "\\";
+static char s_drive = '0';
 
 /*** Function Prototypes ***/
 static int parse_args(char *buf);
 static void parse_cmd(char *buf);
 static bool IsClockRunning(void);
+static char *FSErrorString(int errno);
+static FRESULT dir_list(char* path);
 
 /*** External Data Items ***/
 extern SYSDAT g_sys;
@@ -206,7 +219,7 @@ int CLI_init(void)
     uartParams.readCallback   = NULL;
     uartParams.writeCallback  = NULL;
     uartParams.readReturnMode = UART_RETURN_FULL;
-    uartParams.writeDataMode  = UART_DATA_TEXT;
+    uartParams.writeDataMode  = UART_DATA_BINARY;
     uartParams.readDataMode   = UART_DATA_BINARY;
     uartParams.readEcho       = UART_ECHO_OFF;
     uartParams.baudRate       = 115200;
@@ -248,15 +261,36 @@ Bool CLI_startup(void)
 //
 //*****************************************************************************
 
+int CLI_getc(void)
+{
+    int ch;
+
+    /* Read a character from the console */
+    if (UART_read(s_handleUart, &ch, 1) == 1)
+        return ch;
+
+    return -1;
+}
+
 void CLI_putc(int ch)
 {
+    if (ch == '\n')
+    {
+        ch = '\r';
+        UART_write(s_handleUart, &ch, 1);
+        ch = '\n';
+    }
+
     UART_write(s_handleUart, &ch, 1);
 }
 
 void CLI_puts(char* s)
 {
+    int i;
     int l = strlen(s);
-    UART_write(s_handleUart, s, l);
+
+    for (i=0; i < l; i++)
+        CLI_putc(*s++);
 }
 
 void CLI_printf(const char *fmt, ...)
@@ -264,17 +298,30 @@ void CLI_printf(const char *fmt, ...)
     va_list arg;
     static char buf[128];
     va_start(arg, fmt);
-    System_vsnprintf(buf, sizeof(buf)-1, fmt, arg);
+    vsnprintf(buf, sizeof(buf)-1, fmt, arg);
     va_end(arg);
-    UART_write(s_handleUart, buf, strlen(buf));
+    CLI_puts(buf);
 }
 
 void CLI_prompt(void)
 {
-    CLI_putc(CRET);
     CLI_putc(LF);
+    CLI_putc(s_drive);
+    CLI_putc(':');
+    CLI_puts(s_cwd);
     CLI_putc('>');
-    CLI_putc(' ');
+}
+
+void CLI_about(void)
+{
+    CLI_printf("STC-1200 [Version %d.%02d.%03d]\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    CLI_puts("(C) 2021 RTZ Professional Audio. All Rights Reserved.\n");
+}
+
+void CLI_home(void)
+{
+    CLI_printf(VT100_HOME);
+    CLI_printf(VT100_CLS);
 }
 
 //*****************************************************************************
@@ -286,10 +333,10 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
     uint8_t ch;
     int cnt = 0;
 
-    CLI_printf(VT100_HOME);
-    CLI_printf(VT100_CLS);
-    cmd_about(0, NULL);
-    CLI_puts("Enter 'help' to view a list valid commands\n\n> ");
+    CLI_home();
+    CLI_about();
+    CLI_puts("Enter 'help' to view a list valid commands\n");
+    CLI_prompt();
 
     while (true)
     {
@@ -310,17 +357,13 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                     s_cmdbuf[0] = 0;
                     cnt = 0;
                 }
-                CLI_putc(CRET);
-                CLI_putc(LF);
-                CLI_putc('>');
-                CLI_putc(' ');
+                CLI_prompt();
             }
             else if (ch == BKSPC)
             {
                 if (cnt)
                 {
                     s_cmdbuf[--cnt] = 0;
-
                     CLI_putc(BKSPC);
                     CLI_putc(' ');
                     CLI_putc(BKSPC);
@@ -337,11 +380,10 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
             {
                 if (cnt < MAX_CHARS)
                 {
-                    if (isalnum((int)ch) || strchr(s_delim, (int)ch))
+                    if (isalnum((int)ch) || strchr(s_delim, (int)ch) || (ch == '.'))
                     {
                         s_cmdbuf[cnt++] = tolower(ch);
                         s_cmdbuf[cnt] = 0;
-
                         CLI_putc((int)ch);
                     }
                 }
@@ -444,6 +486,117 @@ bool IsValidDate(struct tm *p)
     return true;
 }
 
+char *FSErrorString(int errno)
+{
+    static char* FSErrorString[] = {
+        "Success",
+        "A hard error occurred",
+        "Assertion failed",
+        "Physical drive error",
+        "Could not find the file",
+        "Could not find the path",
+        "The path name format is invalid",
+        "Access denied due to prohibited access or directory full",
+        "Access denied due to prohibited access",
+        "The file/directory object is invalid",
+        "The physical drive is write protected",
+        "The logical drive number is invalid",
+        "The volume has no work area",
+        "There is no valid FAT volume",
+        "The f_mkfs() aborted due to any parameter error",
+        "Could not get a grant to access the volume within defined period",
+        "The operation is rejected according to the file sharing policy",
+        "LFN working buffer could not be allocated",
+        "Too many open files",
+        "Given parameter is invalid"
+    };
+
+    if (errno > sizeof(FSErrorString)/sizeof(char*))
+        return "???";
+
+    return FSErrorString[errno];
+}
+
+FRESULT dir_list(char* path)
+{
+    FRESULT res;
+    DIR dir;
+    static char buf[_MAX_LFN];
+    static FILINFO fno;
+
+    /* Open the directory */
+    if ((res = f_opendir(&dir, path)) != FR_OK)
+    {
+        CLI_printf("%s\n", FSErrorString(res));
+    }
+    else
+    {
+        for (;;)
+        {
+            /* Read a directory item */
+            res = f_readdir(&dir, &fno);
+
+            /* Break on error or end of dir */
+            if (res != FR_OK || fno.fname[0] == 0)
+                break;
+
+            if (fno.fattrib & AM_SYS)
+                continue;
+
+            if (fno.fattrib & AM_DIR)
+                sprintf(buf, "%-15s", "<DIR>");
+            else
+                sprintf(buf, "%15u", fno.fsize);
+
+            /* 16-Bit Date Bits Format
+             * YYYYYYYMMMMDDDDD
+             *
+             * bit15:9      Year origin from 1980 (0..127)
+             * bit8:5       Month (1..12)
+             * bit4:0       Day (1..31)
+             */
+
+            CLI_printf("%02u/%02u/%04u  ",
+                       (fno.fdate >> 0) & 0x1F,
+                       (fno.fdate >> 5) & 0x0F,
+                      ((fno.fdate >> 9) & 0x7F) + 1980);
+
+            /* 16-Bit Time Format
+             * HHHHHMMMMMMSSSSS
+             *
+             * bit15:11     Hour (0..23)
+             * bit10:5      Minute (0..59)
+             * bit4:0       Second / 2 (0..29)
+             */
+
+            uint32_t hour = (fno.ftime >> 11) & 0x1F;
+
+            bool pm = false;
+
+            if (hour > 12)
+            {
+                hour = hour - 12;
+                pm = true;
+            }
+
+            CLI_printf("%02u:%02u:%02u %s",
+                       hour,
+                       (fno.ftime >> 5) & 0x3F,
+                      ((fno.ftime >> 0) & 0x1F) >> 1,
+                       pm ? "PM" : "AM");
+
+            if (fno.lfname)
+                CLI_printf("    %s %s\n", buf, fno.lfname);
+            else
+                CLI_printf("    %s %s\n", buf, fno.fname);
+        }
+
+        f_closedir(&dir);
+    }
+
+    return res;
+}
+
 //*****************************************************************************
 // CLI Command Handlers
 //*****************************************************************************
@@ -479,14 +632,20 @@ void cmd_help(int argc, char *argv[])
 
 void cmd_about(int argc, char *argv[])
 {
-    CLI_printf("STC-1200 Search/Timer [v%d.%02d.%03d]\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("(c) RTZ Professional Audio. All rights reserved\n\n");
+    CLI_about();
 }
 
 void cmd_cls(int argc, char *argv[])
 {
-    CLI_puts(VT100_CLS);
-    CLI_puts(VT100_HOME);
+    CLI_home();
+}
+
+void cmd_sn(int argc, char *argv[])
+{
+    char serialnum[64];
+    /*  Format the 64 bit GUID as a string */
+    GetHexStr(serialnum, g_sys.ui8SerialNumber, 16);
+    CLI_printf("%s\n", serialnum);
 }
 
 void cmd_ip(int argc, char *argv[])
@@ -501,14 +660,6 @@ void cmd_mac(int argc, char *argv[])
             g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
             g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
     CLI_printf("%s\n", mac);
-}
-
-void cmd_sn(int argc, char *argv[])
-{
-    char serialnum[64];
-    /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sys.ui8SerialNumber, 16);
-    CLI_printf("%s\n", serialnum);
 }
 
 void cmd_smpte(int argc, char *argv[])
@@ -935,6 +1086,174 @@ void cmd_cfg(int argc, char *argv[])
     else
     {
         CLI_puts("Usage: cfg {save|reset|load}\n");
+    }
+}
+
+void cmd_cd(int argc, char *argv[])
+{
+    char *p;
+    char *cmd = argv[0];
+    char cwd[MAX_PATH];
+    FRESULT res;
+
+    if (argc)
+    {
+        strncpy(cwd, s_cwd, MAX_PATH-1);
+        cwd[MAX_PATH-1] = 0;
+
+        if (strlen(argv[0]) > 0)
+        {
+            if (strcmp(cmd, "..") == 0)
+            {
+                if (strlen(cwd) > 1)
+                {
+                    /* Search reverse for last slash */
+                    if ((p = strrchr(cwd, '\\')) != NULL)
+                    {
+                        /* If we're at root, terminate after root slash.
+                         * Otherwise, terminate at the slash to trim path.
+                         */
+                        if (p == &cwd[0])
+                            *(p+1) = 0;
+                        else
+                            *p = 0;
+
+                        strcpy(s_cwd, cwd);
+                    }
+                }
+            }
+            else
+            {
+                if (*cmd == '\\')
+                {
+                    strcpy(cwd, cmd);
+                }
+                else
+                {
+                    if (strlen(cwd) >  1)
+                        strcat(cwd, "\\");
+
+                    strcat(cwd, cmd);
+                }
+
+                strcpy(s_cwd, cwd);
+            }
+        }
+    }
+
+    /* Attempt to change to the directory path */
+    res = f_chdir(s_cwd);
+
+    if (res == FR_OK)
+        CLI_printf("%c:%s\n", s_drive, s_cwd);
+    else
+        CLI_puts("Cannot find path specified.\n");
+}
+
+void cmd_dir(int argc, char *argv[])
+{
+    static char buff[MAX_PATH];
+
+    CLI_printf("\n Directory of %c:%s\n\n", s_drive, s_cwd);
+
+    strcpy(buff, "/");
+
+    if (argc >= 1)
+    {
+        strncpy(buff, argv[0], sizeof(buff)-1);
+        buff[sizeof(buff)-1] = 0;
+    }
+
+    dir_list(buff);
+}
+
+void cmd_del(int argc, char *argv[])
+{
+    FRESULT res;
+
+    if ((res = f_unlink(argv[0])) != FR_OK)
+    {
+        CLI_printf("%s", FSErrorString(res));
+    }
+    CLI_putc('\n');
+}
+
+void cmd_xmdm(int argc, char *argv[])
+{
+    int rc = 0;
+    FIL fp;
+    FRESULT res = FR_OK;
+
+    char *eraseEOL = VT100_ERASE_EOL;
+
+    CLI_putc('\n');
+
+    if (argc != 2)
+    {
+        CLI_printf("Usage:\n\n");
+        CLI_printf("xmdm s {filename}\t[sends a file]\n");
+        CLI_printf("xmdm r {filename}\t[receives a file]\n");
+        return;
+    }
+
+    if (toupper(*argv[0]) == 'R')
+    {
+        /* Receive a file */
+        if ((res = f_open(&fp, argv[1], FA_WRITE|FA_CREATE_NEW|FA_CREATE_ALWAYS)) == FR_OK)
+        {
+            CLI_printf("XMODEM Receive Ready\n");
+
+            /* Receive file via XMODEM */
+            rc = xmodem_receive(s_handleUart, &fp);
+
+            f_close(&fp);
+
+            if (rc != XMODEM_SUCCESS)
+            {
+                /* Delete the file, it's not valid */
+                f_unlink(argv[1]);
+
+                CLI_printf("\r%s\rReceive Error %d\n", eraseEOL, rc);
+            }
+            else
+            {
+                CLI_printf("\r%s\rReceive Complete\n", eraseEOL);
+            }
+        }
+        else
+        {
+            CLI_printf("Error: %s\n", FSErrorString(res));
+        }
+    }
+    else if (toupper(*argv[0]) == 'S')
+    {
+        /* Send a file */
+        if ((res = f_open(&fp, argv[1], FA_READ)) == FR_OK)
+        {
+            CLI_printf("XMODEM Send Ready\n");
+
+            /* Send file via XMODEM */
+            rc = xmodem_send(s_handleUart, &fp);
+
+            f_close(&fp);
+
+            if (rc != XMODEM_SUCCESS)
+            {
+                CLI_printf("\r%s\rSend Error %d\n", eraseEOL, rc);
+            }
+            else
+            {
+                CLI_printf("\r%s\rSend Complete\n", eraseEOL);
+            }
+        }
+        else
+        {
+            CLI_printf("%s\n", FSErrorString(res));
+        }
+    }
+    else
+    {
+        CLI_printf("Invalid Option\n");
     }
 }
 
