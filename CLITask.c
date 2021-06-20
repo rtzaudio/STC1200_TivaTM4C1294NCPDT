@@ -179,7 +179,7 @@ cmd_t dispatch[] = {
 
 /*** Static Data Items ***/
 static UART_Handle s_handleUart;
-static const char *s_delim = " ://\n";
+static const char *s_delim = " ://\\\n";
 static char s_cmdbuf[MAX_CHARS+3];
 static char s_cmdprev[MAX_CHARS+3];
 
