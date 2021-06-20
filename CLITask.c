@@ -557,8 +557,8 @@ FRESULT dir_list(char* path)
              */
 
             CLI_printf("%02u/%02u/%04u  ",
-                       (fno.fdate >> 0) & 0x1F,
                        (fno.fdate >> 5) & 0x0F,
+                       (fno.fdate >> 0) & 0x1F,
                       ((fno.fdate >> 9) & 0x7F) + 1980);
 
             /* 16-Bit Time Format
