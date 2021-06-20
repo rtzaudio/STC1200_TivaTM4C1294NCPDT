@@ -335,7 +335,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 
     CLI_home();
     CLI_about();
-    CLI_puts("Enter 'help' to view a list valid commands\n");
+    CLI_puts("\nEnter 'help' to view a list valid commands\n");
     CLI_prompt();
 
     while (true)

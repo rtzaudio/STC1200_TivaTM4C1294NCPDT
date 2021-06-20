@@ -948,7 +948,7 @@ const UARTTiva_HWAttrs uartTivaHWAttrs[STC1200_UARTCOUNT] = {
         .baseAddr    = UART1_BASE,
         .intNum      = INT_UART1,
         .intPriority = (~0),
-        .flowControl = UART_FLOWCONTROL_NONE,
+        .flowControl = UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX,
         .ringBufPtr  = uartTivaRingBuffer[1],
         .ringBufSize = sizeof(uartTivaRingBuffer[1])
     },
