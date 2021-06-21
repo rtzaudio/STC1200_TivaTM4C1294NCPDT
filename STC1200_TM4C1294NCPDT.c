@@ -70,21 +70,14 @@
 
 #include "STC1200.h"
 
+#ifndef TI_DRIVERS_UART_DMA
+#define TI_DRIVERS_UART_DMA     0
+#endif
+
 /* Global STC-1200 System data */
 extern SYSDAT g_sys;
 extern SYSCFG g_cfg;
 
-
-#ifndef TI_DRIVERS_UART_DMA
-#define TI_DRIVERS_UART_DMA 0
-#endif
-
-#ifndef TI_EXAMPLES_PPP
-#define TI_EXAMPLES_PPP 0
-#else
-/* prototype for NIMU init function */
-extern int USBSerialPPP_NIMUInit();
-#endif
 
 /*
  *  =============================== DMA ===============================
@@ -123,8 +116,7 @@ void STC1200_initDMA(void)
     if (!dmaInitialized) {
         Error_init(&eb);
         Hwi_Params_init(&hwiParams);
-        Hwi_construct(&(dmaHwiStruct), INT_UDMAERR, dmaErrorHwi,
-                      &hwiParams, &eb);
+        Hwi_construct(&(dmaHwiStruct), INT_UDMAERR, dmaErrorHwi, &hwiParams, &eb);
         if (Error_check(&eb)) {
             System_abort("Couldn't construct DMA error hwi");
         }
@@ -206,13 +198,8 @@ void STC1200_initGeneral(void)
  */
 NIMU_DEVICE_TABLE_ENTRY NIMUDeviceTable[2] = {
     {
-#if TI_EXAMPLES_PPP
-        /* Use PPP driver for PPP example only */
-        .init = USBSerialPPP_NIMUInit
-#else
         /* Default: use Ethernet driver */
         .init = EMACSnow_NIMUInit
-#endif
     },
     {NULL}
 };
@@ -886,7 +873,7 @@ const UARTTivaDMA_HWAttrs uartTivaHWAttrs[STC1200_UARTCOUNT] = {
 const UART_Config UART_config[] = {
     {
         .fxnTablePtr = &UARTTivaDMA_fxnTable,
-        .object = &uartTivaObjects[0],
+        .object  = &uartTivaObjects[0],
         .hwAttrs = &uartTivaHWAttrs[0]
     },
     {
@@ -948,7 +935,7 @@ const UARTTiva_HWAttrs uartTivaHWAttrs[STC1200_UARTCOUNT] = {
         .baseAddr    = UART1_BASE,
         .intNum      = INT_UART1,
         .intPriority = (~0),
-        .flowControl = UART_FLOWCONTROL_TX | UART_FLOWCONTROL_RX,
+        .flowControl = UART_FLOWCONTROL_NONE,
         .ringBufPtr  = uartTivaRingBuffer[1],
         .ringBufSize = sizeof(uartTivaRingBuffer[1])
     },
@@ -1005,42 +992,42 @@ const UARTTiva_HWAttrs uartTivaHWAttrs[STC1200_UARTCOUNT] = {
 const UART_Config UART_config[] = {
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[0],
+        .object  = &uartTivaObjects[0],
         .hwAttrs = &uartTivaHWAttrs[0]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[1],
+        .object  = &uartTivaObjects[1],
         .hwAttrs = &uartTivaHWAttrs[1]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[2],
+        .object  = &uartTivaObjects[2],
         .hwAttrs = &uartTivaHWAttrs[2]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[3],
+        .object  = &uartTivaObjects[3],
         .hwAttrs = &uartTivaHWAttrs[3]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[4],
+        .object  = &uartTivaObjects[4],
         .hwAttrs = &uartTivaHWAttrs[4]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[5],
+        .object  = &uartTivaObjects[5],
         .hwAttrs = &uartTivaHWAttrs[5]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[6],
+        .object  = &uartTivaObjects[6],
         .hwAttrs = &uartTivaHWAttrs[6]
     },
     {
         .fxnTablePtr = &UARTTiva_fxnTable,
-        .object = &uartTivaObjects[7],
+        .object  = &uartTivaObjects[7],
         .hwAttrs = &uartTivaHWAttrs[7]
     },
     {NULL, NULL, NULL}
