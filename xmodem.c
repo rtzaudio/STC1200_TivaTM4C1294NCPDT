@@ -89,7 +89,7 @@
 #define PKT_SIZE_1K 1024
 
 #define NUM_TRIES   21
-#define DEBUG       0
+#define DEBUG       1
 
 /* ASCII codes used in the protocol. */
 #define NUL         0x00

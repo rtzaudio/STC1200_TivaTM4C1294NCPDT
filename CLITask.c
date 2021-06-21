@@ -253,7 +253,7 @@ Bool CLI_startup(void)
     Task_Params_init(&taskParams);
 
     taskParams.stackSize = 1500;
-    taskParams.priority  = 2;
+    taskParams.priority  = 11;
     taskParams.arg0      = 0;
     taskParams.arg1      = 0;
 
