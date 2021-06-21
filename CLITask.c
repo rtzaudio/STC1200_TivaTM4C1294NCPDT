@@ -133,9 +133,11 @@ MK_CMD(stat);
 MK_CMD(cfg);
 MK_CMD(dir);
 MK_CMD(cd);
+MK_CMD(cwd);
+MK_CMD(mkdir);
+MK_CMD(unlink);
 MK_CMD(del);
 MK_CMD(xmdm);
-MK_CMD(cwd);
 
 /* The dispatch table */
 #define CMD(func, help) {#func, cmd_ ## func, help}
@@ -162,8 +164,9 @@ cmd_t dispatch[] = {
     CMD(cfg, "Configuration {save|load|reset}"),
     CMD(dir, "List directory"),
     CMD(cd, "Change directory"),
-    CMD(del, "Delete a file"),
     CMD(cwd, "Display current working dir"),
+    CMD(mkdir, "Make a subdir"),
+    CMD(unlink, "Remove a file or subdir"),
     CMD(xmdm, "Send/Receive File"),
 };
 
@@ -196,8 +199,9 @@ static int parse_args(char *buf);
 static void parse_cmd(char *buf);
 static bool IsClockRunning(void);
 static char *FSErrorString(int errno);
-static FRESULT dir_list(char* path);
+static FRESULT _dirlist(char* path);
 static char* _getcwd(void);
+static void _perror(FRESULT res);
 
 /*** External Data Items ***/
 extern SYSDAT g_sys;
@@ -491,6 +495,10 @@ bool IsValidDate(struct tm *p)
     return true;
 }
 
+//*****************************************************************************
+// File System Helper Functions
+//*****************************************************************************
+
 char *FSErrorString(int errno)
 {
     static char* FSErrorString[] = {
@@ -522,7 +530,26 @@ char *FSErrorString(int errno)
     return FSErrorString[errno];
 }
 
-FRESULT dir_list(char* path)
+void _perror(FRESULT res)
+{
+    CLI_printf("%s\n", FSErrorString(res));
+}
+
+char* _getcwd(void)
+{
+    FRESULT res;
+
+    res = f_getcwd(s_cwd, sizeof(s_cwd)-1);
+
+    if (res != FR_OK)
+    {
+        s_cwd[0] = 0;
+    }
+
+    return s_cwd;
+}
+
+FRESULT _dirlist(char* path)
 {
     FRESULT res;
     DIR dir;
@@ -602,20 +629,6 @@ FRESULT dir_list(char* path)
     return res;
 }
 
-char* _getcwd(void)
-{
-    FRESULT res;
-
-    res = f_getcwd(s_cwd, sizeof(s_cwd)-1);
-
-    if (res != FR_OK)
-    {
-        s_cwd[0] = 0;
-    }
-
-    return s_cwd;
-}
-
 //*****************************************************************************
 // CLI Command Handlers
 //*****************************************************************************
@@ -659,6 +672,10 @@ void cmd_cls(int argc, char *argv[])
     CLI_home();
 }
 
+//*****************************************************************************
+// General System Commands
+//*****************************************************************************
+
 void cmd_sn(int argc, char *argv[])
 {
     char serialnum[64];
@@ -681,50 +698,59 @@ void cmd_mac(int argc, char *argv[])
     CLI_printf("%s\n", mac);
 }
 
-void cmd_smpte(int argc, char *argv[])
+void cmd_stat(int argc, char *argv[])
 {
-    if (argc < 1)
-    {
-        CLI_puts("Missing Argument\n");
-        return;
-    }
+    CLI_printf("\nSystem Status\n\n");
+    CLI_printf("  Tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
+    CLI_printf("  Tape roller errors : %u\n", g_sys.qei_error_cnt);
+    CLI_printf("  Encoder position   : %d\n", g_sys.tapePosition);
+    CLI_printf("  Tape Speed         : %d IPS\n", g_cfg.tapeSpeed);
+    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC ext" : "cpu");
+    CLI_printf("  DCS controller     : ");
+    if (g_sys.dcsFound)
+        CLI_printf("%d track\n", g_sys.trackCount);
+    else
+        CLI_printf("(n/a)\n");
+    CLI_printf("  SMPTE controller   : ");
+    if (g_sys.smpteFound)
+        CLI_printf("found\n", g_sys.trackCount);
+    else
+        CLI_printf("(n/a)\n");
+}
 
-    CLI_puts("SMPTE generator ");
-
-    if (!g_sys.smpteFound)
+void cmd_cfg(int argc, char *argv[])
+{
+    if (argc == 1)
     {
-        CLI_puts("not installed!\n");
-        return;
-    }
-
-    if (strcmp(argv[0], "start") == 0)
-    {
-        SMPTE_generator_start();
-        CLI_puts("START\n");
-    }
-    else if (strcmp(argv[0], "stop") == 0)
-    {
-        SMPTE_generator_stop();
-        CLI_puts("STOP\n");
-    }
-    else if (strcmp(argv[0], "resume") == 0)
-    {
-        SMPTE_generator_resume();
-        CLI_puts("RESUME\n");
-    }
-    else if (strcmp(argv[0], "revid") == 0)
-    {
-        char buf[16];
-        uint16_t revid = 0;
-        SMPTE_get_revid(&revid);
-        sprintf(buf, "REVID %04X\n", revid);
-        CLI_puts(buf);
+        if (strcmp(argv[0], "save") == 0)
+        {
+            ConfigSave(1);
+            CLI_puts("Configuration Saved\n");
+        }
+        else if (strcmp(argv[0], "load") == 0)
+        {
+            ConfigLoad(1);
+            CLI_puts("Configuration Loaded\n");
+        }
+        else if (strcmp(argv[0], "reset") == 0)
+        {
+            ConfigReset(1);
+            CLI_puts("Configuration Reset\n");
+        }
+        else
+        {
+            CLI_puts("Invalid Option\n");
+        }
     }
     else
     {
-        CLI_puts("\n\nUsage: smpte {start|stop|resume|revid}\n");
+        CLI_puts("Usage: cfg {save|reset|load}\n");
     }
 }
+
+//*****************************************************************************
+// Tape Transport Commands
+//*****************************************************************************
 
 void cmd_stop(int argc, char *argv[])
 {
@@ -892,25 +918,54 @@ void cmd_store(int argc, char *argv[])
     }
 }
 
-void cmd_stat(int argc, char *argv[])
+void cmd_smpte(int argc, char *argv[])
 {
-    CLI_printf("\nSystem Status\n\n");
-    CLI_printf("  Tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
-    CLI_printf("  Tape roller errors : %u\n", g_sys.qei_error_cnt);
-    CLI_printf("  Encoder position   : %d\n", g_sys.tapePosition);
-    CLI_printf("  Tape Speed         : %d IPS\n", g_cfg.tapeSpeed);
-    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC ext" : "cpu");
-    CLI_printf("  DCS controller     : ");
-    if (g_sys.dcsFound)
-        CLI_printf("%d track\n", g_sys.trackCount);
+    if (argc < 1)
+    {
+        CLI_puts("Missing Argument\n");
+        return;
+    }
+
+    CLI_puts("SMPTE generator ");
+
+    if (!g_sys.smpteFound)
+    {
+        CLI_puts("not installed!\n");
+        return;
+    }
+
+    if (strcmp(argv[0], "start") == 0)
+    {
+        SMPTE_generator_start();
+        CLI_puts("START\n");
+    }
+    else if (strcmp(argv[0], "stop") == 0)
+    {
+        SMPTE_generator_stop();
+        CLI_puts("STOP\n");
+    }
+    else if (strcmp(argv[0], "resume") == 0)
+    {
+        SMPTE_generator_resume();
+        CLI_puts("RESUME\n");
+    }
+    else if (strcmp(argv[0], "revid") == 0)
+    {
+        char buf[16];
+        uint16_t revid = 0;
+        SMPTE_get_revid(&revid);
+        sprintf(buf, "REVID %04X\n", revid);
+        CLI_puts(buf);
+    }
     else
-        CLI_printf("(n/a)\n");
-    CLI_printf("  SMPTE controller   : ");
-    if (g_sys.smpteFound)
-        CLI_printf("found\n", g_sys.trackCount);
-    else
-        CLI_printf("(n/a)\n");
+    {
+        CLI_puts("\n\nUsage: smpte {start|stop|resume|revid}\n");
+    }
 }
+
+//*****************************************************************************
+// Time and Date Commands
+//*****************************************************************************
 
 void cmd_time(int argc, char *argv[])
 {
@@ -1078,34 +1133,25 @@ void cmd_date(int argc, char *argv[])
     }
 }
 
-void cmd_cfg(int argc, char *argv[])
+//*****************************************************************************
+// Directory and File System Commands
+//*****************************************************************************
+
+void cmd_dir(int argc, char *argv[])
 {
-    if (argc == 1)
+    static char buf[MAX_PATH];
+
+    CLI_printf("\n Directory of %s\n\n", s_cwd);
+
+    strcpy(buf, ".");
+
+    if (argc >= 1)
     {
-        if (strcmp(argv[0], "save") == 0)
-        {
-            ConfigSave(1);
-            CLI_puts("Configuration Saved\n");
-        }
-        else if (strcmp(argv[0], "load") == 0)
-        {
-            ConfigLoad(1);
-            CLI_puts("Configuration Loaded\n");
-        }
-        else if (strcmp(argv[0], "reset") == 0)
-        {
-            ConfigReset(1);
-            CLI_puts("Configuration Reset\n");
-        }
-        else
-        {
-            CLI_puts("Invalid Option\n");
-        }
+        strncpy(buf, argv[0], sizeof(buf)-1);
+        buf[sizeof(buf)-1] = 0;
     }
-    else
-    {
-        CLI_puts("Usage: cfg {save|reset|load}\n");
-    }
+
+    _dirlist(buf);
 }
 
 void cmd_cd(int argc, char *argv[])
@@ -1122,7 +1168,7 @@ void cmd_cd(int argc, char *argv[])
         if (res == FR_OK)
             CLI_printf("%s\n", s_cwd);
         else
-            CLI_puts("Cannot find path specified.\n");
+            _perror(res);
     }
     else
     {
@@ -1132,38 +1178,52 @@ void cmd_cd(int argc, char *argv[])
     }
 }
 
-void cmd_dir(int argc, char *argv[])
-{
-    static char buf[MAX_PATH];
-
-    CLI_printf("\n Directory of %s\n\n", s_cwd);
-
-    strcpy(buf, ".");
-
-    if (argc >= 1)
-    {
-        strncpy(buf, argv[0], sizeof(buf)-1);
-        buf[sizeof(buf)-1] = 0;
-    }
-
-    dir_list(buf);
-}
-
 void cmd_cwd(int argc, char *argv[])
 {
     CLI_printf("%s\n", _getcwd());
 }
 
-void cmd_del(int argc, char *argv[])
+void cmd_mkdir(int argc, char *argv[])
 {
     FRESULT res;
 
-    if ((res = f_unlink(argv[0])) != FR_OK)
+    if (argc == 1)
     {
-        CLI_printf("%s ", FSErrorString(res));
+        /* Attempt to make a directory */
+        res = f_mkdir(argv[0]);
+
+        if (res == FR_OK)
+            CLI_printf("%s\n", argv[0]);
+        else
+            _perror(res);
     }
-    CLI_putc('\n');
 }
+
+void cmd_unlink(int argc, char *argv[])
+{
+    FRESULT res;
+
+    if (argc == 1)
+    {
+        /* Attempt to make a directory */
+        res = f_unlink(argv[0]);
+
+        if (res == FR_OK)
+        {
+            CLI_puts("Removed ");
+            CLI_puts(argv[0]);
+            CLI_putc('\n');
+        }
+        else
+        {
+            _perror(res);
+        }
+    }
+}
+
+//*****************************************************************************
+// XMODEM File Transfer Commands
+//*****************************************************************************
 
 void cmd_xmdm(int argc, char *argv[])
 {
@@ -1209,7 +1269,7 @@ void cmd_xmdm(int argc, char *argv[])
         }
         else
         {
-            CLI_printf("Error: %s\n", FSErrorString(res));
+            _perror(res);
         }
     }
     else if (toupper(*argv[0]) == 'S')
@@ -1235,7 +1295,7 @@ void cmd_xmdm(int argc, char *argv[])
         }
         else
         {
-            CLI_printf("%s\n", FSErrorString(res));
+            _perror(res);
         }
     }
     else
