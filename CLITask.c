@@ -115,7 +115,6 @@ typedef struct {
 MK_CMD(ip);
 MK_CMD(mac);
 MK_CMD(sn);
-MK_CMD(smpte);
 MK_CMD(cls);
 MK_CMD(help);
 MK_CMD(about);
@@ -123,51 +122,55 @@ MK_CMD(stop);
 MK_CMD(play);
 MK_CMD(rew);
 MK_CMD(fwd);
-MK_CMD(speed);
-MK_CMD(time);
-MK_CMD(date);
 MK_CMD(cue);
 MK_CMD(store);
 MK_CMD(rtz);
+MK_CMD(speed);
+MK_CMD(smpte);
+MK_CMD(time);
+MK_CMD(date);
 MK_CMD(stat);
 MK_CMD(cfg);
 MK_CMD(dir);
 MK_CMD(cd);
 MK_CMD(cwd);
-MK_CMD(mkdir);
-MK_CMD(unlink);
+MK_CMD(md);
+MK_CMD(ren);
 MK_CMD(del);
+MK_CMD(copy);
 MK_CMD(xmdm);
 
 /* The dispatch table */
 #define CMD(func, help) {#func, cmd_ ## func, help}
 
 cmd_t dispatch[] = {
-    CMD(ip, "Displays IP address"),
-    CMD(mac, "Displays MAC address"),
-    CMD(sn, "Displays serial number"),
-    CMD(smpte, "SMPTE generator {start|stop}"),
-    CMD(cls, "Clear the screen"),
-    CMD(help, "Display this help"),
-    CMD(about, "About the system"),
-    CMD(stop, "Transport STOP mode"),
-    CMD(play, "Transport PLAY {rec} mode"),
-    CMD(rew, "Transport REW {lib} mode"),
-    CMD(fwd, "Transport FWD {lib} mode"),
-    CMD(speed, "Display tape speed"),
-    CMD(time, "Display time"),
-    CMD(date, "Display date"),
-    CMD(cue, "Locator cue {0-9}"),
-    CMD(store, "Locator store {0-9}"),
-    CMD(rtz, "Return to zero"),
-    CMD(stat, "Displays machine status"),
-    CMD(cfg, "Configuration {save|load|reset}"),
-    CMD(dir, "List directory"),
-    CMD(cd, "Change directory"),
-    CMD(cwd, "Display current working dir"),
-    CMD(mkdir, "Make a subdir"),
-    CMD(unlink, "Remove a file or subdir"),
-    CMD(xmdm, "Send/Receive File"),
+    CMD(ip,     "Display IP address"),
+    CMD(mac,    "Display MAC address"),
+    CMD(sn,     "Display serial number"),
+    CMD(cls,    "Clear the screen"),
+    CMD(help,   "Display this help"),
+    CMD(about,  "About the system"),
+    CMD(stop,   "Transport STOP mode"),
+    CMD(play,   "Transport PLAY {rec} mode"),
+    CMD(rew,    "Transport REW {lib} mode"),
+    CMD(fwd,    "Transport FWD {lib} mode"),
+    CMD(cue,    "Transport locator cue {0-9}"),
+    CMD(store,  "Transport locator store {0-9}"),
+    CMD(rtz,    "Transport return to zero"),
+    CMD(speed,  "Tape speed display/set"),
+    CMD(smpte,  "SMPTE generator {start|stop}"),
+    CMD(time,   "Time display/set"),
+    CMD(date,   "Date display/set"),
+    CMD(stat,   "Displays machine status"),
+    CMD(cfg,    "Configuration {save|load|reset}"),
+    CMD(dir,    "List directory"),
+    CMD(cd,     "Change directory"),
+    CMD(cwd,    "Display current working directory"),
+    CMD(md,     "Make a directory"),
+    CMD(ren,    "Rename a file or directory"),
+    CMD(del,    "Remove a file or directory"),
+    CMD(copy,   "Copy a file to a new file"),
+    CMD(xmdm,   "XMODEM send/receive file"),
 };
 
 #define NUM_CMDS    (sizeof(dispatch)/sizeof(cmd_t))
@@ -199,9 +202,10 @@ static int parse_args(char *buf);
 static void parse_cmd(char *buf);
 static bool IsClockRunning(void);
 static char *FSErrorString(int errno);
-static FRESULT _dirlist(char* path);
-static char* _getcwd(void);
 static void _perror(FRESULT res);
+static char* _getcwd(void);
+static FRESULT _dirlist(char* path);
+static FRESULT _checkcmd(FRESULT res);
 
 /*** External Data Items ***/
 extern SYSDAT g_sys;
@@ -266,6 +270,12 @@ Bool CLI_startup(void)
 //
 //*****************************************************************************
 
+void CLI_about(void)
+{
+    CLI_printf("STC-1200 [Version %d.%02d.%03d]\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    CLI_puts("(C) 2021 RTZ Professional Audio. All Rights Reserved.\n");
+}
+
 int CLI_getc(void)
 {
     int ch;
@@ -315,16 +325,25 @@ void CLI_prompt(void)
     CLI_putc('>');
 }
 
-void CLI_about(void)
-{
-    CLI_printf("STC-1200 [Version %d.%02d.%03d]\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("(C) 2021 RTZ Professional Audio. All Rights Reserved.\n");
-}
-
 void CLI_home(void)
 {
     CLI_printf(VT100_HOME);
     CLI_printf(VT100_CLS);
+}
+
+void CLI_crlf(int n)
+{
+    CLI_emit('\n', n);
+}
+
+void CLI_emit(char c, int n)
+{
+    if (n > 0)
+    {
+        do {
+            CLI_putc(c);
+        } while(--n);
+    }
 }
 
 //*****************************************************************************
@@ -496,7 +515,7 @@ bool IsValidDate(struct tm *p)
 }
 
 //*****************************************************************************
-// File System Helper Functions
+// FILE SYSTEM HELPER FUNCTIONS
 //*****************************************************************************
 
 char *FSErrorString(int errno)
@@ -530,24 +549,7 @@ char *FSErrorString(int errno)
     return FSErrorString[errno];
 }
 
-void _perror(FRESULT res)
-{
-    CLI_printf("%s\n", FSErrorString(res));
-}
-
-char* _getcwd(void)
-{
-    FRESULT res;
-
-    res = f_getcwd(s_cwd, sizeof(s_cwd)-1);
-
-    if (res != FR_OK)
-    {
-        s_cwd[0] = 0;
-    }
-
-    return s_cwd;
-}
+/* List files in a directory with time, date, size and file name */
 
 FRESULT _dirlist(char* path)
 {
@@ -629,8 +631,43 @@ FRESULT _dirlist(char* path)
     return res;
 }
 
+/* Update and return the current working directory */
+
+char* _getcwd(void)
+{
+    FRESULT res;
+
+    res = f_getcwd(s_cwd, sizeof(s_cwd)-1);
+
+    if (res != FR_OK)
+    {
+        s_cwd[0] = 0;
+    }
+
+    return s_cwd;
+}
+
+/* Print file system error message */
+
+void _perror(FRESULT res)
+{
+    CLI_printf("%s\n", FSErrorString(res));
+}
+
+/* Acknowledge successful command with new line, or error message */
+
+FRESULT _checkcmd(FRESULT res)
+{
+    if (res == FR_OK)
+        CLI_putc('\n');
+    else
+        _perror(res);
+
+    return res;
+}
+
 //*****************************************************************************
-// CLI Command Handlers
+// BASIC CLI COMMANDS
 //*****************************************************************************
 
 void cmd_help(int argc, char *argv[])
@@ -673,7 +710,7 @@ void cmd_cls(int argc, char *argv[])
 }
 
 //*****************************************************************************
-// General System Commands
+// GENERAL SYSTEM COMMANDS
 //*****************************************************************************
 
 void cmd_sn(int argc, char *argv[])
@@ -749,7 +786,7 @@ void cmd_cfg(int argc, char *argv[])
 }
 
 //*****************************************************************************
-// Tape Transport Commands
+// TAPE TRANSPORT COMMANDS
 //*****************************************************************************
 
 void cmd_stop(int argc, char *argv[])
@@ -964,7 +1001,7 @@ void cmd_smpte(int argc, char *argv[])
 }
 
 //*****************************************************************************
-// Time and Date Commands
+// TIME AND DATE COMMANDS
 //*****************************************************************************
 
 void cmd_time(int argc, char *argv[])
@@ -1134,7 +1171,7 @@ void cmd_date(int argc, char *argv[])
 }
 
 //*****************************************************************************
-// Directory and File System Commands
+// FILE SYSTEM COMMANDS
 //*****************************************************************************
 
 void cmd_dir(int argc, char *argv[])
@@ -1154,6 +1191,11 @@ void cmd_dir(int argc, char *argv[])
     _dirlist(buf);
 }
 
+void cmd_cwd(int argc, char *argv[])
+{
+    CLI_printf("%s\n", _getcwd());
+}
+
 void cmd_cd(int argc, char *argv[])
 {
     FRESULT res;
@@ -1163,12 +1205,10 @@ void cmd_cd(int argc, char *argv[])
         /* Attempt to change to the directory path */
         res = f_chdir(argv[0]);
 
+        /* Read back the current directory we're in */
         _getcwd();
 
-        if (res == FR_OK)
-            CLI_printf("%s\n", s_cwd);
-        else
-            _perror(res);
+        _checkcmd(res);
     }
     else
     {
@@ -1178,12 +1218,7 @@ void cmd_cd(int argc, char *argv[])
     }
 }
 
-void cmd_cwd(int argc, char *argv[])
-{
-    CLI_printf("%s\n", _getcwd());
-}
-
-void cmd_mkdir(int argc, char *argv[])
+void cmd_md(int argc, char *argv[])
 {
     FRESULT res;
 
@@ -1192,14 +1227,24 @@ void cmd_mkdir(int argc, char *argv[])
         /* Attempt to make a directory */
         res = f_mkdir(argv[0]);
 
-        if (res == FR_OK)
-            CLI_printf("%s\n", argv[0]);
-        else
-            _perror(res);
+        _checkcmd(res);
     }
 }
 
-void cmd_unlink(int argc, char *argv[])
+void cmd_ren(int argc, char *argv[])
+{
+    FRESULT res;
+
+    if (argc == 2)
+    {
+        /* Rename/Move a file or directory */
+        res = f_rename(argv[0], argv[1]);
+
+        _checkcmd(res);
+    }
+}
+
+void cmd_del(int argc, char *argv[])
 {
     FRESULT res;
 
@@ -1208,21 +1253,68 @@ void cmd_unlink(int argc, char *argv[])
         /* Attempt to make a directory */
         res = f_unlink(argv[0]);
 
-        if (res == FR_OK)
-        {
-            CLI_puts("Removed ");
-            CLI_puts(argv[0]);
-            CLI_putc('\n');
-        }
-        else
-        {
-            _perror(res);
-        }
+        _checkcmd(res);
     }
 }
 
+void cmd_copy(int argc, char *argv[])
+{
+    FIL fsrc, fdst;     /* File objects */
+    FRESULT res;        /* FatFs function common result code */
+    UINT br, bw;        /* File read/write count */
+    BYTE buffer[256];   /* File copy buffer */
+
+    if (argc != 2)
+    {
+        CLI_printf("Source and destination name are required\n");
+        return;
+    }
+
+    /* Open source file on the drive 1 */
+    res = f_open(&fsrc, argv[0], FA_READ);
+
+    if (res != FR_OK)
+    {
+        _checkcmd(res);
+        return;
+    }
+
+    /* Create destination file on the drive 0 */
+    res = f_open(&fdst, argv[1], FA_WRITE | FA_CREATE_ALWAYS);
+
+    if (res != FR_OK)
+    {
+        f_close(&fsrc);
+        _checkcmd(res);
+        return;
+    }
+
+    CLI_puts("Copying...");
+
+    /* Copy source to destination */
+    for (;;)
+    {
+        /* Read a chunk of data from the source file */
+        res = f_read(&fsrc, buffer, sizeof(buffer), &br);
+
+        if (br == 0)
+            break;      /* error or eof */
+
+        /* Write it to the destination file */
+        res = f_write(&fdst, buffer, br, &bw);
+
+        if (bw < br)
+            break;      /* error or disk full */
+    }
+
+    CLI_puts("done\n");
+
+    f_close(&fsrc);
+    f_close(&fdst);
+}
+
 //*****************************************************************************
-// XMODEM File Transfer Commands
+// XMODEM FILE UPLOAD/DOWNLOAD SUPPORT
 //*****************************************************************************
 
 void cmd_xmdm(int argc, char *argv[])
@@ -1237,7 +1329,7 @@ void cmd_xmdm(int argc, char *argv[])
 
     if (argc != 2)
     {
-        CLI_printf("Usage:\n\n");
+        CLI_printf("XMODEM Usage:\n\n");
         CLI_printf("xmdm s {filename}\t[sends a file]\n");
         CLI_printf("xmdm r {filename}\t[receives a file]\n");
         return;
@@ -1246,7 +1338,7 @@ void cmd_xmdm(int argc, char *argv[])
     if (toupper(*argv[0]) == 'R')
     {
         /* Receive a file */
-        if ((res = f_open(&fp, argv[1], FA_WRITE|FA_CREATE_NEW|FA_CREATE_ALWAYS)) == FR_OK)
+        if ((res = f_open(&fp, argv[1], FA_WRITE|FA_OPEN_ALWAYS)) == FR_OK)
         {
             CLI_printf("XMODEM Receive Ready\n");
 
