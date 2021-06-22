@@ -81,10 +81,6 @@
 #include "STC1200TCP.h"
 #include "TrackConfig.h"
 
-/* Global STC-1200 System data */
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 /* Default AT45DB parameters structure */
 const TRACK_Params TRACK_defaultParams = {
     0,   /* dummy */

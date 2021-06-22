@@ -153,6 +153,11 @@ typedef struct CommandMessage {
 // Function Prototypes
 //*****************************************************************************
 
+/* Global STC-1200 System data */
+extern SYSDAT g_sys;
+extern SYSCFG g_cfg;
+
+/* Function Prototypes */
 int main(void);
 
 int ConfigSave(int level);

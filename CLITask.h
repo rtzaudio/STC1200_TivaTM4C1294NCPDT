@@ -53,6 +53,8 @@ void CLI_printf(const char *fmt, ...);
 void CLI_prompt(void);
 void CLI_emit(char c, int n);
 void CLI_crlf(int n);
+void CLI_home(void);
+void CLI_about(void);
 void CLI_emit(char c, int n);
 Void CLITaskFxn(UArg arg0, UArg arg1);
 

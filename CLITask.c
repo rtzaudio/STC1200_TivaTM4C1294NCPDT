@@ -93,9 +93,6 @@
 #include "RemoteTask.h"
 #include "xmodem.h"
 
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 //*****************************************************************************
 // Type Definitions
 //*****************************************************************************
@@ -200,19 +197,13 @@ static char s_cwd[MAX_PATH] = "\\";
 /*** Function Prototypes ***/
 static int parse_args(char *buf);
 static void parse_cmd(char *buf);
-static bool IsClockRunning(void);
-static char *FSErrorString(int errno);
 static void _perror(FRESULT res);
 static char* _getcwd(void);
 static FRESULT _dirlist(char* path);
 static FRESULT _checkcmd(FRESULT res);
 
-/*** External Data Items ***/
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 //*****************************************************************************
-//
+// Initialize the UART and open the tty serial port.
 //*****************************************************************************
 
 int CLI_init(void)
@@ -244,7 +235,7 @@ int CLI_init(void)
 }
 
 //*****************************************************************************
-//
+// Startup the command line task
 //*****************************************************************************
 
 Bool CLI_startup(void)
@@ -267,7 +258,81 @@ Bool CLI_startup(void)
 }
 
 //*****************************************************************************
-//
+// The main command line interface task.
+//*****************************************************************************
+
+Void CLITaskFxn(UArg arg0, UArg arg1)
+{
+    uint8_t ch;
+    int cnt = 0;
+
+    f_chdir("0://.");
+
+    /* Get the current working directory of the SD drive */
+    _getcwd();
+
+    /* Display initial welcome and prompt */
+    CLI_home();
+    CLI_about();
+    CLI_puts("\nEnter 'help' to view a list valid commands\n");
+    CLI_prompt();
+
+    while (true)
+    {
+        /* Read a character from the console */
+        if (UART_read(s_handleUart, &ch, 1) == 1)
+        {
+            if (ch == CRET)
+            {
+                if (cnt)
+                {
+                    CLI_putc(CRET);
+                    CLI_putc(LF);
+                    /* save command for previous recall */
+                    strcpy(s_cmdprev, s_cmdbuf);
+                    /* parse new command and execute */
+                    parse_cmd(s_cmdbuf);
+                    /* reset the command buffer */
+                    s_cmdbuf[0] = 0;
+                    cnt = 0;
+                }
+                CLI_prompt();
+            }
+            else if (ch == BKSPC)
+            {
+                if (cnt)
+                {
+                    s_cmdbuf[--cnt] = 0;
+                    CLI_putc(BKSPC);
+                    CLI_putc(' ');
+                    CLI_putc(BKSPC);
+                }
+            }
+            else if (ch == CTL_Z)
+            {
+                /* restore previous command */
+                strcpy(s_cmdbuf, s_cmdprev);
+                cnt = strlen(s_cmdbuf);
+                CLI_printf("%s", s_cmdbuf);
+            }
+            else
+            {
+                if (cnt < MAX_CHARS)
+                {
+                    if (isalnum((int)ch) || strchr(s_delim, (int)ch) || (ch == '.') || (ch == '*'))
+                    {
+                        s_cmdbuf[cnt++] = tolower(ch);
+                        s_cmdbuf[cnt] = 0;
+                        CLI_putc((int)ch);
+                    }
+                }
+            }
+        }
+    }
+}
+
+//*****************************************************************************
+// Low level tty interface and helper functions
 //*****************************************************************************
 
 void CLI_about(void)
@@ -350,80 +415,6 @@ void CLI_emit(char c, int n)
 //
 //*****************************************************************************
 
-Void CLITaskFxn(UArg arg0, UArg arg1)
-{
-    uint8_t ch;
-    int cnt = 0;
-
-    f_chdir("0://.");
-
-    /* Get the current working directory of the SD drive */
-    _getcwd();
-
-    /* Display initial welcome and prompt */
-    CLI_home();
-    CLI_about();
-    CLI_puts("\nEnter 'help' to view a list valid commands\n");
-    CLI_prompt();
-
-    while (true)
-    {
-        /* Read a character from the console */
-        if (UART_read(s_handleUart, &ch, 1) == 1)
-        {
-            if (ch == CRET)
-            {
-                if (cnt)
-                {
-                    CLI_putc(CRET);
-                    CLI_putc(LF);
-                    /* save command for previous recall */
-                    strcpy(s_cmdprev, s_cmdbuf);
-                    /* parse new command and execute */
-                    parse_cmd(s_cmdbuf);
-                    /* reset the command buffer */
-                    s_cmdbuf[0] = 0;
-                    cnt = 0;
-                }
-                CLI_prompt();
-            }
-            else if (ch == BKSPC)
-            {
-                if (cnt)
-                {
-                    s_cmdbuf[--cnt] = 0;
-                    CLI_putc(BKSPC);
-                    CLI_putc(' ');
-                    CLI_putc(BKSPC);
-                }
-            }
-            else if (ch == CTL_Z)
-            {
-                /* restore previous command */
-                strcpy(s_cmdbuf, s_cmdprev);
-                cnt = strlen(s_cmdbuf);
-                CLI_printf("%s", s_cmdbuf);
-            }
-            else
-            {
-                if (cnt < MAX_CHARS)
-                {
-                    if (isalnum((int)ch) || strchr(s_delim, (int)ch) || (ch == '.') || (ch == '*'))
-                    {
-                        s_cmdbuf[cnt++] = ch;
-                        s_cmdbuf[cnt] = 0;
-                        CLI_putc((int)ch);
-                    }
-                }
-            }
-        }
-    }
-}
-
-//*****************************************************************************
-//
-//*****************************************************************************
-
 int parse_args(char *buf)
 {
     int argc = 0;
@@ -473,81 +464,8 @@ void parse_cmd(char *buf)
 }
 
 //*****************************************************************************
-// Time/Date Helper Functions
-//*****************************************************************************
-
-bool IsClockRunning(void)
-{
-    bool running = true;
-
-    if (g_sys.rtcFound)
-        running = MCP79410_IsRunning(g_sys.handleRTC);
-
-    if (!running)
-        CLI_printf("clock not running - set time/date first\n");
-
-    return running;
-}
-
-bool IsValidTime(struct tm *p)
-{
-    if (((p->tm_sec < 0) || (p->tm_sec > 59)) ||
-        ((p->tm_min < 0) || (p->tm_min > 59)) ||
-        ((p->tm_hour < 0) || (p->tm_hour > 23)))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-bool IsValidDate(struct tm *p)
-{
-    // Is valid data read?
-    if(((p->tm_mday < 1) || (p->tm_mday > 31)) ||
-       ((p->tm_mon < 0) || (p->tm_mon > 11)) ||
-       ((p->tm_year < 100) || (p->tm_year > 199)))
-    {
-        return false;
-    }
-
-    return true;
-}
-
-//*****************************************************************************
 // FILE SYSTEM HELPER FUNCTIONS
 //*****************************************************************************
-
-char *FSErrorString(int errno)
-{
-    static char* FSErrorString[] = {
-        "Success",
-        "A hard error occurred",
-        "Assertion failed",
-        "Physical drive error",
-        "Could not find the file",
-        "Could not find the path",
-        "The path name format is invalid",
-        "Access denied due to prohibited access or directory full",
-        "Access denied due to prohibited access",
-        "The file/directory object is invalid",
-        "The physical drive is write protected",
-        "The logical drive number is invalid",
-        "The volume has no work area",
-        "There is no valid FAT volume",
-        "The f_mkfs() aborted due to any parameter error",
-        "Could not get a grant to access the volume within defined period",
-        "The operation is rejected according to the file sharing policy",
-        "LFN working buffer could not be allocated",
-        "Too many open files",
-        "Given parameter is invalid"
-    };
-
-    if (errno > sizeof(FSErrorString)/sizeof(char*))
-        return "???";
-
-    return FSErrorString[errno];
-}
 
 /* List files in a directory with time, date, size and file name */
 
@@ -561,7 +479,7 @@ FRESULT _dirlist(char* path)
     /* Open the directory */
     if ((res = f_opendir(&dir, path)) != FR_OK)
     {
-        CLI_printf("%s\n", FSErrorString(res));
+        CLI_printf("%s\n", FS_GetErrorStr(res));
     }
     else
     {
@@ -577,47 +495,18 @@ FRESULT _dirlist(char* path)
             if (fno.fattrib & AM_SYS)
                 continue;
 
+            /* Print the file date */
+            FS_GetDateStr(fno.fdate, buf, sizeof(buf));
+            CLI_puts(buf);
+            CLI_emit(' ', 2);
+
+            FS_GetTimeStr(fno.ftime, buf, sizeof(buf));
+            CLI_puts(buf);
+
             if (fno.fattrib & AM_DIR)
                 sprintf(buf, "%-15s", "<DIR>");
             else
                 sprintf(buf, "%15u", fno.fsize);
-
-            /* 16-Bit Date Bits Format
-             * YYYYYYYMMMMDDDDD
-             *
-             * bit15:9      Year origin from 1980 (0..127)
-             * bit8:5       Month (1..12)
-             * bit4:0       Day (1..31)
-             */
-
-            CLI_printf("%02u/%02u/%04u  ",
-                       (fno.fdate >> 5) & 0x0F,
-                       (fno.fdate >> 0) & 0x1F,
-                      ((fno.fdate >> 9) & 0x7F) + 1980);
-
-            /* 16-Bit Time Format
-             * HHHHHMMMMMMSSSSS
-             *
-             * bit15:11     Hour (0..23)
-             * bit10:5      Minute (0..59)
-             * bit4:0       Second / 2 (0..29)
-             */
-
-            uint32_t hour = (fno.ftime >> 11) & 0x1F;
-
-            bool pm = false;
-
-            if (hour > 12)
-            {
-                hour = hour - 12;
-                pm = true;
-            }
-
-            CLI_printf("%02u:%02u:%02u %s",
-                       hour,
-                       (fno.ftime >> 5) & 0x3F,
-                      ((fno.ftime >> 0) & 0x1F) >> 1,
-                       pm ? "PM" : "AM");
 
             if (fno.lfname)
                 CLI_printf("    %s %s\n", buf, fno.lfname);
@@ -651,7 +540,7 @@ char* _getcwd(void)
 
 void _perror(FRESULT res)
 {
-    CLI_printf("%s\n", FSErrorString(res));
+    CLI_printf("%s\n", FS_GetErrorStr(res));
 }
 
 /* Acknowledge successful command with new line, or error message */
@@ -1016,7 +905,7 @@ void cmd_time(int argc, char *argv[])
 
         if (argc == 0)
         {
-            if (!IsClockRunning())
+            if (!RTC_IsRunning())
                 return;
 
             MCP79410_GetTime(g_sys.handleRTC, &ts);
@@ -1054,7 +943,7 @@ void cmd_time(int argc, char *argv[])
             HibernateCalendarGet(&stime);
 
             // Is valid data read?
-            if (!IsValidTime(&stime))
+            if (!RTC_IsValidTime(&stime))
             {
                 CLI_puts("Time has not been set yet\n");
             }
@@ -1097,7 +986,7 @@ void cmd_date(int argc, char *argv[])
 
         if (argc == 0)
         {
-            if (!IsClockRunning())
+            if (!RTC_IsRunning())
                 return;
 
             MCP79410_GetTime(g_sys.handleRTC, &ts);
@@ -1136,7 +1025,7 @@ void cmd_date(int argc, char *argv[])
             HibernateCalendarGet(&stime);
 
             // Is valid data read?
-            if (!IsValidDate(&stime))
+            if (!RTC_IsValidDate(&stime))
             {
                 CLI_puts("Date has not been set yet\n");
             }
@@ -1326,7 +1215,7 @@ void cmd_copy(int argc, char *argv[])
 }
 
 //*****************************************************************************
-// XMODEM FILE UPLOAD/DOWNLOAD SUPPORT
+// FILE TRANSFER COMMANDS
 //*****************************************************************************
 
 void cmd_xmdm(int argc, char *argv[])

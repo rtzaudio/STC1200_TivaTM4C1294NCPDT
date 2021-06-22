@@ -124,13 +124,13 @@
 
 typedef struct _RTCC_Struct
 {
-    uint8_t sec;
-    uint8_t min;
-    uint8_t hour;
-    uint8_t weekday;
-    uint8_t date;
-    uint8_t month;
-    uint8_t year;
+    uint8_t sec;            /* 0-59 */
+    uint8_t min;            /* 0-59 */
+    uint8_t hour;           /* 0-23 */
+    uint8_t weekday;        /* 1-7  */
+    uint8_t date;           /* 0-30 */
+    uint8_t month;          /* 0-11 */
+    uint8_t year;           /* 0-128 (+2000)*/
 } RTCC_Struct;
 
 typedef enum Alarm {ZERO = 0, ONE} Alarm_t;
