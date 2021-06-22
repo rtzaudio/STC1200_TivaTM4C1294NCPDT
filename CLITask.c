@@ -410,7 +410,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
                 {
                     if (isalnum((int)ch) || strchr(s_delim, (int)ch) || (ch == '.') || (ch == '*'))
                     {
-                        s_cmdbuf[cnt++] = tolower(ch);
+                        s_cmdbuf[cnt++] = ch;
                         s_cmdbuf[cnt] = 0;
                         CLI_putc((int)ch);
                     }
