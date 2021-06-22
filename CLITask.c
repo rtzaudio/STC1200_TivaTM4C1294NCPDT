@@ -256,7 +256,7 @@ Bool CLI_startup(void)
 
     Task_Params_init(&taskParams);
 
-    taskParams.stackSize = 1500;
+    taskParams.stackSize = 3072;
     taskParams.priority  = 11;
     taskParams.arg0      = 0;
     taskParams.arg1      = 0;
@@ -1259,10 +1259,12 @@ void cmd_del(int argc, char *argv[])
 
 void cmd_copy(int argc, char *argv[])
 {
-    FIL fsrc, fdst;     /* File objects */
-    FRESULT res;        /* FatFs function common result code */
-    UINT br, bw;        /* File read/write count */
-    BYTE buffer[256];   /* File copy buffer */
+    FIL fsrc, fdst;
+    FRESULT res;
+    UINT br, bw;
+    BYTE buf[256];
+    char src[128];
+    char dest[128];
 
     if (argc != 2)
     {
@@ -1270,8 +1272,11 @@ void cmd_copy(int argc, char *argv[])
         return;
     }
 
+    strcpy(src, "0:");
+    strncpy(&src[2], argv[0], sizeof(src)-4);
+
     /* Open source file on the drive 1 */
-    res = f_open(&fsrc, argv[0], FA_READ);
+    res = f_open(&fsrc, src, FA_READ);
 
     if (res != FR_OK)
     {
@@ -1279,8 +1284,11 @@ void cmd_copy(int argc, char *argv[])
         return;
     }
 
+    strcpy(dest, "0:");
+    strncpy(&dest[2], argv[1], sizeof(dest)-4);
+
     /* Create destination file on the drive 0 */
-    res = f_open(&fdst, argv[1], FA_WRITE | FA_CREATE_ALWAYS);
+    res = f_open(&fdst, dest, FA_WRITE | FA_CREATE_ALWAYS);
 
     if (res != FR_OK)
     {
@@ -1295,16 +1303,20 @@ void cmd_copy(int argc, char *argv[])
     for (;;)
     {
         /* Read a chunk of data from the source file */
-        res = f_read(&fsrc, buffer, sizeof(buffer), &br);
+        res = f_read(&fsrc, buf, sizeof(buf), &br);
 
         if (br == 0)
             break;      /* error or eof */
 
         /* Write it to the destination file */
-        res = f_write(&fdst, buffer, br, &bw);
+        res = f_write(&fdst, buf, br, &bw);
 
         if (bw < br)
-            break;      /* error or disk full */
+        {
+            /* error or disk full */
+            _checkcmd(res);
+            break;
+        }
     }
 
     CLI_puts("done\n");
