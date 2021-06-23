@@ -345,7 +345,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.tapeSize           = (uint8_t)2;
         stateMsg.searchProgress     = (uint8_t)g_sys.searchProgress;
         stateMsg.searching          = g_sys.searching;
-        stateMsg.monitorFlags       = 0;
+        stateMsg.monitorFlags       = (uint8_t)g_sys.standbyMonitor;
 
         /* Copy the track state info */
         for (i=0; i < STC_MAX_TRACKS; i++)
@@ -760,6 +760,11 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = 0
              */
             Track_ToggleMaskAll((uint8_t)msg.param1.U);
+            notify = true;
+            break;
+
+        case STC_CMD_MONITOR:
+            g_sys.standbyMonitor = (msg.param1.U) ? true : false;
             notify = true;
             break;
 
