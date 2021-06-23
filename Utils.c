@@ -240,10 +240,10 @@ uint32_t FS_GetFatTime(void)
     ftime |= ((uint32_t)ts.hour & 0x1F) << 11;
 
     /* day 5-bits */
-    ftime |= ((uint32_t)ts.date & 0x1F) << 16;
+    ftime |= ((uint32_t)(ts.date + 1) & 0x1F) << 16;
 
     /* month 4-bits */
-    ftime |= ((uint32_t)ts.month & 0x0F) << 21;
+    ftime |= ((uint32_t)(ts.month + 1) & 0x0F) << 21;
 
     /* MCP7940 base year is 2000, and FAT base year is 1980 */
     year = ts.year + (2000 - 1980);
@@ -274,16 +274,6 @@ bool RTC_IsRunning(void)
     return running;
 }
 
-void RTC_GetTimeStr(RTCC_Struct* ts, char *timestr)
-{
-    sprintf(timestr, "%d:%02d:%02d", ts->hour, ts->min, ts->sec);
-}
-
-void RTC_GetDateStr(RTCC_Struct* ts, char *datestr)
-{
-    sprintf(datestr, "%d/%d/%d", ts->month, ts->date, ts->year+2000);
-}
-
 bool RTC_GetDateTime(RTCC_Struct* ts)
 {
     /* Default values if read fails */
@@ -291,9 +281,9 @@ bool RTC_GetDateTime(RTCC_Struct* ts)
     ts->min     = 0;
     ts->hour    = 0;
     ts->weekday = 1;
-    ts->date    = 0;
-    ts->month   = 0;
-    ts->year    = 20;
+    ts->date    = 1;
+    ts->month   = 1;
+    ts->year    = 0;
 
     if (g_sys.rtcFound)
     {
@@ -312,17 +302,22 @@ bool RTC_GetDateTime(RTCC_Struct* ts)
         // Get the latest time.
         HibernateCalendarGet(&stime);
 
-        // Is valid data read?
-        if (!RTC_IsValidTime(&stime))
-             return false;
+        // Is valid time data read?
+        if (((stime.tm_sec < 0) || (stime.tm_sec > 59)) ||
+            ((stime.tm_min < 0) || (stime.tm_min > 59)) ||
+            ((stime.tm_hour < 0) || (stime.tm_hour > 23)))
+        {
+            return false;
+        }
+
+        ts->hour    = (uint8_t)stime.tm_hour;
+        ts->min     = (uint8_t)stime.tm_min;
+        ts->sec     = (uint8_t)stime.tm_sec;
 
         ts->month   = (uint8_t)stime.tm_mon;
         ts->date    = (uint8_t)(stime.tm_mday - 1);
         ts->year    = (uint8_t)(stime.tm_year - (2000 - 1900));
         ts->weekday = (uint8_t)(ts->date % 7) + 1;
-        ts->hour    = (uint8_t)stime.tm_hour;
-        ts->min     = (uint8_t)stime.tm_min;
-        ts->sec     = (uint8_t)stime.tm_sec;
     }
 
     return true;
@@ -350,14 +345,14 @@ bool RTC_SetDateTime(RTCC_Struct* ts)
 
         HibernateCalendarGet(&stime);
 
+        stime.tm_hour = ts->hour;
+        stime.tm_min  = ts->min;
+        stime.tm_sec  = ts->sec;
+
         stime.tm_mon  = ts->month;
         stime.tm_mday = (ts->date + 1);
         stime.tm_year = ts->year + (2000 - 1900);
         stime.tm_wday = ts->date % 7;
-
-        stime.tm_hour = ts->hour;
-        stime.tm_min  = ts->min;
-        stime.tm_sec  = ts->sec;
 
         // Update the calendar logic of hibernation module.
         HibernateCalendarSet(&stime);
@@ -366,27 +361,28 @@ bool RTC_SetDateTime(RTCC_Struct* ts)
     return true;
 }
 
-bool RTC_IsValidTime(struct tm *p)
+void RTC_GetTimeStr(RTCC_Struct* ts, char* timestr)
 {
-    if (((p->tm_sec < 0) || (p->tm_sec > 59)) ||
-        ((p->tm_min < 0) || (p->tm_min > 59)) ||
-        ((p->tm_hour < 0) || (p->tm_hour > 23)))
-    {
+    snprintf(timestr, 9, "%d:%02d:%02d", ts->hour, ts->min, ts->sec);
+}
+
+void RTC_GetDateStr(RTCC_Struct* ts, char* datestr)
+{
+    snprintf(datestr, 11, "%d/%d/%d", ts->month+1, ts->date+1, ts->year+2000);
+}
+
+bool RTC_IsValidTime(RTCC_Struct* ts)
+{
+    if ((ts->sec > 59) || (ts->min > 59) || (ts->hour > 23))
         return false;
-    }
 
     return true;
 }
 
-bool RTC_IsValidDate(struct tm *p)
+bool RTC_IsValidDate(RTCC_Struct* ts)
 {
-    // Is valid data read?
-    if(((p->tm_mday < 1) || (p->tm_mday > 31)) ||
-       ((p->tm_mon < 0) || (p->tm_mon > 11)) ||
-       ((p->tm_year < 100) || (p->tm_year > 199)))
-    {
+    if ((ts->date > 31) || (ts->month > 11) || (ts->year > 199))
         return false;
-    }
 
     return true;
 }

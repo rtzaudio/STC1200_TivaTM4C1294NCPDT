@@ -29,8 +29,8 @@ bool RTC_GetDateTime(RTCC_Struct* ts);
 bool RTC_SetDateTime(RTCC_Struct* ts);
 void RTC_GetTimeStr(RTCC_Struct* ts, char *timestr);
 void RTC_GetDateStr(RTCC_Struct* ts, char *datestr);
-bool RTC_IsValidTime(struct tm *p);
-bool RTC_IsValidDate(struct tm *p);
+bool RTC_IsValidTime(RTCC_Struct* ts);
+bool RTC_IsValidDate(RTCC_Struct* ts);
 
 bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 

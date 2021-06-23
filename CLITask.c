@@ -274,7 +274,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
     /* Display initial welcome and prompt */
     CLI_home();
     CLI_about();
-    CLI_puts("\nEnter 'help' to view list of valid commands\n");
+    CLI_puts("\nEnter 'help' to view a list of valid commands\n");
     CLI_prompt();
 
     while (true)
@@ -915,9 +915,15 @@ void cmd_time(int argc, char *argv[])
         ts.min  = (uint8_t)atoi(argv[1]);
         ts.sec  = (uint8_t)atoi(argv[2]);
 
-        RTC_SetDateTime(&ts);
-
-        CLI_printf("Time set!\n");
+        if (RTC_IsValidTime(&ts))
+        {
+            RTC_SetDateTime(&ts);
+            CLI_printf("Time set!\n");
+        }
+        else
+        {
+            CLI_printf("Invalid time entered\n");
+        }
     }
     else
     {
@@ -936,21 +942,27 @@ void cmd_date(int argc, char *argv[])
 
         RTC_GetDateTime(&ts);
 
-        CLI_printf("Current date: %d/%d/%d\n", ts.month, ts.date, ts.year+2000);
+        CLI_printf("Current date: %d/%d/%d\n", ts.month+1, ts.date+1, ts.year+2000);
     }
     else if (argc == 3)
     {
         /* Get current time/date */
         RTC_GetDateTime(&ts);
 
-        ts.month   = (uint8_t)atoi(argv[0]);
-        ts.date    = (uint8_t)atoi(argv[1]);
+        ts.month   = (uint8_t)(atoi(argv[0]) - 1);
+        ts.date    = (uint8_t)(atoi(argv[1]) - 1);
         ts.year    = (uint8_t)(atoi(argv[2]) - 2000);
         ts.weekday = (uint8_t)((ts.date % 7) + 1);
 
-        RTC_SetDateTime(&ts);
-
-        CLI_printf("Date set!\n");
+        if (RTC_IsValidDate(&ts))
+        {
+            RTC_SetDateTime(&ts);
+            CLI_printf("Date set!\n");
+        }
+        else
+        {
+            CLI_printf("Invalid date entered\n");
+        }
     }
     else
     {
