@@ -318,8 +318,8 @@ bool RTC_GetDateTime(RTCC_Struct* ts)
 
         ts->month   = (uint8_t)stime.tm_mon;
         ts->date    = (uint8_t)(stime.tm_mday - 1);
-        ts->year    = (uint8_t)(stime.tm_year + 1900);
-        ts->weekday = (uint8_t)(ts->date % 7);
+        ts->year    = (uint8_t)(stime.tm_year - (2000 - 1900));
+        ts->weekday = (uint8_t)(ts->date % 7) + 1;
         ts->hour    = (uint8_t)stime.tm_hour;
         ts->min     = (uint8_t)stime.tm_min;
         ts->sec     = (uint8_t)stime.tm_sec;
