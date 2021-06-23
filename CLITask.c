@@ -274,7 +274,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
     /* Display initial welcome and prompt */
     CLI_home();
     CLI_about();
-    CLI_puts("\nEnter 'help' to view a list valid commands\n");
+    CLI_puts("\nEnter 'help' to view list of valid commands\n");
     CLI_prompt();
 
     while (true)
