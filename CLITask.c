@@ -895,167 +895,66 @@ void cmd_smpte(int argc, char *argv[])
 
 void cmd_time(int argc, char *argv[])
 {
-    char timeFmt[] = "Current time: %d:%02d:%02d\n";
-    char timeSet[] = "Time set!\n";
-    char timeAs[]  = "Enter time as: hh:mm:ss\n";
+    RTCC_Struct ts;
 
-    if (g_sys.rtcFound)
+    if (argc == 0)
     {
-        RTCC_Struct ts;
+        if (!RTC_IsRunning())
+            return;
 
-        if (argc == 0)
-        {
-            if (!RTC_IsRunning())
-                return;
+        RTC_GetDateTime(&ts);
 
-            MCP79410_GetTime(g_sys.handleRTC, &ts);
+        CLI_printf("Current time: %d:%02d:%02d\n", ts.hour, ts.min, ts.sec);
+    }
+    else if (argc == 3)
+    {
+        /* Get current time/date */
+        RTC_GetDateTime(&ts);
 
-            CLI_printf(timeFmt, ts.hour, ts.min, ts.sec);
-        }
-        else if (argc == 3)
-        {
-            /* Get current time/date */
-            MCP79410_GetTime(g_sys.handleRTC, &ts);
+        ts.hour = (uint8_t)atoi(argv[0]);
+        ts.min  = (uint8_t)atoi(argv[1]);
+        ts.sec  = (uint8_t)atoi(argv[2]);
 
-            ts.hour    = (uint8_t)atoi(argv[0]);
-            ts.min     = (uint8_t)atoi(argv[1]);
-            ts.sec     = (uint8_t)atoi(argv[2]);
+        RTC_SetDateTime(&ts);
 
-            MCP79410_SetHourFormat(g_sys.handleRTC, H24);                // Set hour format to military time standard
-            MCP79410_EnableVbat(g_sys.handleRTC);                        // Enable battery backup
-            MCP79410_SetTime(g_sys.handleRTC, &ts);
-            MCP79410_EnableOscillator(g_sys.handleRTC);                  // Start clock by enabling oscillator
-
-            CLI_puts(timeSet);
-        }
-        else
-        {
-            CLI_puts(timeAs);
-        }
+        CLI_printf("Time set!\n");
     }
     else
     {
-        struct tm stime;
-
-        if (argc == 0)
-        {
-            // Get the latest time.
-            HibernateCalendarGet(&stime);
-
-            // Is valid data read?
-            if (!RTC_IsValidTime(&stime))
-            {
-                CLI_puts("Time has not been set yet\n");
-            }
-            else
-            {
-                CLI_printf(timeFmt, stime.tm_hour, stime.tm_min, stime.tm_sec);
-            }
-        }
-        else if (argc == 3)
-        {
-            // Get the latest date and time.
-            HibernateCalendarGet(&stime);
-
-            // Set the time values that are to be updated.
-            stime.tm_hour = atoi(argv[0]);
-            stime.tm_min  = atoi(argv[1]);
-            stime.tm_sec  = atoi(argv[2]);
-
-            // Update the calendar logic of hibernation module.
-            HibernateCalendarSet(&stime);
-
-            CLI_puts(timeSet);
-        }
-        else
-        {
-            CLI_puts(timeAs);
-        }
+        CLI_printf("Enter time as: hh:mm:ss\n");
     }
 }
 
 void cmd_date(int argc, char *argv[])
 {
-    char dateFmt[] = "Current date: %d/%d/%d\n";
-    char dateSet[] = "Date set!\n";
-    char dateAs[]  = "Enter date as: mm/dd/yyyy\n";
+    RTCC_Struct ts;
 
-    if (g_sys.rtcFound)
-     {
-        RTCC_Struct ts;
+    if (argc == 0)
+    {
+        if (!RTC_IsRunning())
+            return;
 
-        if (argc == 0)
-        {
-            if (!RTC_IsRunning())
-                return;
+        RTC_GetDateTime(&ts);
 
-            MCP79410_GetTime(g_sys.handleRTC, &ts);
+        CLI_printf("Current date: %d/%d/%d\n", ts.month, ts.date, ts.year+2000);
+    }
+    else if (argc == 3)
+    {
+        /* Get current time/date */
+        RTC_GetDateTime(&ts);
 
-            CLI_printf(dateFmt, ts.month, ts.date, ts.year+2000);
-        }
-        else if (argc == 3)
-        {
-            /* Get current time/date */
-            MCP79410_GetTime(g_sys.handleRTC, &ts);
+        ts.month   = (uint8_t)atoi(argv[0]);
+        ts.date    = (uint8_t)atoi(argv[1]);
+        ts.year    = (uint8_t)(atoi(argv[2]) - 2000);
+        ts.weekday = (uint8_t)((ts.date % 7) + 1);
 
-            ts.month   = (uint8_t)atoi(argv[0]);
-            ts.date    = (uint8_t)atoi(argv[1]);
-            ts.year    = (uint8_t)(atoi(argv[2]) - 2000);
-            ts.weekday = (uint8_t)((ts.date % 7) + 1);
+        RTC_SetDateTime(&ts);
 
-            MCP79410_SetHourFormat(g_sys.handleRTC, H24);                // Set hour format to military time standard
-            MCP79410_EnableVbat(g_sys.handleRTC);                        // Enable battery backup
-            MCP79410_SetTime(g_sys.handleRTC, &ts);
-            MCP79410_EnableOscillator(g_sys.handleRTC);                  // Start clock by enabling oscillator
-
-            CLI_puts(dateSet);
-        }
-        else
-        {
-            CLI_puts(dateAs);
-        }
-     }
+        CLI_printf("Date set!\n");
+    }
     else
     {
-        struct tm stime;
-
-        if (argc == 0)
-        {
-            // Get the latest time.
-            HibernateCalendarGet(&stime);
-
-            // Is valid data read?
-            if (!RTC_IsValidDate(&stime))
-            {
-                CLI_puts("Date has not been set yet\n");
-            }
-            else
-            {
-                CLI_printf(dateFmt,
-                           stime.tm_mon,
-                           stime.tm_mday,
-                           stime.tm_year + 1900);
-            }
-        }
-        else if (argc == 3)
-        {
-            // Get the latest date and time.
-            HibernateCalendarGet(&stime);
-
-            // Set the date values that are to be updated.
-            stime.tm_mon  = atoi(argv[0]);
-            stime.tm_mday = atoi(argv[1]);
-            stime.tm_year = atoi(argv[2]) - 1900;
-
-            // Update the calendar logic of hibernation module.
-            HibernateCalendarSet(&stime);
-
-            CLI_puts(dateSet);
-        }
-        else
-        {
-            CLI_puts(dateAs);
-        }
+        CLI_printf("Enter date as: mm/dd/yyyy\n");
     }
 }
 
