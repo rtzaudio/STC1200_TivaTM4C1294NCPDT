@@ -201,6 +201,7 @@ static void _perror(FRESULT res);
 static char* _getcwd(void);
 static FRESULT _dirlist(char* path);
 static FRESULT _checkcmd(FRESULT res);
+static void _fmt_commas(uint32_t n, char *out);
 
 //*****************************************************************************
 // Initialize the UART and open the tty serial port.
@@ -467,13 +468,44 @@ void parse_cmd(char *buf)
 // FILE SYSTEM HELPER FUNCTIONS
 //*****************************************************************************
 
+void _fmt_commas(uint32_t n, char *out)
+{
+    int c;
+    char buf[32];
+    char *p;
+
+    sprintf(buf, "%u", n);
+
+    c = 2 - strlen(buf) % 3;
+
+    for (p=buf; *p != 0; p++)
+    {
+       *out++ = *p;
+
+       if (c == 1)
+           *out++ = ',';
+
+       c = (c + 1) % 3;
+    }
+
+    *--out = 0;
+}
+
 /* List files in a directory with time, date, size and file name */
 
 FRESULT _dirlist(char* path)
 {
     FRESULT res;
     DIR dir;
-    static char buf[_MAX_LFN];
+    uint32_t numdirs = 0L;
+    uint32_t numfiles = 0L;
+    uint32_t bytes = 0L;
+    FATFS *fs;
+    DWORD fre_clust;
+    DWORD fre_sect;
+    DWORD tot_sect;
+    char buf[_MAX_LFN];
+    char tmp[32];
     static FILINFO fno;
 
     /* Open the directory */
@@ -495,6 +527,8 @@ FRESULT _dirlist(char* path)
             if (fno.fattrib & AM_SYS)
                 continue;
 
+            bytes += (uint64_t)fno.fsize;
+
             /* Print the file date */
             FS_GetDateStr(fno.fdate, buf, sizeof(buf));
             CLI_puts(buf);
@@ -504,9 +538,16 @@ FRESULT _dirlist(char* path)
             CLI_puts(buf);
 
             if (fno.fattrib & AM_DIR)
+            {
                 sprintf(buf, "%-15s", "<DIR>");
+                ++numdirs;
+            }
             else
-                sprintf(buf, "%15u", fno.fsize);
+            {
+                _fmt_commas(fno.fsize, tmp);
+                sprintf(buf, "%15s", tmp);
+                ++numfiles;
+            }
 
             if (fno.lfname)
                 CLI_printf("    %s %s\n", buf, fno.lfname);
@@ -515,6 +556,35 @@ FRESULT _dirlist(char* path)
         }
 
         f_closedir(&dir);
+
+        sprintf(buf, "\n\t%8d File(s)", numfiles);
+        CLI_puts(buf);
+
+        _fmt_commas(bytes, tmp);
+        sprintf(buf, "  %s bytes\n", tmp);
+        CLI_puts(buf);
+
+        sprintf(buf, "\t%8d Dir(s)", numdirs);
+        CLI_puts(buf);
+
+        /* Get volume information and free clusters of drive 1 */
+        if ((res = f_getfree("0:", &fre_clust, &fs)) == FR_OK)
+        {
+            /* Get total sectors and free sectors */
+            tot_sect = (fs->n_fatent - 2) * fs->csize;
+            fre_sect = fre_clust * fs->csize;
+
+            _fmt_commas(fre_sect/2, tmp);
+            sprintf(buf, "  %s bytes free\n", tmp);
+            CLI_puts(buf);
+
+            /* Print the free space (assuming 512 bytes/sector) */
+            //CLI_printf("%10lu KiB total drive space\n", tot_sect/2);
+        }
+        else
+        {
+            CLI_putc('\n');
+        }
     }
 
     return res;
