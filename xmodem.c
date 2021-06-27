@@ -89,7 +89,7 @@
 #define PKT_SIZE_1K 1024
 
 #define NUM_TRIES   21
-#define DEBUG       1
+#define DEBUG_XMDM  1
 
 /* ASCII codes used in the protocol. */
 #define NUL         0x00
@@ -225,7 +225,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
 
     /* Send a 'C' out and look for a SOH reply */
 
-    status = XMODEM_NO_REPLY;
+    status = XMODEM_NO_RESPONSE;
 
     for (try=0; try < 10; try++)
     {
@@ -255,11 +255,10 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
 
     if (status == XMODEM_SUCCESS)
     {
-#if DEBUG
+#if DEBUG_XMDM
         System_printf("Got SOH!\n");
         System_flush();
 #endif
-        crc = 0;
         try = 0;
 
         while(true)
@@ -281,7 +280,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
                 /* Check for end of transmission */
                 if (c == EOT)
                 {
-#if DEBUG
+#if DEBUG_XMDM
                     System_printf("EOT!\n");
                     System_flush();
 #endif
@@ -294,7 +293,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
                 /* Check for user abort */
                 if (c == CAN)
                 {
-#if DEBUG
+#if DEBUG_XMDM
                     System_printf("CAN!\n");
                     System_flush();
 #endif
@@ -306,7 +305,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
 
                 if (c != SOH)
                 {
-#if DEBUG
+#if DEBUG_XMDM
                     System_printf("MISSING SOH - GOT %2x!\n", c);
                     System_flush();
 #endif
@@ -325,7 +324,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             /* Attempt to read block number */
             if ((c = uart_getc(handle, 3)) == -1)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("BLKNUM!\n");
                 System_flush();
 #endif
@@ -340,7 +339,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             /* Attempt to read inverse block number */
             if ((c = uart_getc(handle, 3)) == -1)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("NBLKNUM!\n");
                 System_flush();
 #endif
@@ -355,7 +354,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             /* Check block numbers match */
             if (b != (255 - d))
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("CBLKNUM!\n");
                 System_flush();
 #endif
@@ -367,6 +366,8 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
                 ++try;
                 continue;
             }
+
+            crc = 0;
 
             for (i=0; i < 128; i++)
             {
@@ -383,7 +384,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             /* Did we get a whole packet? */
             if (i != 128)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("SHORT BLOCKS %d!\n", i);
                 System_flush();
 #endif
@@ -396,7 +397,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             /* Read CRC high byte word */
             if ((c = uart_getc(handle, 3)) == -1)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("MSB!\n");
                 System_flush();
 #endif
@@ -413,7 +414,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             /* Read CRC low byte word */
             if ((c = uart_getc(handle, 3)) == -1)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("LSB!\n");
                 System_flush();
 #endif
@@ -429,10 +430,9 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
 
             rx_crc = (msb << 8) | lsb;
 
-#if 0
             if (crc != rx_crc)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("CRC ERR BLOCK %d!\n", blknum);
                 System_flush();
 #endif
@@ -443,11 +443,11 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
                 ++try;
                 continue;
             }
-#endif
+
             /* Write the block to disk */
             if ((res =  xmodem_write_block(fp, xmodem_buff, 128)) != FR_OK)
             {
-#if DEBUG
+#if DEBUG_XMDM
                 System_printf("FILE WRITE ERR %d!\n", res);
                 System_flush();
 #endif
@@ -459,7 +459,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
                 status = XMODEM_FILE_WRITE;
                 break;
             }
-#if DEBUG
+#if DEBUG_XMDM
             System_printf("ACK BLOCK %d!\n", blknum);
             System_flush();
 #endif
@@ -477,7 +477,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
         }
     }
 
-#if DEBUG
+#if DEBUG_XMDM
     System_printf("EXIT XMDM %d!\n", blknum);
     System_flush();
 #endif
@@ -492,7 +492,194 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
 
 int xmodem_send(UART_Handle handle, FIL* fp)
 {
-    int status = 0;
+    int i;
+    int c;
+    int retry;
+    bool lastblock;
+    bool crcmode = false;
+    int status = XMODEM_NO_RESPONSE;
+    uint32_t bytesRead = 0;
+    uint16_t crc = 0;
+    uint8_t csum = 0;
+    uint8_t blknum = 1;
+    FRESULT res;
+
+    for (retry=0; retry < 20; retry++)
+    {
+        /* Wait for a byte of data. */
+        if ((c = uart_getc(handle, 3)) == UART_ERROR)
+        {
+            continue;
+        }
+
+        /* Check for user aborting */
+        if ((c == EOT) || (c == CAN))
+        {
+#if DEBUG_XMDM
+            System_printf("Send Canceled\n", blknum);
+            System_flush();
+#endif
+            status = XMODEM_CANCEL;
+            break;
+        }
+
+        if (c == NAK)
+        {
+#if DEBUG_XMDM
+            System_printf("Checksum Mode Requested\n");
+            System_flush();
+#endif
+            status = XMODEM_SUCCESS;
+            break;
+        }
+
+        /* Start of header received, start reading packet */
+        if (c == 'C')
+        {
+#if DEBUG_XMDM
+            System_printf("CRC Mode Requested\n", blknum);
+            System_flush();
+#endif
+            crcmode = TRUE;
+            status = XMODEM_SUCCESS;
+            break;
+        }
+    }
+
+    if (status == XMODEM_SUCCESS)
+    {
+        retry = 0;
+        bytesRead = 0;
+
+        while(true)
+        {
+            if (++retry > 5)
+            {
+#if DEBUG_XMDM
+                System_printf("Too Many Resends, aborting...\n", blknum);
+                System_flush();
+#endif
+
+                uart_putc(handle, CAN);
+                uart_putc(handle, CAN);
+                uart_putc(handle, CAN);
+                status = XMODEM_MAX_RETRIES;
+                break;
+            }
+
+            lastblock = false;
+
+            if (retry == 1)
+            {
+                memset(xmodem_buff, 0x1A, sizeof(xmodem_buff));
+
+                if ((res = f_read(fp, xmodem_buff, 128, &bytesRead)) != FR_OK)
+                {
+                    status = XMODEM_FILE_READ;
+                    break;
+                }
+
+                if (bytesRead < 128)
+                    lastblock = true;
+            }
+
+            crc = 0;
+            csum = 0;
+
+            uart_putc(handle, SOH);
+            uart_putc(handle, blknum);
+            uart_putc(handle, 255 - blknum);
+
+            for (i=0; i < 128; i++)
+            {
+                /* send a byte out */
+                uart_putc(handle, xmodem_buff[i]);
+
+                /* Sum the byte into the CRC */
+                crc = xmodem_crc(crc, xmodem_buff[i]);
+
+                /* Sum the checksum */
+                csum += xmodem_buff[i];
+            }
+
+            if (crcmode)
+            {
+                /* Send CRC MSB */
+                uart_putc(handle, (uint8_t)((crc >> 8) & 0xFF));
+                /* Send CRC LSB */
+                uart_putc(handle, (uint8_t)(crc & 0xFF));
+            }
+            else
+            {
+                /* Send checksum */
+                uart_putc(handle, (uint8_t)(csum & 0xFF));
+            }
+
+            /* Wait for ACK or NAK */
+            if ((c = uart_getc(handle, 3)) == UART_ERROR)
+            {
+                /* Missing ACK/NAK, try again */
+                status = XMODEM_TIMEOUT;
+                continue;
+            }
+
+            /* If NAK, then loop and retry sending the current block */
+            if (c == NAK)
+            {
+                continue;
+            }
+
+            /* If user canceled, then exit send */
+            if ((c == EOT) || (c == CAN))
+            {
+                status = XMODEM_CANCEL;
+                break;
+            }
+
+            if (c == ACK)
+            {
+                if (!lastblock)
+                {
+                    ++blknum;
+                    retry = 0;
+                    continue;
+                }
+            }
+
+            if (lastblock)
+            {
+#if DEBUG_XMDM
+                System_printf("Last block sent, sending EOT\n");
+                System_flush();
+#endif
+                /* The last block of the file was sent. Now send an EOT
+                 * to indicate the transmission is complete. The
+                 * receiver should ACK back to confirm the EOT.
+                 */
+                uart_putc(handle, EOT);
+
+                /* Try to read back a response from EOT */
+                if ((c = uart_getc(handle, 3)) == UART_ERROR)
+                {
+                    status = XMODEM_TIMEOUT;
+                    break;
+                }
+
+                /* If ACK, the receiver has acknowledged the end
+                 * of the transmission successfully.
+                 */
+                if (c == ACK)
+                {
+#if DEBUG_XMDM
+                    System_printf("EOT Acknowledged\n");
+                    System_flush();
+#endif
+                    status = XMODEM_SUCCESS;
+                }
+                break;
+            }
+        }
+    }
 
     return status;
 }
