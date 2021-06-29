@@ -86,6 +86,7 @@
 #include "Board.h"
 #include "Utils.h"
 #include "CLITask.h"
+#include "PositionTask.h"
 #include "SMPTE.h"
 #include "RAMPMessage.h"
 #include "IPCMessage.h"
@@ -122,6 +123,7 @@ MK_CMD(fwd);
 MK_CMD(cue);
 MK_CMD(store);
 MK_CMD(rtz);
+MK_CMD(zero);
 MK_CMD(speed);
 MK_CMD(smpte);
 MK_CMD(time);
@@ -154,6 +156,7 @@ cmd_t dispatch[] = {
     CMD(cue,    "Transport locator cue {0-9}"),
     CMD(store,  "Transport locator store {0-9}"),
     CMD(rtz,    "Transport return to zero"),
+    CMD(zero,   "Tape time counter zero reset"),
     CMD(speed,  "Tape speed display/set"),
     CMD(smpte,  "SMPTE generator {start|stop}"),
     CMD(time,   "Time display/set"),
@@ -807,6 +810,11 @@ void cmd_speed(int argc, char *argv[])
 void cmd_rtz(int argc, char *argv[])
 {
     LocateSearch(CUE_POINT_HOME, 0);
+}
+
+void cmd_zero(int argc, char *argv[])
+{
+    PositionZeroReset();
 }
 
 void cmd_cue(int argc, char *argv[])

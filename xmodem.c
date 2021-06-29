@@ -89,7 +89,7 @@
 #define PKT_SIZE_1K 1024
 
 #define NUM_TRIES   21
-#define DEBUG_XMDM  1
+#define DEBUG_XMDM  0
 
 /* ASCII codes used in the protocol. */
 #define NUL         0x00
@@ -485,7 +485,6 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
     return status;
 }
 
-
 /*
  * Send a file using the XMODEM protocol.
  */
@@ -529,18 +528,19 @@ int xmodem_send(UART_Handle handle, FIL* fp)
             System_printf("Checksum Mode Requested\n");
             System_flush();
 #endif
+            crcmode = false;
             status = XMODEM_SUCCESS;
             break;
         }
 
-        /* Start of header received, start reading packet */
+        /* Start of header received, start sending packet */
         if (c == 'C')
         {
 #if DEBUG_XMDM
             System_printf("CRC Mode Requested\n", blknum);
             System_flush();
 #endif
-            crcmode = TRUE;
+            crcmode = true;
             status = XMODEM_SUCCESS;
             break;
         }

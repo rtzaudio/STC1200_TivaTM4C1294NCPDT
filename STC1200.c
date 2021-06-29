@@ -457,7 +457,7 @@ void Init_Application(void)
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 1024;
-    taskParams.priority  = 10;
+    taskParams.priority  = 12;
     Task_create((Task_FuncPtr)PositionTaskFxn, &taskParams, &eb);
 
     Error_init(&eb);
