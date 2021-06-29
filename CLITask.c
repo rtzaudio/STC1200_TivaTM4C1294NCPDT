@@ -703,7 +703,7 @@ void cmd_stat(int argc, char *argv[])
     CLI_printf("  Tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
     CLI_printf("  Tape roller errors : %u\n", g_sys.qei_error_cnt);
     CLI_printf("  Encoder position   : %d\n", g_sys.tapePosition);
-    CLI_printf("  Tape Speed         : %d IPS\n", g_cfg.tapeSpeed);
+    CLI_printf("  Tape Speed         : %d IPS\n", g_sys.tapeSpeed);
     CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC ext" : "cpu");
     CLI_printf("  DCS controller     : ");
     if (g_sys.dcsFound)
