@@ -765,6 +765,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_MONITOR:
             g_sys.standbyMonitor = (msg.param1.U) ? true : false;
+            /* Enable standby monitor mode for all tracks */
+            Track_StandbyTransfer(g_sys.standbyMonitor);
             notify = true;
             break;
 
