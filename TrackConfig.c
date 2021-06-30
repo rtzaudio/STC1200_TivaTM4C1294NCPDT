@@ -392,4 +392,25 @@ bool Track_ToggleMaskAll(uint8_t flags)
     return true;
 }
 
+bool Track_StandbyTransfer(bool enable)
+{
+    size_t i;
+
+    for (i=0; i < MAX_TRACKS; i++)
+    {
+        if (g_sys.trackState[i] & STC_T_MONITOR)
+        {
+            if (enable)
+                g_sys.trackState[i] |= STC_T_STANDBY;
+            else
+                g_sys.trackState[i] &= ~(STC_T_STANDBY);
+        }
+    }
+
+    /* Update DCS channel switcher states */
+    Track_ApplyAllStates(g_sys.trackState);
+
+    return true;
+}
+
 /* End-Of-File */

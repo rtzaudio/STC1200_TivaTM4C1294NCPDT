@@ -56,5 +56,6 @@ bool Track_SetAll(uint8_t mode, uint8_t flags);
 bool Track_SetModeAll(uint8_t setmode);
 bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 bool Track_ToggleMaskAll(uint8_t flags);
+bool Track_StandbyTransfer(bool enable);
 
 #endif /* _TRACKCONFIG_H_ */

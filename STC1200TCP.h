@@ -154,9 +154,10 @@ typedef struct _STC_STATE_MSG {
 #define STC_TRACK_MASK      0x07        /* low 3-bits are track mode  */
 
 /* Upper bits indicate ready/record state */
-#define STC_T_MONITOR       0x20        /* track standby monitor mode */
-#define STC_T_RECORD        0x40        /* track is recording now     */
-#define STC_T_READY         0x80        /* track is armed for record  */
+#define STC_T_STANDBY       0x10        /* standby monitor active flag */
+#define STC_T_MONITOR       0x20        /* standby monitor enable      */
+#define STC_T_RECORD        0x40        /* track record active flag    */
+#define STC_T_READY         0x80        /* track arm/ready for record  */
 
 /* STC_STATE_MSG.cueState[n] cue memory state bit flags. These
  * indicate the state of the 10 locator buttons associated with 
