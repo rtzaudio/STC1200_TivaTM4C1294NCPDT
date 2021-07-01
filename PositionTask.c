@@ -91,6 +91,7 @@
 
 #include "STC1200.h"
 #include "Board.h"
+#include "IPCMessage.h"
 
 /* External Data Items */
 
@@ -105,7 +106,25 @@ static Hwi_Struct qeiHwiStruct;
 void QEI_initialize(void);
 void Write7SegDisplay(UART_Handle handle, TAPETIME* p);
 
+static void StandbyModeEnter(void);
+static void StandbyModeLeave(void);
 static Void QEIHwi(UArg arg);
+
+/*****************************************************************************
+ * These handlers are called whenever the transport enters or leaves standby
+ * mode. Standby mode enters the enabled state whenever the transport is in
+ * stop mode and any reel motion comes to a stop.
+ *****************************************************************************/
+
+void StandbyModeEnter(void)
+{
+
+}
+
+void StandbyModeLeave(void)
+{
+
+}
 
 /*****************************************************************************
  * Reset the QEI position to ZERO.
@@ -282,7 +301,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
     	/* Wait for any ISR events to be posted */
-    	UInt events = Event_pend(g_sys.handleEventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 10);
+    	UInt events = Event_pend(g_sys.handleEventQEI, Event_Id_NONE, Event_Id_00 | Event_Id_01, 5);
 
     	/* not used */
     	if (events & Event_Id_00)
@@ -331,7 +350,6 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     	}
     	else
     	{
-
 			/* Position Changed - Update the previous position */
 			g_sys.tapePositionPrev = g_sys.tapePosition;
 
@@ -351,12 +369,58 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
 			/* Signal the TCP worker thread that position has changed */
             Event_post(g_eventTransport, Event_Id_00);
-
-	    	//System_printf("%d\n", g_sysData.tapePosition);
-	    	//System_flush();
     	}
 
-    	if (++rcount >= 10)
+    	/* This looks for all motion to be stopped whenever the transport is in
+    	 * stop mode. Once tape stops, we determine if we need to switch the
+    	 * any tracks to standby monitor mode (eg, input mode).
+    	 */
+
+    	if (g_sys.standbyMonitor)
+        {
+    	    /* Check transport in stop mode? */
+            if ((g_sys.transportMode & MODE_MASK) == MODE_STOP)
+            {
+                /* Wait until no motion */
+                if (g_sys.tapeTach == 0)
+                {
+                    /* If we were not already in standby mode,
+                     * then switch to standby mode now.
+                     */
+                    if (!g_sys.standbyActive)
+                    {
+                        /* Enter standby mode */
+                        g_sys.standbyActive = true;
+                        /* Call standby enter mode handler */
+                        StandbyModeEnter();
+                    }
+                }
+            }
+            else
+            {
+                if (g_sys.standbyActive)
+                {
+                    /* Exit standby mode */
+                    g_sys.standbyActive = false;
+                    /* Call standby leave mode handler */
+                    StandbyModeLeave();
+                }
+            }
+        }
+    	else
+    	{
+            if (g_sys.standbyActive)
+            {
+                /* Exit standby mode */
+                g_sys.standbyActive = false;
+                /* Call standby leave mode handler */
+                StandbyModeLeave();
+            }
+    	}
+
+    	/* Check if time to refresh the 7-segment display on the machine */
+
+    	if (++rcount >= 20)
     	{
     		rcount = 0;
 

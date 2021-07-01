@@ -134,7 +134,8 @@ typedef struct _SYSDAT
     TRACK_Handle    handleDCS;
     bool            dcsFound;                   /* true if DCS-1200 found     */
     bool            smpteFound;                 /* true if SMPTE card found   */
-    bool            standbyMonitor;
+    bool            standbyMonitor;             /* standby monitor enable     */
+    bool            standbyActive;              /* true if standby mode active*/
 } SYSDAT;
 
 //*****************************************************************************

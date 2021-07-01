@@ -152,10 +152,12 @@ int main(void)
     memset(g_sys.ui8SerialNumber, 0xFF, 16);
     memset(g_sys.ui8MAC, 0xFF, 6);
 
-    g_sys.rtcFound      = false;
-    g_sys.dcsFound      = false;
-    g_sys.smpteFound    = false;
-    g_sys.varispeedMode = false;
+    g_sys.rtcFound       = false;
+    g_sys.dcsFound       = false;
+    g_sys.smpteFound     = false;
+    g_sys.varispeedMode  = false;
+    g_sys.standbyActive  = false;
+    g_sys.standbyMonitor = false;
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
