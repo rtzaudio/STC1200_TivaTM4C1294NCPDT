@@ -153,6 +153,7 @@ int main(void)
     memset(g_sys.ui8MAC, 0xFF, 6);
 
     g_sys.rtcFound      = false;
+    g_sys.dcsFound      = false;
     g_sys.smpteFound    = false;
     g_sys.varispeedMode = false;
 
@@ -426,19 +427,25 @@ void Init_Application(void)
         SMPTE_generator_stop();
     }
 
-    /* Get number of tracks DCS is configured for */
-    if (Track_GetCount(&g_sys.trackCount))
+    /* Get number of tracks DCS is configured for. Note DIP
+     * switch #1 must be on to enable using the track controller.
+     */
+    if (GPIO_read(Board_DIPSW_CFG1))
     {
-        /* Set flag indicating we have a working DCS */
-        g_sys.dcsFound = true;
+        /* Attempt to read track configuration from DCS */
+        if (Track_GetCount(&g_sys.trackCount))
+        {
+            /* Set flag indicating we have a working DCS */
+            g_sys.dcsFound = true;
 
-        /* Set transport tape speed */
-        Track_SetTapeSpeed(g_cfg.tapeSpeed);
+            /* Set transport tape speed */
+            Track_SetTapeSpeed(g_cfg.tapeSpeed);
 
-        /* Set all track states */
-        memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+            /* Set all track states */
+            memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
 
-        Track_ApplyAllStates(g_cfg.trackState);
+            Track_ApplyAllStates(g_cfg.trackState);
+        }
     }
 
     /* Startup the debug console task */

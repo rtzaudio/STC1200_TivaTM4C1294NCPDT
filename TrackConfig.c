@@ -154,17 +154,15 @@ int TRACK_Command(TRACK_Handle handle,
     IPC_FCB txFCB;
     IArg key;
 
-    /* DIP switch 1 must be on to use track controller */
-    if (GPIO_read(Board_DIPSW_CFG1) != 0)
-        return IPC_ERR_TIMEOUT;
+    /* Skip talking to DCS if it wasn't found at startup */
+    if (!g_sys.dcsFound)
+        return 0;
 
     key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
 
-    /* Set message only op-code and message length */
-    //msg.hdr.opcode = DCS_OP_SET_TRACKS;
-   // msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACKS);
-
-    /* Setup FCB for message only type frame */
+    /* Setup FCB for message only type frame. The request and
+     * reply message lengths must already be set by caller.
+     */
     txFCB.type   = IPC_MAKETYPE(0, IPC_MSG_ONLY);
     txFCB.seqnum = s_seqnum;
     txFCB.acknak = 0;
