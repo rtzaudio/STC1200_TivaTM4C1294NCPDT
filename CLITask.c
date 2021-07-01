@@ -252,7 +252,7 @@ Bool CLI_startup(void)
     Task_Params_init(&taskParams);
 
     taskParams.stackSize = 3072;
-    taskParams.priority  = 11;
+    taskParams.priority  = 10;
     taskParams.arg0      = 0;
     taskParams.arg1      = 0;
 
@@ -589,6 +589,8 @@ FRESULT _dirlist(char* path)
             CLI_putc('\n');
         }
     }
+
+    (void)tot_sect;
 
     return res;
 }
