@@ -563,7 +563,7 @@ int SysParamsRead(SYSCFG* sp)
 // Helper Functions
 //*****************************************************************************
 
-#if 0
+#if 1
 int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
 {
     char *p = textbuf;

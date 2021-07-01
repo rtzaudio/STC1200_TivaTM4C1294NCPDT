@@ -158,6 +158,7 @@ int main(void)
     g_sys.varispeedMode  = false;
     g_sys.standbyActive  = false;
     g_sys.standbyMonitor = false;
+    g_sys.trackCount     = 0;
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();
@@ -434,16 +435,20 @@ void Init_Application(void)
      */
     if (GPIO_read(Board_DIPSW_CFG1))
     {
-        /* Attempt to read track configuration from DCS */
-        if (Track_GetCount(&g_sys.trackCount))
-        {
-            /* Set flag indicating we have a working DCS */
-            g_sys.dcsFound = true;
+        /* Assume we have a working DCS for now */
+        g_sys.dcsFound = true;
 
+        /* Attempt to read track configuration from DCS */
+        if (!Track_GetCount(&g_sys.trackCount))
+        {
+            g_sys.dcsFound = false;
+        }
+        else
+        {
             /* Set transport tape speed */
             Track_SetTapeSpeed(g_cfg.tapeSpeed);
 
-            /* Set all track states */
+            /* Set all track states from EEPROM config */
             memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
 
             Track_ApplyAllStates(g_cfg.trackState);

@@ -694,8 +694,8 @@ void cmd_mac(int argc, char *argv[])
 {
     char mac[32];
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-            g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
-            g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
+            g_sys.ui8MAC[5], g_sys.ui8MAC[4], g_sys.ui8MAC[3],
+            g_sys.ui8MAC[2], g_sys.ui8MAC[1], g_sys.ui8MAC[0]);
     CLI_printf("%s\n", mac);
 }
 
@@ -706,7 +706,7 @@ void cmd_stat(int argc, char *argv[])
     CLI_printf("  Tape roller errors : %u\n", g_sys.qei_error_cnt);
     CLI_printf("  Encoder position   : %d\n", g_sys.tapePosition);
     CLI_printf("  Tape Speed         : %d IPS\n", g_sys.tapeSpeed);
-    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC ext" : "cpu");
+    CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC" : "CPU");
     CLI_printf("  DCS controller     : ");
     if (g_sys.dcsFound)
         CLI_printf("%d track\n", g_sys.trackCount);
