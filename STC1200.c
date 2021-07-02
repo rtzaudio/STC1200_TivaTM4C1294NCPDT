@@ -433,7 +433,7 @@ void Init_Application(void)
     /* Get number of tracks DCS is configured for. Note DIP
      * switch #1 must be on to enable using the track controller.
      */
-    if (GPIO_read(Board_DIPSW_CFG1))
+    if (GPIO_read(Board_DIPSW_CFG1) == 0)
     {
         /* Assume we have a working DCS for now */
         g_sys.dcsFound = true;
