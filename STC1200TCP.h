@@ -118,6 +118,10 @@ typedef struct _STC_STATE_MSG {
     uint8_t     searchProgress;         /* search progress 0-100%     */
     uint8_t     searching;              /* true if search in progress */
     uint8_t     monitorFlags;           /* monitor mode flags         */
+    uint8_t     trackCount;
+    uint8_t     reserved1;
+    uint8_t     reserved2;
+    uint8_t     reserved3;
     uint8_t     trackState[STC_MAX_TRACKS];
     uint8_t     cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;

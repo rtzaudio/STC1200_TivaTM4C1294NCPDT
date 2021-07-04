@@ -346,6 +346,10 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.searchProgress     = (uint8_t)g_sys.searchProgress;
         stateMsg.searching          = g_sys.searching;
         stateMsg.monitorFlags       = (uint8_t)g_sys.standbyMonitor;
+        stateMsg.trackCount         = (uint8_t)g_sys.trackCount;
+        stateMsg.reserved1          = 0;
+        stateMsg.reserved2          = 0;
+        stateMsg.reserved3          = 0;
 
         /* Copy the track state info */
         for (i=0; i < STC_MAX_TRACKS; i++)
