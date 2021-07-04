@@ -248,6 +248,7 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
         Task_Params_init(&taskParams);
         taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
+        taskParams.priority  = 5;
 
         taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
 
@@ -452,6 +453,7 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
         Task_Params_init(&taskParams);
         taskParams.arg0      = (UArg)clientfd;
         taskParams.stackSize = 1280;
+        taskParams.priority  = 5;
 
         taskHandle = Task_create((Task_FuncPtr)tcpCommandWorker, &taskParams, &eb);
 
