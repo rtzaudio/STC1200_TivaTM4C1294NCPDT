@@ -732,6 +732,11 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             notify = TRUE;
             break;
 
+        case STC_CMD_TRACK_GET_COUNT:
+            msg.param1.U = g_sys.trackCount;
+            msg.param2.U = g_sys.dcsFound;
+            break;
+
         case STC_CMD_TRACK_SET_STATE:
             /* param1: index or -1 for all tracks
              * param2: track state bits
@@ -816,7 +821,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         bytesSent =  WriteData(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0);
 
-        if (bytesSent < 0)
+        if (bytesSent <= 0)
         {
             System_printf("Error: TCP write error %d.\n", bytesSent);
             connected = false;

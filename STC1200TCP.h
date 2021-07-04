@@ -275,5 +275,6 @@ typedef struct _STC_COMMAND_HDR {
 #define STC_CMD_TAPE_SPEED_SET      22  /* param1=30/15, param2=0          */
 #define STC_CMD_CONFIG_SET          23  /* param1 0=load, 1=store, 2=reset */
 #define STC_CMD_MONITOR             24  /* param1 0=off, 1=standby mon     */
+#define STC_CMD_TRACK_GET_COUNT     25  /* number of tracks from DCS or 0  */
 
 #pragma pack(pop)
