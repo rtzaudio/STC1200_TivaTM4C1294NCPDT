@@ -29,6 +29,25 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 2.00 (07/05/2021) ==============================================
+
+This build includes changes for DRCWIN enhancements and upgrades. This
+release requires DRCWIN 2.0 or higher, previous versions of DRCWIN are not
+compatible with STC-1200 v2.0. The command line interface has been greatly
+enhanced and includes commands to view files and directories on the
+SD drive. Support for the upcoming DCS (digital channel switcher) with
+DRCWIN has also been added.
+ 
+A new version of the bootloader that supports flashing firmware updates 
+directly from the SD drive is also included, but a JTAG programmer is 
+required to flash the bootloader. Please contact us for options if needed.
+THe BOOT and RESET button sequence initiates the firmware update from SD.
+
+New commands are also included in the command line interface to download 
+files directly to the SD drive via TeraTerm using xmodem. Or, you can 
+remove the SD card and copy the new firmware image file to the SD drive 
+on another computer. 
+
 === VERSION 1.14 (02/27/2021) ==============================================
 
 This build includes a number of fixes and minor changes to support DRCWIN
