@@ -10,8 +10,8 @@
  *
  ***************************************************************************/
 
-#ifndef _TRACKCONFIG_H_
-#define _TRACKCONFIG_H_
+#ifndef _TRACKCTRL_H_
+#define _TRACKCTRL_H_
 
 #include "..\DCS1200_TivaTM4C123AE6PM2\IPCDCS.h"
 
@@ -28,11 +28,15 @@ typedef struct TRACK_Params {
 typedef struct TRACK_Object {
     UART_Handle         uartHandle;
     GateMutex_Struct    gate;
+    uint8_t             seqnum;
 } TRACK_Object;
 
 typedef TRACK_Object *TRACK_Handle;
 
 /*** FUNCTION PROTOTYPES ***************************************************/
+
+bool TRACK_Manaager_startup(void);
+bool TRACK_Manaager_standby(bool enable);
 
 TRACK_Handle TRACK_construct(TRACK_Object *obj, UART_Handle uartHandle,
                              TRACK_Params *params);
@@ -58,4 +62,4 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 bool Track_ToggleMaskAll(uint8_t flags);
 bool Track_StandbyTransfer(bool enable);
 
-#endif /* _TRACKCONFIG_H_ */
+#endif /* _TRACKCTRL_H_ */

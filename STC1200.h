@@ -15,7 +15,7 @@
 
 #include "PositionTask.h"
 #include "LocateTask.h"
-#include "TrackConfig.h"
+#include "TrackCtrl.h"
 #include "MCP79410.h"
 #include "AD9837.h"
 
@@ -32,7 +32,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        2           /* firmware version */
-#define FIRMWARE_REV        0           /* firmware revision */
+#define FIRMWARE_REV        1           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 

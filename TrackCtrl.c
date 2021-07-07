@@ -73,20 +73,130 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <TrackCtrl.h>
 
 /* STC1200 Board Header file */
 #include "STC1200.h"
 #include "Board.h"
 #include "IPCFrame.h"
 #include "STC1200TCP.h"
-#include "TrackConfig.h"
 
 /* Default AT45DB parameters structure */
 const TRACK_Params TRACK_defaultParams = {
     0,   /* dummy */
 };
 
-static uint8_t s_seqnum = IPC_MIN_SEQ;
+static Mailbox_Handle s_mailboxStandby;
+
+//static uint8_t s_seqnum = IPC_MIN_SEQ;
+
+/* Static Function Prototypes */
+Void StandbySwitcherFxn(UArg arg0, UArg arg1);
+
+//*****************************************************************************
+// Track Manager Initialization
+//*****************************************************************************
+
+bool TRACK_Manager_startup(void)
+{
+    Error_Block eb;
+    UART_Params uartParams;
+    Task_Params taskParams;
+    Mailbox_Params mboxParams;
+
+    UART_Params_init(&uartParams);
+    uartParams.readMode       = UART_MODE_BLOCKING;
+    uartParams.writeMode      = UART_MODE_BLOCKING;
+    uartParams.readTimeout    = 1000;                   // 1 second read timeout
+    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
+    uartParams.readCallback   = NULL;
+    uartParams.writeCallback  = NULL;
+    uartParams.readReturnMode = UART_RETURN_FULL;
+    uartParams.writeDataMode  = UART_DATA_BINARY;
+    uartParams.readDataMode   = UART_DATA_BINARY;
+    uartParams.readEcho       = UART_ECHO_OFF;
+    uartParams.baudRate       = 115200;
+    uartParams.stopBits       = UART_STOP_ONE;
+    uartParams.parityType     = UART_PAR_NONE;
+
+    if ((g_sys.handleUartDCS = UART_open(Board_UART_RS232_COM2, &uartParams)) == NULL)
+    {
+        return false;
+    }
+
+    if ((g_sys.handleDCS = TRACK_create(g_sys.handleUartDCS, NULL)) == NULL)
+    {
+        UART_close(g_sys.handleUartDCS);
+        return false;
+    }
+
+    /* Create mailbox to trigger standby monitor switching */
+
+    Error_init(&eb);
+    Mailbox_Params_init(&mboxParams);
+
+    if ((s_mailboxStandby = Mailbox_create(sizeof(uint8_t), 16, &mboxParams, &eb)) == NULL)
+    {
+        TRACK_delete(g_sys.handleDCS);
+        UART_close(g_sys.handleUartDCS);
+        return false;
+    }
+
+    /* Create the track manager standby switcher task */
+
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 5;
+
+    if (Task_create((Task_FuncPtr)StandbySwitcherFxn, &taskParams, &eb) == NULL)
+    {
+        TRACK_delete(g_sys.handleDCS);
+        UART_close(g_sys.handleUartDCS);
+        return false;
+    }
+
+    return true;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+bool TRACK_Manaager_standby(bool enable)
+{
+    uint8_t cmd = (uint8_t)enable;
+
+    return Mailbox_post(s_mailboxStandby, &cmd, BIOS_NO_WAIT);
+}
+
+//*****************************************************************************
+// Track Controller Construction/Destruction
+//*****************************************************************************
+
+Void StandbySwitcherFxn(UArg arg0, UArg arg1)
+{
+    uint8_t cmd;
+
+    while(true)
+    {
+        /* Wait for a message up to 1 second */
+        if (!Mailbox_pend(s_mailboxStandby, &cmd, 1000))
+            continue;
+
+        switch(cmd)
+        {
+        case 0:
+            Track_StandbyTransfer(false);
+            break;
+
+        case 1:
+            Track_StandbyTransfer(true);
+            break;
+        }
+    }
+}
 
 //*****************************************************************************
 // Track Controller Construction/Destruction
@@ -97,6 +207,7 @@ TRACK_Handle TRACK_construct(TRACK_Object *obj, UART_Handle uartHandle,
 {
     /* Initialize the object's fields */
     obj->uartHandle = uartHandle;
+    obj->seqnum     = IPC_MIN_SEQ;
 
     GateMutex_construct(&(obj->gate), NULL);
 
@@ -164,7 +275,7 @@ int TRACK_Command(TRACK_Handle handle,
      * reply message lengths must already be set by caller.
      */
     txFCB.type   = IPC_MAKETYPE(0, IPC_MSG_ONLY);
-    txFCB.seqnum = s_seqnum;
+    txFCB.seqnum = handle->seqnum;
     txFCB.acknak = 0;
 
     /* Send IPC command/data to track controller */
@@ -178,7 +289,7 @@ int TRACK_Command(TRACK_Handle handle,
         if (rc == IPC_ERR_SUCCESS)
         {
             /* increment sequence number on reply */
-            s_seqnum = IPC_INC_SEQ(s_seqnum);
+            handle->seqnum = IPC_INC_SEQ(handle->seqnum);
         }
         else
         {

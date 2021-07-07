@@ -92,11 +92,7 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "IPCMessage.h"
-
-/* External Data Items */
-
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
+#include "TrackCtrl.h"
 
 /* Static Data Items */
 static Hwi_Struct qeiHwiStruct;
@@ -118,12 +114,12 @@ static Void QEIHwi(UArg arg);
 
 void StandbyModeEnter(void)
 {
-
+    //TRACK_Manaager_standby(true);
 }
 
 void StandbyModeLeave(void)
 {
-
+    //TRACK_Manaager_standby(false);
 }
 
 /*****************************************************************************
@@ -255,6 +251,7 @@ void TapeTimeToSeconds(TAPETIME* p, float* time)
 
 Void PositionTaskFxn(UArg arg0, UArg arg1)
 {
+    uint8_t mode;
 	uint32_t rcount = 0;
 	UART_Params uartParams;
 	UART_Handle uartHandle;
@@ -373,13 +370,16 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
 
     	/* This looks for all motion to be stopped whenever the transport is in
     	 * stop mode. Once tape stops, we determine if we need to switch the
-    	 * any tracks to standby monitor mode (eg, input mode).
+    	 * any tracks to standby monitor(input) mode or back to sync/repro mode.
     	 */
 
     	if (g_sys.standbyMonitor)
         {
+    	    /* Get the current transport mode */
+    	    mode = g_sys.transportMode & MODE_MASK;
+
     	    /* Check transport in stop mode? */
-            if ((g_sys.transportMode & MODE_MASK) == MODE_STOP)
+            if ((mode == MODE_STOP) || (mode == MODE_HALT) || (mode == MODE_THREAD))
             {
                 /* Wait until no motion */
                 if (g_sys.tapeTach == 0)
