@@ -119,6 +119,8 @@ bool TRACK_Manager_startup(void)
     uartParams.stopBits       = UART_STOP_ONE;
     uartParams.parityType     = UART_PAR_NONE;
 
+    /* Open COM2 for digital channel switcher control (DCS-1200) */
+
     if ((g_sys.handleUartDCS = UART_open(Board_UART_RS232_COM2, &uartParams)) == NULL)
     {
         return false;
@@ -148,7 +150,7 @@ bool TRACK_Manager_startup(void)
     Task_Params_init(&taskParams);
 
     taskParams.stackSize = 1024;
-    taskParams.priority  = 5;
+    taskParams.priority  = 8;
 
     if (Task_create((Task_FuncPtr)StandbySwitcherFxn, &taskParams, &eb) == NULL)
     {
@@ -164,7 +166,7 @@ bool TRACK_Manager_startup(void)
 //
 //*****************************************************************************
 
-bool TRACK_Manaager_standby(bool enable)
+bool TRACK_Manager_standby(bool enable)
 {
     uint8_t cmd = (uint8_t)enable;
 
@@ -182,7 +184,7 @@ Void StandbySwitcherFxn(UArg arg0, UArg arg1)
     while(true)
     {
         /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(s_mailboxStandby, &cmd, 1000))
+        if (!Mailbox_pend(s_mailboxStandby, &cmd, BIOS_WAIT_FOREVER))
             continue;
 
         switch(cmd)
@@ -423,6 +425,8 @@ bool Track_SetState(size_t track, uint8_t trackState)
 
     Track_ApplyState(track, trackState);
 
+    Event_post(g_eventTransport, Event_Id_03);
+
     return true;
 }
 
@@ -435,6 +439,8 @@ bool Track_SetAll(uint8_t mode, uint8_t flags)
 
     /* Update DCS channel switcher states */
     Track_ApplyAllStates(g_sys.trackState);
+
+    Event_post(g_eventTransport, Event_Id_03);
 
     return true;
 }
@@ -453,6 +459,8 @@ bool Track_SetModeAll(uint8_t mode)
 
     /* Update DCS channel switcher states */
     Track_ApplyAllStates(g_sys.trackState);
+
+    Event_post(g_eventTransport, Event_Id_03);
 
     return true;
 }
@@ -478,6 +486,8 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask)
     /* Update DCS channel switcher states */
     Track_ApplyAllStates(g_sys.trackState);
 
+    Event_post(g_eventTransport, Event_Id_03);
+
     return true;
 }
 
@@ -497,6 +507,8 @@ bool Track_ToggleMaskAll(uint8_t flags)
 
     /* Update DCS channel switcher states */
     Track_ApplyAllStates(g_sys.trackState);
+
+    Event_post(g_eventTransport, Event_Id_03);
 
     return true;
 }
@@ -518,6 +530,8 @@ bool Track_StandbyTransfer(bool enable)
 
     /* Update DCS channel switcher states */
     Track_ApplyAllStates(g_sys.trackState);
+
+    Event_post(g_eventTransport, Event_Id_03);
 
     return true;
 }

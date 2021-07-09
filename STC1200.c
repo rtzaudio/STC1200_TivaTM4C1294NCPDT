@@ -106,6 +106,7 @@
 #include "CLITask.h"
 #include "Utils.h"
 #include "SMPTE.h"
+#include "TrackCtrl.h"
 
 /* Enable div-clock output if non-zero */
 #define DIV_CLOCK_ENABLED	0
@@ -301,7 +302,7 @@ void Init_Hardware()
 void Init_Peripherals(void)
 {
     SDSPI_Params sdParams;
-    UART_Params uartParams;
+    //UART_Params uartParams;
     I2C_Params  i2cParams;
 
     /*-----------------------------------------------------------*/
@@ -361,33 +362,6 @@ void Init_Peripherals(void)
     {
         System_abort("Failed to open SDSPI!");
     }
-
-    /*-----------------------------------------------------------*/
-    /* Open COM2 for digital channel switcher control (DCS-1200) */
-    /*-----------------------------------------------------------*/
-
-    UART_Params_init(&uartParams);
-
-    uartParams.readMode       = UART_MODE_BLOCKING;
-    uartParams.writeMode      = UART_MODE_BLOCKING;
-    uartParams.readTimeout    = 1000;                   // 1 second read timeout
-    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
-    uartParams.readCallback   = NULL;
-    uartParams.writeCallback  = NULL;
-    uartParams.readReturnMode = UART_RETURN_FULL;
-    uartParams.writeDataMode  = UART_DATA_BINARY;
-    uartParams.readDataMode   = UART_DATA_BINARY;
-    uartParams.readEcho       = UART_ECHO_OFF;
-    uartParams.baudRate       = 115200;
-    uartParams.stopBits       = UART_STOP_ONE;
-    uartParams.parityType     = UART_PAR_NONE;
-
-    if ((g_sys.handleUartDCS = UART_open(Board_UART_RS232_COM2, &uartParams)) == NULL)
-    {
-        System_abort("Error initializing UART\n");
-    }
-
-    g_sys.handleDCS = TRACK_create(g_sys.handleUartDCS, NULL);
 }
 
 //*****************************************************************************
@@ -435,6 +409,9 @@ void Init_Application(void)
      */
     if (GPIO_read(Board_DIPSW_CFG1) == 0)
     {
+        /* Startup the track manager task */
+        TRACK_Manager_startup();
+
         /* Assume we have a working DCS for now */
         g_sys.dcsFound = true;
 

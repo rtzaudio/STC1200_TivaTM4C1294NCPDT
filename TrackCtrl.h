@@ -35,8 +35,8 @@ typedef TRACK_Object *TRACK_Handle;
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
-bool TRACK_Manaager_startup(void);
-bool TRACK_Manaager_standby(bool enable);
+bool TRACK_Manager_startup(void);
+bool TRACK_Manager_standby(bool enable);
 
 TRACK_Handle TRACK_construct(TRACK_Object *obj, UART_Handle uartHandle,
                              TRACK_Params *params);
@@ -61,5 +61,6 @@ bool Track_SetModeAll(uint8_t setmode);
 bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 bool Track_ToggleMaskAll(uint8_t flags);
 bool Track_StandbyTransfer(bool enable);
+
 
 #endif /* _TRACKCTRL_H_ */

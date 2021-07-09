@@ -114,12 +114,12 @@ static Void QEIHwi(UArg arg);
 
 void StandbyModeEnter(void)
 {
-    //TRACK_Manaager_standby(true);
+    TRACK_Manager_standby(true);
 }
 
 void StandbyModeLeave(void)
 {
-    //TRACK_Manaager_standby(false);
+    TRACK_Manager_standby(false);
 }
 
 /*****************************************************************************

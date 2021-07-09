@@ -747,7 +747,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
                 Track_SetAll((uint8_t)msg.param2.U, 0);
             else
                 Track_SetState((size_t)msg.param1.U, (uint8_t)msg.param2.U);
-            notify = true;
             break;
 
         case STC_CMD_TRACK_MASK_ALL:
@@ -755,7 +754,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = clear mask
              */
             Track_MaskAll((uint8_t)msg.param1.U, (uint8_t)msg.param2.U);
-            notify = true;
             break;
 
         case STC_CMD_TRACK_MODE_ALL:
@@ -763,7 +761,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = 0
              */
             Track_SetModeAll((uint8_t)msg.param1.U);
-            notify = true;
             break;
 
         case STC_CMD_TRACK_TOGGLE_ALL:
@@ -771,13 +768,11 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
              * param2 = 0
              */
             Track_ToggleMaskAll((uint8_t)msg.param1.U);
-            notify = true;
             break;
 
         case STC_CMD_MONITOR:
-            g_sys.standbyMonitor = (msg.param1.U) ? true : false;
             /* Enable standby monitor mode for all tracks */
-            Track_StandbyTransfer(g_sys.standbyMonitor);
+            g_sys.standbyMonitor = (msg.param1.U) ? true : false;
             notify = true;
             break;
 
