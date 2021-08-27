@@ -169,6 +169,12 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
          * transport mode (stop, play, etc).
          */
         g_sys.transportMode = msg->param1.U;
+
+        if (g_sys.transportMode & M_RECORD)
+            g_sys.ledMaskTransport |= L_REC;
+        else
+            g_sys.ledMaskTransport &= ~(L_REC);
+
         break;
     }
 
