@@ -86,7 +86,7 @@ const TRACK_Params TRACK_defaultParams = {
     0,   /* dummy */
 };
 
-static Mailbox_Handle s_mailboxStandby;
+static Mailbox_Handle s_mailboxStandby = NULL;
 
 //static uint8_t s_seqnum = IPC_MIN_SEQ;
 
@@ -168,9 +168,17 @@ bool TRACK_Manager_startup(void)
 
 bool TRACK_Manager_standby(bool enable)
 {
-    uint8_t cmd = (uint8_t)enable;
+    if (s_mailboxStandby)
+    {
 
-    return Mailbox_post(s_mailboxStandby, &cmd, BIOS_NO_WAIT);
+        uint8_t cmd = (uint8_t)enable;
+
+        return Mailbox_post(s_mailboxStandby, &cmd, BIOS_NO_WAIT);
+    }
+    else
+    {
+        return false;
+    }
 }
 
 //*****************************************************************************
