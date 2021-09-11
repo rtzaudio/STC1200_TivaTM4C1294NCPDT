@@ -29,6 +29,11 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 2.01 (09/11/2021) ==============================================
+
+This build fixes a bug that caused the STC to hang when the standby monitor
+was enabled and no DCS-1200 controller is present/found.
+
 === VERSION 2.00 (07/05/2021) ==============================================
 
 This build includes changes for DRCWIN enhancements and upgrades. This
