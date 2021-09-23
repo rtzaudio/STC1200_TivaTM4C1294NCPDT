@@ -32,7 +32,8 @@ web and download free from TI.
 === VERSION 2.01 (09/11/2021) ==============================================
 
 This build fixes a bug that caused the STC to hang when the standby monitor
-was enabled and no DCS-1200 controller is present/found.
+was enabled and no DCS-1200 controller is present/found. Enhanced STAT
+command in CLI.
 
 === VERSION 2.00 (07/05/2021) ==============================================
 
