@@ -89,6 +89,7 @@
 #include "PositionTask.h"
 #include "SMPTE.h"
 #include "RAMPMessage.h"
+#include "IPCServer.h"
 #include "IPCMessage.h"
 #include "IPCCommands.h"
 #include "RemoteTask.h"
@@ -205,6 +206,8 @@ static char* _getcwd(void);
 static FRESULT _dirlist(char* path);
 static FRESULT _checkcmd(FRESULT res);
 static void _fmt_commas(uint32_t n, char *out);
+
+extern IPCSVR_OBJECT g_ipc;
 
 //*****************************************************************************
 // Initialize the UART and open the tty serial port.
@@ -701,22 +704,38 @@ void cmd_mac(int argc, char *argv[])
 
 void cmd_stat(int argc, char *argv[])
 {
+    /* Show basic system status */
     CLI_printf("\nSystem Status\n\n");
     CLI_printf("  Tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
     CLI_printf("  Tape roller errors : %u\n", g_sys.qei_error_cnt);
     CLI_printf("  Encoder position   : %d\n", g_sys.tapePosition);
     CLI_printf("  Tape Speed         : %d IPS\n", g_sys.tapeSpeed);
     CLI_printf("  RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC" : "CPU");
+
+    /* Show if DCS controller found or not */
     CLI_printf("  DCS controller     : ");
     if (g_sys.dcsFound)
         CLI_printf("%d track\n", g_sys.trackCount);
     else
         CLI_printf("(n/a)\n");
+
+    /* Show if SMPT controller found or not */
     CLI_printf("  SMPTE controller   : ");
     if (g_sys.smpteFound)
-        CLI_printf("found\n", g_sys.trackCount);
+        CLI_printf("found\n");
     else
         CLI_printf("(n/a)\n");
+
+    /* Show IPC Server Status */
+    CLI_printf("\nIPC Server\n");
+    CLI_printf("  Rx Errors      : %d\n", g_ipc.rxErrors);
+    CLI_printf("  Rx Count       : %d\n", g_ipc.rxCount);
+    CLI_printf("  Rx Num Free    : %d\n", g_ipc.rxNumFreeMsgs);
+    CLI_printf("  Rx Last Seq    : %d\n", g_ipc.rxLastSeq);
+    CLI_printf("  Rx ExpectedSeq : %d\n", g_ipc.rxExpectedSeq);
+    CLI_printf("  Tx Count       : %d\n", g_ipc.txCount);
+    CLI_printf("  Tx Num Free    : %d\n", g_ipc.txNumFreeMsgs);
+    CLI_printf("  Tx Next Seq    : %d\n", g_ipc.txNextSeq);
 }
 
 void cmd_cfg(int argc, char *argv[])

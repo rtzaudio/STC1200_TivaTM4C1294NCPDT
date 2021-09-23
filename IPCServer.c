@@ -81,7 +81,7 @@
 #include "Board.h"
 
 /* Global Data Items */
-static IPCSVR_OBJECT g_ipc;
+IPCSVR_OBJECT g_ipc;
 
 /* Static Function Prototypes */
 static Void IPCReaderTaskFxn(UArg a0, UArg a1);
