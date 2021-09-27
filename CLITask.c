@@ -222,7 +222,7 @@ int CLI_init(void)
     uartParams.readMode       = UART_MODE_BLOCKING;
     uartParams.writeMode      = UART_MODE_BLOCKING;
     uartParams.readTimeout    = 1000;                   // 1 second read timeout
-    uartParams.writeTimeout   = BIOS_WAIT_FOREVER;
+    uartParams.writeTimeout   = 5000;
     uartParams.readCallback   = NULL;
     uartParams.writeCallback  = NULL;
     uartParams.readReturnMode = UART_RETURN_FULL;
@@ -712,6 +712,7 @@ void cmd_stat(int argc, char *argv[])
     CLI_printf("Tape Speed         : %d IPS\n", g_sys.tapeSpeed);
     CLI_printf("RTC clock type     : %s\n", (g_sys.rtcFound) ? "RTC" : "CPU");
     CLI_printf("IPC rx errors      : %d\n", g_ipc.rxErrors);
+    CLI_printf("Standby Mon Active : %c\n", (g_sys.standbyActive) ? '1' : '0');
 
     /* Show if DCS controller found or not */
     CLI_printf("DCS controller     : ");
@@ -719,9 +720,6 @@ void cmd_stat(int argc, char *argv[])
         CLI_printf("%d track\n", g_sys.trackCount);
     else
         CLI_printf("(n/a)\n");
-
-    /* Show standby monitor state */
-    CLI_printf("Standby Mon Active : %c\n", (g_sys.standbyActive) ? '1' : '0');
 
     /* Show if SMPT controller found or not */
     CLI_printf("SMPTE controller   : ");

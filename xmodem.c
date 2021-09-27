@@ -114,9 +114,9 @@ uint32_t            xmodem_size;
  * Serial Interface Functions
  ******************************************************************************/
 
-static void uart_putc(UART_Handle handle, uint8_t ch)
+static int uart_putc(UART_Handle handle, uint8_t ch)
 {
-    UART_write(handle, &ch, 1);
+    return UART_write(handle, &ch, 1);
 }
 
 static void uart_flush(UART_Handle handle)
@@ -385,7 +385,7 @@ int xmodem_receive(UART_Handle handle, FIL* fp)
             if (i != 128)
             {
 #if DEBUG_XMDM
-                System_printf("SHORT BLOCKS %d!\n", i);
+                System_printf("SHORT BLOCK %d!\n", i);
                 System_flush();
 #endif
                 /* NAK to get sender to send again */

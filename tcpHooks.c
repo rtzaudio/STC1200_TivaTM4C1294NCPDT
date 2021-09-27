@@ -288,7 +288,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     size_t      i;
     bool        connected = true;
 
-    static STC_STATE_MSG stateMsg;
+    STC_STATE_MSG stateMsg;
 
     System_printf("tcpStateWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();

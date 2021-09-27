@@ -919,7 +919,7 @@ const UART_Config UART_config[] = {
 #include <ti/drivers/uart/UARTTiva.h>
 
 UARTTiva_Object uartTivaObjects[STC1200_UARTCOUNT];
-unsigned char uartTivaRingBuffer[STC1200_UARTCOUNT][32];
+unsigned char uartTivaRingBuffer[STC1200_UARTCOUNT][128];
 
 /* UART configuration structure */
 const UARTTiva_HWAttrs uartTivaHWAttrs[STC1200_UARTCOUNT] = {
