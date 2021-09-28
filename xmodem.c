@@ -1,46 +1,44 @@
-/*
- * XMODEM	Simple XMODEM file transfer driver, implementing several
- *		variations of the X/MODEM protocol.  The code was written
- *		with the 10/14/88 version of Forsberg's specification in
- *		hand.  It is believed to be a correct implementation.
+/* ============================================================================
  *
- *		The YMODEM support code (which is used by YMODEM and the
- *		XMODEM-Batch variations of the protocol) is not always
- *		needed, so it can be disabled.
+ * DTC-1200 & STC-1200 Digital Transport Controllers for
+ * Ampex MM-1200 Tape Machines
  *
- * TODO:	Test with timeouts, and see if we can automate the choice
- *		of protocol in the receiver.  As Forsberg suggests, we 
- *		can send out C's for a while, and, if that fails, switch
- *		to NAK's for the basic protocol.
+ * Copyright (C) 2016-2020, RTZ Professional Audio, LLC
+ * All Rights Reserved
  *
- * Version:	@(#)xmodem.c	1.0.1	2007/12/02
+ * RTZ is registered trademark of RTZ Professional Audio, LLC
  *
- * Author:	Fred N. van Kempen, <fred.van.kempen@microwalt.nl>
+ * ============================================================================
  *
- *		Copyright 2007 MicroWalt Corporation.
- *		All Rights Reserved.
+ * Copyright (c) 2014, Texas Instruments Incorporated
+ * All rights reserved.
  *
- *		This  program  or  documentation  contains  proprietary
- *		confidential information and trade secrets of MicroWalt
- *		Corporation.  Reverse  engineering of  object  code  is
- *		prohibited.  Use of copyright  notice is  precautionary
- *		and does not imply publication.  Any  unauthorized use,
- *		reproduction  or transfer  of this program  is strictly
- *		prohibited.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- *		RESTRICTED RIGHTS NOTICE
+ * *  Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- *		Use, duplication, or disclosure  by the U.S. Government
- *		is subject to restrictions as set  forth in subdivision
- *		(b)(3)(ii) of the Rights in Technical Data and Computer
- *		Software clause at 252.227-7013.
+ * *  Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- *		MicroWalt Corporation
- *		P O BOX 8
- *		1400AA, BUSSUM, NH
- *		THE NETHERLANDS
- *		PH:  +31 (35) 7503090
- *		FAX: +31 (35) 7503091
+ * *  Neither the name of Texas Instruments Incorporated nor the names of
+ *    its contributors may be used to endorse or promote products derived
+ *    from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 /* XDCtools Header files */
@@ -121,6 +119,7 @@ static int uart_putc(UART_Handle handle, uint8_t ch)
 
 static void uart_flush(UART_Handle handle)
 {
+#if 0
     int n;
     uint8_t ch;
 
@@ -131,6 +130,7 @@ static void uart_flush(UART_Handle handle)
         if (n == UART_ERROR)
             break;
     }
+#endif
 }
 
 static int uart_getc(UART_Handle handle, int secs)
