@@ -119,7 +119,6 @@ static int uart_putc(UART_Handle handle, uint8_t ch)
 
 static void uart_flush(UART_Handle handle)
 {
-#if 0
     int n;
     uint8_t ch;
 
@@ -127,10 +126,9 @@ static void uart_flush(UART_Handle handle)
     {
         n = UART_read(handle, &ch, 1);
 
-        if (n == UART_ERROR)
+        if (n != 1)
             break;
     }
-#endif
 }
 
 static int uart_getc(UART_Handle handle, int secs)
