@@ -512,7 +512,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
         /* Attempt to read a message header */
         bytesRcvd = ReadData(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0);
 
-        if (bytesRcvd < 0)
+        if (bytesRcvd <= 0)
         {
             System_printf("Error: TCP read error %d.\n", bytesRcvd);
             connected = FALSE;
