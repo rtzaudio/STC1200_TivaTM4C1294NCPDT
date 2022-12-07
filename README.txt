@@ -29,6 +29,11 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 2.02 (10/03/2021) ==============================================
+
+This build fixes a couple bugs with the the TCP/IP interface and DRCWIN.
+All DRCWIN users should apply this version to fix bug issues.
+
 === VERSION 2.01 (09/11/2021) ==============================================
 
 This build fixes a bug that caused the STC to hang when the standby monitor
