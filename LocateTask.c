@@ -106,9 +106,9 @@
 typedef enum _LocateState {
     STATE_START_STATE,
     STATE_BEGIN_SHUTTLE,
-    STATE_SHUTTLE_FAR,
-    STATE_SHUTTLE_MID,
-    STATE_SHUTTLE_NEAR,
+    STATE_SEARCH_FAR,
+    STATE_SEARCH_MID,
+    STATE_SEARCH_NEAR,
     STATE_BRAKE_STATE,
     STATE_BRAKE_VELOCITY,
     STATE_PAST_ZERO,
@@ -576,7 +576,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
             g_sys.searchProgress = 100 - (int32_t)progress;
 
 #if (TTY_DEBUG_MSGS > 0)
-            //if (state >= STATE_SHUTTLE_FAR)
+            //if (state >= STATE_SEARCH_FAR)
             //    CLI_printf("d=%d, t=%u, v=%u\n", cue_dist, (uint32_t)time, (uint32_t)velocity);
 #endif
 			/*
@@ -635,7 +635,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     CLI_printf("FAR\n");
 #endif
                     shuttle_vel = JOG_VEL_FAR;
-                    state = STATE_SHUTTLE_FAR;
+                    state = STATE_SEARCH_FAR;
                 }
                 else if (abs_dist > 3000)
                 {
@@ -643,7 +643,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     CLI_printf("MID\n");
 #endif
                     shuttle_vel = JOG_VEL_MID;
-                    state = STATE_SHUTTLE_MID;
+                    state = STATE_SEARCH_MID;
                 }
                 else
                 {
@@ -651,7 +651,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                     CLI_printf("NEAR\n");
 #endif
                     shuttle_vel = JOG_VEL_NEAR;
-                    state = STATE_SHUTTLE_NEAR;
+                    state = STATE_SEARCH_NEAR;
                 }
 
                 //CLI_printf(" d=%d, t=%d\n", cue_dist, (int32_t)time);
@@ -667,9 +667,9 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 		            Transport_Rew(shuttle_vel, M_NOSLOW);
 			    break;
 
-            case STATE_SHUTTLE_FAR:
+            case STATE_SEARCH_FAR:
 
-                if (time < 110.0f)
+                if (time < 130.0f)  /* RES120722 changed to 130, was 110 */
 			    {
                     state = STATE_BRAKE_VELOCITY;
 
@@ -683,7 +683,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
 			    }
 			    break;
 
-            case STATE_SHUTTLE_MID:
+            case STATE_SEARCH_MID:
 
                 if (time < 70.0f)
                 {
@@ -699,7 +699,7 @@ Void LocateTaskFxn(UArg arg0, UArg arg1)
                 }
                 break;
 
-            case STATE_SHUTTLE_NEAR:
+            case STATE_SEARCH_NEAR:
 
                 if (time < 30.0f)
                 {

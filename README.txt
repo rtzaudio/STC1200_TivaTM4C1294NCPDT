@@ -29,6 +29,11 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 2.03 (12/16/2022) ==============================================
+
+Fixed overshoot problem with locator. Now applies dynamic braking slightly 
+further out as approaching cue point for far locates.
+
 === VERSION 2.02 (10/03/2021) ==============================================
 
 This build fixes a couple bugs with the the TCP/IP interface and DRCWIN.
