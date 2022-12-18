@@ -348,6 +348,35 @@ int IPCCMD_WriteMessageACK(
 }
 
 /*****************************************************************************
+ * reply->msglen must be set to specify tx message length!
+ *****************************************************************************/
+
+int IPCCMD_WriteMessageNAK(
+        IPCCMD_Handle handle,
+        IPCMSG_HDR* reply
+        )
+{
+    int rc;
+
+#if (IPCCMD_THREAD_SAFE > 0)
+    IArg key = GateMutex_enter(GateMutex_handle(&(handle->gate)));
+#endif
+
+    handle->txFCB.type   = IPC_MAKETYPE(IPC_F_ERROR, IPC_MSG_NAK);
+    handle->txFCB.acknak = handle->rxFCB.seqnum;
+    handle->txFCB.seqnum = handle->rxFCB.seqnum;
+
+    /* Send IPC command/data to track controller */
+    rc = IPC_FrameTx(handle->uartHandle, &(handle->txFCB), reply, reply->msglen);
+
+#if (IPCCMD_THREAD_SAFE > 0)
+    GateMutex_leave(GateMutex_handle(&(handle->gate)), key);
+#endif
+
+    return rc;
+}
+
+/*****************************************************************************
  *
  *****************************************************************************/
 

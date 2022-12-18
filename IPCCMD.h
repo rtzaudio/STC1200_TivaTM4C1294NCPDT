@@ -147,6 +147,11 @@ int IPCCMD_WriteMessageACK(
         IPCMSG_HDR* reply
         );
 
+int IPCCMD_WriteMessageNAK(
+        IPCCMD_Handle handle,
+        IPCMSG_HDR* reply
+        );
+
 int IPCCMD_WriteACK(
         IPCCMD_Handle handle
         );
