@@ -381,7 +381,7 @@ Void IPCWriterTaskFxn(UArg arg0, UArg arg1)
 
         /* Transmit the packet! */
 
-        IPC_TxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
+        IPC_FrameTx(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), sizeof(IPC_MSG));
 
         /* Perform the enqueue and increment numFreeMsgs atomically */
         key = Hwi_disable();
@@ -455,7 +455,7 @@ Void IPCReaderTaskFxn(UArg arg0, UArg arg1)
         {
             /* Attempt to read a frame from the peer */
             rxlen = sizeof(IPC_MSG);
-            rc = IPC_RxFrame(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), &rxlen);
+            rc = IPC_FrameRx(g_ipc.uartHandle, &(elem->fcb), &(elem->msg), &rxlen);
 
             /* Zero means packet received successfully */
             if (rc == 0)

@@ -289,12 +289,12 @@ int TRACK_Command(TRACK_Handle handle,
     txFCB.acknak = 0;
 
     /* Send IPC command/data to track controller */
-    rc = IPC_TxFrame(handle->uartHandle, &txFCB, request, request->msglen);
+    rc = IPC_FrameTx(handle->uartHandle, &txFCB, request, request->msglen);
 
     if (rc == IPC_ERR_SUCCESS)
     {
         /* Try to read ack/nak response back */
-        rc = IPC_RxFrame(handle->uartHandle, &rxFCB, reply, &(reply->msglen));
+        rc = IPC_FrameRx(handle->uartHandle, &rxFCB, reply, &(reply->msglen));
 
         if (rc == IPC_ERR_SUCCESS)
         {

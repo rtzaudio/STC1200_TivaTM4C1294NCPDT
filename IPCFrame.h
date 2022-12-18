@@ -1,7 +1,9 @@
 /*
  * IPC - Serial InterProcess Message Protocol
  *
- * Copyright (C) 2016-2021, RTZ Professional Audio, LLC. ALL RIGHTS RESERVED.
+ * Copyright (C) 2016-2021, RTZ Professional Audio, LLC.
+ *
+ * ALL RIGHTS RESERVED.
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
  *
@@ -167,13 +169,10 @@ typedef struct _IPC_FCB {
     uint8_t     rsvd;                       /* keep on 32-bit align  */
 } IPC_FCB;
 
-/*** IPC FUNCTION PROTOTYPES ***********************************************/
+/*** IPC FRAME FUNCTIONS ***************************************************/
 
-uint8_t IPC_GetSequenceNum(void);
-
-void IPC_InitFCB(IPC_FCB* fcb);
-
-int IPC_RxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t* txtlen);
-int IPC_TxFrame(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen);
+void IPC_FrameInit(IPC_FCB* fcb);
+int IPC_FrameRx(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t* txtlen);
+int IPC_FrameTx(UART_Handle handle, IPC_FCB* fcb, void* txtbuf, uint16_t txtlen);
 
 #endif /* _IPCFRAME_H_ */

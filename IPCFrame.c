@@ -1,6 +1,6 @@
 /***************************************************************************
  *
- * IPC Low-level Tx/Rx Data Frame Functions
+ * IPC Low-level Tx/Rx Data Frame Functions - v1.01
  *
  * Copyright (C) 2016-2021, RTZ Professional Audio, LLC
  * All Rights Reserved
@@ -58,7 +58,6 @@
 #include <ti/sysbios/knl/Event.h>
 #include <ti/sysbios/knl/Queue.h>
 #include <ti/sysbios/knl/Mailbox.h>
-#include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
 /* TI-RTOS Driver files */
@@ -78,14 +77,11 @@
 #include "CRC16.h"
 #include "IPCFrame.h"
 
-/* Static Data */
-static uint8_t s_seqnum = IPC_MIN_SEQ;
-
 //*****************************************************************************
 //
-// Name:        IPC_InitFCB()
+// Name:        IPC_FrameInit()
 //
-// Synopsis:    void IPC_InitFCB(fcb)
+// Synopsis:    void IPC_FrameInit(fcb)
 //
 //              IPC_FCB*    fcb     - Ptr to frame control block
 //
@@ -95,7 +91,7 @@ static uint8_t s_seqnum = IPC_MIN_SEQ;
 //
 //*****************************************************************************
 
-void IPC_InitFCB(IPC_FCB* fcb)
+void IPC_FrameInit(IPC_FCB* fcb)
 {
     fcb->type      = IPC_MAKETYPE(0, IPC_MSG_ONLY);
     fcb->seqnum    = IPC_MIN_SEQ;
@@ -105,39 +101,9 @@ void IPC_InitFCB(IPC_FCB* fcb)
 
 //*****************************************************************************
 //
-// Name:        IPC_GetSequenceNum()
+// Name:        IPC_FrameRx()
 //
-// Synopsis:    void IPC_GetSequenceNum()
-//
-// Description: his function returns the next available transmit and increments
-//              to the next frame sequence number atomically.
-//
-// Return:      Returns the next tx frame sequence number.
-//
-//*****************************************************************************
-
-uint8_t IPC_GetSequenceNum(void)
-{
-    /* increment atomically */
-    UInt key = Hwi_disable();
-
-    /* Get next sequence number */
-    uint8_t seqnum = s_seqnum;
-
-    /* Increment sequence number */
-    s_seqnum = IPC_INC_SEQ(seqnum);
-
-    /* re-enable interrupts */
-    Hwi_restore(key);
-
-    return seqnum;
-}
-
-//*****************************************************************************
-//
-// Name:        IPC_RxFrame()
-//
-// Synopsis:    int IPC_RxFrame(handle, fcb, txtbuf, txtlen)
+// Synopsis:    int IPC_FrameRx(handle, fcb, txtbuf, txtlen)
 //
 //              UART_Handle handle  - UART handle
 //
@@ -159,7 +125,7 @@ uint8_t IPC_GetSequenceNum(void)
 //
 //*****************************************************************************
 
-int IPC_RxFrame(
+int IPC_FrameRx(
         UART_Handle handle,
         IPC_FCB*    fcb,
         void*       txtbuf,
@@ -351,9 +317,9 @@ int IPC_RxFrame(
 
 //*****************************************************************************
 //
-// Name:        IPC_TxFrame()
+// Name:        IPC_FrameTx()
 //
-// Synopsis:    int IPC_TxFrame(handle, fcb, txtbuf, txtlen)
+// Synopsis:    int IPC_FrameTx(handle, fcb, txtbuf, txtlen)
 //
 //              UART_Handle handle  - UART handle
 //
@@ -373,7 +339,7 @@ int IPC_RxFrame(
 //
 //*****************************************************************************
 
-int IPC_TxFrame(
+int IPC_FrameTx(
         UART_Handle handle,
         IPC_FCB*    fcb,
         void*       txtbuf,

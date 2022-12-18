@@ -13,7 +13,7 @@
 #ifndef _TRACKCTRL_H_
 #define _TRACKCTRL_H_
 
-#include "..\DCS1200_TivaTM4C123AE6PM2\IPCDCS.h"
+#include "..\DCS1200_TivaTM4C123AE6PM2\IPCCMD_DCS1200.h"
 
 /*** CONSTANTS *************************************************************/
 
