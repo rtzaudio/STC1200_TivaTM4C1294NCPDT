@@ -592,7 +592,7 @@ shutdown:
 // COMMAND HANDLER WORKER THREADS RUNNING.
 //*****************************************************************************
 
-#define RXBUF_SIZE  1000
+#define RXBUF_SIZE  512
 
 Void tcpCommandWorker(UArg arg0, UArg arg1)
 {
@@ -642,8 +642,12 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             continue;
         }
 
-        /* Attempt to read a message header */
-        bytesRcvd = ReadData(clientfd, buf + sizeof(STC_COMMAND_HDR), hdr->length, 0);
+        /* Attempt to read the rest of the message following the header */
+        bytesRcvd = ReadData(
+                clientfd,
+                buf + sizeof(STC_COMMAND_HDR),
+                hdr->length - sizeof(STC_COMMAND_HDR),
+                0);
 
         if (bytesRcvd <= 0)
         {
@@ -790,7 +794,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         /* Send the response packet */
 
-        bytesSent =  WriteData(clientfd, &buf, hdr->length, 0);
+        bytesSent =  WriteData(clientfd, buf, hdr->length, 0);
 
         if (bytesSent <= 0)
         {
