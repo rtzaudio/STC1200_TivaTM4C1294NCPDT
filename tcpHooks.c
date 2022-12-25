@@ -117,8 +117,98 @@ Void tcpCommandWorker(UArg arg0, UArg arg1);
 static int ReadData(int fd, void *pbuf, int size, int flags);
 static int WriteData(int fd, void *pbuf, int size, int flags);
 
+static uint16_t HandleVersion(int fd, STC_COMMAND_VERSION* cmd);
+static uint16_t HandleStop(int fd, STC_COMMAND_STOP* cmd);
+static uint16_t HandleRew(int fd, STC_COMMAND_REW* cmd);
+static uint16_t HandleFwd(int fd, STC_COMMAND_FWD* cmd);
+static uint16_t HandlePlay(int fd, STC_COMMAND_PLAY* cmd);
+static uint16_t HandleLifter(int fd, STC_COMMAND_LIFTER* cmd);
+static uint16_t HandleLocateModeSet(int fd, STC_COMMAND_LOCATE_MODE_SET* cmd);
+static uint16_t HandleLocate(int fd, STC_COMMAND_LOCATE* cmd);
+static uint16_t HandleCuePointStore(int fd, STC_COMMAND_CUEPOINT_STORE* cmd);
+static uint16_t HandleCuePointSet(int fd, STC_COMMAND_CUEPOINT_SET* cmd);
+static uint16_t HandleCuePointGet(int fd, STC_COMMAND_CUEPOINT_GET* cmd);
+static uint16_t HandleCuePointClear(int fd, STC_COMMAND_CUEPOINT_CLEAR* cmd);
+static uint16_t HandleLocateAutoLoop(int fd, STC_COMMAND_LOCATE_AUTO_LOOP* cmd);
+static uint16_t HandleAutoPunchSet(int fd, STC_COMMAND_AUTO_PUNCH_SET* cmd);
+static uint16_t HandleAutoPunchGet(int fd, STC_COMMAND_AUTO_PUNCH_GET* cmd);
+static uint16_t HandleTrackGetCount(int fd, STC_COMMAND_TRACK_GET_COUNT* cmd);
+static uint16_t HandleTrackSetState(int fd, STC_COMMAND_TRACK_SET_STATE* cmd);
+static uint16_t HandleTrackGetState(int fd, STC_COMMAND_TRACK_GET_STATE* cmd);
+static uint16_t HandleTrackMaskAll(int fd, STC_COMMAND_TRACK_MASK_ALL* cmd);
+static uint16_t HandleTrackModeAll(int fd, STC_COMMAND_TRACK_MODE_ALL* cmd);
+static uint16_t HandleTrackToggleAll(int fd, STC_COMMAND_TRACK_TOGGLE_ALL* cmd);
+static uint16_t HandleMonitor(int fd, STC_COMMAND_MONITOR* cmd);
+static uint16_t HandleZeroReset(int fd, STC_COMMAND_ZERO_RESET* cmd);
+static uint16_t HandleCancel(int fd, STC_COMMAND_CANCEL* cmd);
+static uint16_t HandleTapeSpeedSet(int fd, STC_COMMAND_TAPE_SPEED_SET* cmd);
+static uint16_t HandleConfigEPROM(int fd, STC_COMMAND_CONFIG_EPROM* cmd);
+static uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd);
+static uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd);
+static uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd);
+
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
+
+//*****************************************************************************
+// Helper Functions
+//*****************************************************************************
+
+/* This function performs a blocked read for 'size' number of bytes. It will
+ * continue to read until all bytes are read, or return if an error occurs.
+ */
+
+int ReadData(int fd, void *pbuf, int size, int flags)
+{
+    int bytesRcvd = 0;
+    int bytesToRecv = size;
+
+    uint8_t* buf = (uint8_t*)pbuf;
+
+    do {
+
+        if ((bytesRcvd = recv(fd, buf, bytesToRecv, 0)) <= 0)
+        {
+            System_printf("Error: TCP recv failed %d.\n", bytesRcvd);
+            break;
+        }
+
+        bytesToRecv -= bytesRcvd;
+
+        buf += bytesRcvd;
+
+    } while(bytesToRecv > 0);
+
+    return bytesRcvd;
+}
+
+/* This function performs a blocked write for 'size' number of bytes. It will
+ * continue to write until all bytes are sent, or return if an error occurs.
+ */
+
+int WriteData(int fd, void *pbuf, int size, int flags)
+{
+    int bytesSent = 0;
+    int bytesToSend = size;
+
+    uint8_t* buf = (uint8_t*)pbuf;
+
+    do {
+
+        if ((bytesSent = send(fd, buf, bytesToSend, 0)) <= 0)
+        {
+            System_printf("Error: TCP send failed %d.\n", bytesSent);
+            break;
+        }
+
+        bytesToSend -= bytesSent;
+
+        buf += bytesSent;
+
+    } while (bytesToSend > 0);
+
+    return bytesSent;
+}
 
 //*****************************************************************************
 // NDK network open hook used to initialize IPv6
@@ -146,8 +236,10 @@ void netOpenHook(void)
 
     taskHandle = Task_create((Task_FuncPtr)tcpStateHandler, &taskParams, &eb);
 
-    if (taskHandle == NULL) {
+    if (taskHandle == NULL)
+    {
         System_printf("netOpenHook: Failed to create tcpStateHandler Task\n");
+        System_flush();
     }
 
     /* Create the Task that listens for incoming TCP connections
@@ -163,8 +255,10 @@ void netOpenHook(void)
 
     taskHandle = Task_create((Task_FuncPtr)tcpCommandHandler, &taskParams, &eb);
 
-    if (taskHandle == NULL) {
+    if (taskHandle == NULL)
+    {
         System_printf("netOpenHook: Failed to create tcpCommandHandler Task\n");
+        System_flush();
     }
 
     System_flush();
@@ -204,8 +298,10 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if (server == -1) {
+    if (server == -1)
+    {
         System_printf("Error: socket not created.\n");
+        System_flush();
         goto shutdown;
     }
 
@@ -217,22 +313,28 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
 
     status = bind(server, (struct sockaddr *)&localAddr, sizeof(localAddr));
 
-    if (status == -1) {
+    if (status == -1)
+    {
         System_printf("Error: bind failed.\n");
-            goto shutdown;
+        System_flush();
+        goto shutdown;
     }
 
     status = listen(server, NUMTCPWORKERS);
 
-    if (status == -1) {
+    if (status == -1)
+    {
         System_printf("Error: listen failed.\n");
-            goto shutdown;
+        System_flush();
+        goto shutdown;
     }
 
     optval = 100;
 
-    if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
+    if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0)
+    {
         System_printf("Error: setsockopt failed\n");
+        System_flush();
         goto shutdown;
     }
 
@@ -252,9 +354,10 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
 
         taskHandle = Task_create((Task_FuncPtr)tcpStateWorker, &taskParams, &eb);
 
-        if (taskHandle == NULL) {
-            //System_printf("Error: Failed to create new Task\n");
-            //System_flush();
+        if (taskHandle == NULL)
+        {
+            System_printf("Error: Failed to create new Task\n");
+            System_flush();
             close(clientfd);
         }
 
@@ -262,7 +365,7 @@ Void tcpStateHandler(UArg arg0, UArg arg1)
         addrlen = sizeof(clientAddr);
     }
 
-    System_printf("Error: accept failed.\n");
+    System_printf("Exiting TCP state listener task\n");
     System_flush();
 
 shutdown:
@@ -367,7 +470,6 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         buf = (uint8_t*)&stateMsg;
 
         do {
-
             //if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
 
             if ((bytesSent = WriteData(clientfd, buf, bytesToSend, 0)) <= 0)
@@ -409,7 +511,8 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
 
     server = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 
-    if (server == -1) {
+    if (server == -1)
+    {
         System_printf("Error: socket not created.\n");
         goto shutdown;
     }
@@ -422,21 +525,24 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
 
     status = bind(server, (struct sockaddr *)&localAddr, sizeof(localAddr));
 
-    if (status == -1) {
+    if (status == -1)
+    {
         System_printf("Error: bind failed.\n");
-            goto shutdown;
+        goto shutdown;
     }
 
     status = listen(server, NUMTCPWORKERS);
 
-    if (status == -1) {
+    if (status == -1)
+    {
         System_printf("Error: listen failed.\n");
-            goto shutdown;
+        goto shutdown;
     }
 
     optval = 100;
 
-    if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0) {
+    if (setsockopt(server, SOL_SOCKET, SO_KEEPALIVE, &optval, optlen) < 0)
+    {
         System_printf("Error: setsockopt failed\n");
         goto shutdown;
     }
@@ -457,7 +563,8 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
 
         taskHandle = Task_create((Task_FuncPtr)tcpCommandWorker, &taskParams, &eb);
 
-        if (taskHandle == NULL) {
+        if (taskHandle == NULL)
+        {
             //System_printf("Error: Failed to create new Task\n");
             //System_flush();
             close(clientfd);
@@ -467,14 +574,15 @@ Void tcpCommandHandler(UArg arg0, UArg arg1)
         addrlen = sizeof(clientAddr);
     }
 
-    System_printf("Error: accept failed.\n");
+    System_printf("Exiting TCP command listener task\n");
     System_flush();
 
 shutdown:
 
     System_flush();
 
-    if (server > 0) {
+    if (server > 0)
+    {
         close(server);
     }
 }
@@ -484,6 +592,8 @@ shutdown:
 // COMMAND HANDLER WORKER THREADS RUNNING.
 //*****************************************************************************
 
+#define RXBUF_SIZE  1000
+
 Void tcpCommandWorker(UArg arg0, UArg arg1)
 {
     bool        connected = true;
@@ -491,18 +601,19 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     int         clientfd = (int)arg0;
     int         bytesSent;
     int         bytesRcvd;
-    int         ipos;
-    size_t      index;
     uint16_t    status;
-    uint32_t    mask;
-    uint32_t    flags;
+    uint8_t*    buf;
+    Error_Block eb;
+    STC_COMMAND_HDR* hdr;
 
-    STC_COMMAND_HDR msg;
+    Error_init(&eb);
 
-    //static const uint32_t smask[10] = {
-    //    SW_LOC0, SW_LOC1, SW_LOC2, SW_LOC3, SW_LOC4,
-    //    SW_LOC5, SW_LOC6, SW_LOC7, SW_LOC8, SW_LOC9
-    //};
+    if ((buf = Memory_alloc(NULL, RXBUF_SIZE, NULL, &eb)) == NULL)
+    {
+        System_printf("tcpCommandWorker: OUT OF MEMORY 0x%x\n", clientfd);
+        System_flush();
+        return;
+    }
 
     System_printf("tcpCommandWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
@@ -510,19 +621,37 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
     while (connected)
     {
         /* Attempt to read a message header */
-        bytesRcvd = ReadData(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0);
+        bytesRcvd = ReadData(clientfd, buf, sizeof(STC_COMMAND_HDR), 0);
 
         if (bytesRcvd <= 0)
         {
             System_printf("Error: TCP read error %d.\n", bytesRcvd);
+            System_flush();
             connected = FALSE;
             break;
         }
 
-        msg.status = status = 0;
+        /* First part of message is always the header struct data */
+        hdr = (STC_COMMAND_HDR*)buf;
 
-        /* Index into cue table or track table */
-        index = (size_t)msg.index;
+        /* Make sure our buffer can hold the message */
+        if (hdr->length >= RXBUF_SIZE)
+        {
+            System_printf("Error: buffer size too small to handle %d bytes.\n", hdr->length);
+            System_flush();
+            continue;
+        }
+
+        /* Attempt to read a message header */
+        bytesRcvd = ReadData(clientfd, buf + sizeof(STC_COMMAND_HDR), hdr->length, 0);
+
+        if (bytesRcvd <= 0)
+        {
+            System_printf("Error: TCP read error %d.\n", bytesRcvd);
+            System_flush();
+            connected = FALSE;
+            break;
+        }
 
         /*
          * Determine which command to process from the client
@@ -530,367 +659,932 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         notify = false;
 
-        switch(msg.command)
+        switch(hdr->command)
         {
+
+        case STC_CMD_VERSION:
+            status = HandleVersion(clientfd, (STC_COMMAND_VERSION*)buf);
+            break;
+
         case STC_CMD_STOP:
-            /* param1: not used, zero
-             * param2: not used, zero
-             */
-            if (IsLocating())
-                LocateCancel();
-            Transport_PostButtonPress(S_STOP);
-            break;
-
-        case STC_CMD_REW:
-            /* param1: flags STC_M_LIBWIND
-             * param2: not used, zero
-             */
-            if (IsLocating())
-                LocateCancel();
-            mask = S_REW;
-            /* simulate REC+FWD for lib wind mode */
-            if (msg.param1.U & STC_M_LIBWIND)
-                mask |= S_REC;
-            Transport_PostButtonPress(mask);
-            //Transport_Rew(0, msg.param1);
-            break;
-
-        case STC_CMD_FWD:
-            /* param1: flags STC_M_LIBWIND
-             * param2: not used, zero
-             */
-            if (IsLocating())
-                LocateCancel();
-            mask = S_FWD;
-            /* simulate REC+FWD for lib wind mode */
-            if (msg.param1.U & STC_M_LIBWIND)
-                mask |= S_REC;
-            Transport_PostButtonPress(mask);
-            //Transport_Fwd(0, msg.param1);
+            status = HandleStop(clientfd, (STC_COMMAND_STOP*)buf);
             break;
 
         case STC_CMD_PLAY:
-            /* param1: 1=play+record, 0=play mode
-             * param2: not used, zero
-             */
-            if (IsLocating())
-                LocateCancel();
-            if (msg.param1.U == 1)
-                Transport_PostButtonPress(S_PLAY|S_REC);
-            else
-                Transport_PostButtonPress(S_PLAY);
+            status = HandlePlay(clientfd, (STC_COMMAND_PLAY*)buf);
+            break;
+
+        case STC_CMD_REW:
+            status = HandleRew(clientfd, (STC_COMMAND_REW*)buf);
+            break;
+
+        case STC_CMD_FWD:
+            status = HandleFwd(clientfd, (STC_COMMAND_FWD*)buf);
             break;
 
         case STC_CMD_LIFTER:
-            /* param1: not used, zero
-             * param2: not used, zero
-             */
-            Transport_PostButtonPress(S_LDEF);
-            break;
-
-        case STC_CMD_LOCATE_MODE_SET:
-            /* param1: 1=store-mode, 0=cue-mode
-             * param2: not used, zero
-             */
-            Remote_PostSwitchPress((msg.param1.U == 1) ? SW_STORE : SW_CUE, 0);
+            status = HandleLifter(clientfd, (STC_COMMAND_LIFTER*)buf);
             break;
 
         case STC_CMD_LOCATE:
-            // Start the auto-locator for the cue point index given
-            /* param1: cue point index (0-9)
-             * param2: cue flags, STC_CF_AUTO_PLAY or STC_CF_AUTO_REC
-             */
+            status = HandleLocate(clientfd, (STC_COMMAND_LOCATE*)buf);
+            break;
 
-            if (IsLocating())
-                LocateCancel();
+        case STC_CMD_LOCATE_AUTO_LOOP:
+            status = HandleLocateAutoLoop(clientfd, (STC_COMMAND_LOCATE_AUTO_LOOP*)buf);
+            break;
 
-            index = 0;
-            flags = msg.param2.U;
+        case STC_CMD_LOCATE_MODE_SET:
+            status = HandleLocateModeSet(clientfd, (STC_COMMAND_LOCATE_MODE_SET*)buf);
+            break;
 
-            if (msg.param1.U == STC_CUE_POINT_HOME)
-                index = CUE_POINT_HOME;
-            else if (msg.param1.U == STC_CUE_POINT_MARK_IN)
-                index = CUE_POINT_MARK_IN;
-            else if (msg.param1.U == STC_CUE_POINT_MARK_OUT)
-                index = CUE_POINT_MARK_OUT;
-            else if (msg.param1.U == STC_CUE_POINT_PUNCH_IN)
-                index = CUE_POINT_PUNCH_IN;
-            else if (msg.param1.U == STC_CUE_POINT_PUNCH_OUT)
-                index = CUE_POINT_PUNCH_OUT;
-            else
-                index = (msg.param1.U <= 9) ? msg.param1.U : 0;
+        case STC_CMD_AUTO_PUNCH_SET:
+            status = HandleAutoPunchSet(clientfd, (STC_COMMAND_AUTO_PUNCH_SET*)buf);
+            notify = TRUE;
+            break;
 
-            //SetLocateButtonLED(index);
-            LocateSearch(index, flags);
+        case STC_CMD_AUTO_PUNCH_GET:
+            status = HandleAutoPunchGet(clientfd, (STC_COMMAND_AUTO_PUNCH_GET*)buf);
+            break;
+
+        case STC_CMD_CUEPOINT_CLEAR:
+            status = HandleCuePointClear(clientfd, (STC_COMMAND_CUEPOINT_CLEAR*)buf);
+            notify = true;
             break;
 
         case STC_CMD_CUEPOINT_STORE:
-            /* param1: tape position
-             * param2: cue flags (CF_ACTIVE, etc)
-             */
-            if (msg.param1.I == -1)
-                ipos = g_sys.tapePosition;
-            else
-                ipos = msg.param1.I;
-
-            flags = msg.param2.U;
-
-            if (index == STC_CUE_POINT_MARK_IN)
-            {
-                SetButtonLedMask(STC_L_MARK_IN, 0);
-                CuePointSet(index, ipos, flags);
-            }
-            else if (index == STC_CUE_POINT_MARK_OUT)
-            {
-                SetButtonLedMask(STC_L_MARK_OUT, 0);
-                CuePointSet(index, ipos, flags);
-            }
-            else if (index == STC_CUE_POINT_PUNCH_IN)
-            {
-                SetButtonLedMask(STC_L_PUNCH_IN, 0);
-                CuePointSet(index, ipos, flags);
-            }
-            else if (index == STC_CUE_POINT_PUNCH_OUT)
-            {
-                SetButtonLedMask(STC_L_PUNCH_OUT, 0);
-                CuePointSet(index, ipos, flags);
-            }
-            else if (index <= 9)
-            {
-                SetLocateButtonLED(index);
-                //SetButtonLedMask(smask[index] , 0);
-                CuePointSet(index, ipos, flags);
-            }
+            status = HandleCuePointStore(clientfd, (STC_COMMAND_CUEPOINT_STORE*)buf);
             notify = true;
             break;
 
         case STC_CMD_CUEPOINT_SET:
-            /* param1: tape position
-             * param2: cue flags (CF_ACTIVE, etc)
-             */
-            CuePointSet(index, msg.param1.I, msg.param2.U);
+            status = HandleCuePointSet(clientfd, (STC_COMMAND_CUEPOINT_SET*)buf);
             notify = true;
             break;
 
         case STC_CMD_CUEPOINT_GET:
-            /* param1: cue point index
-             * param2: not used, zero
-             */
-            CuePointGet((size_t)msg.param1.U, &ipos, &flags);
-            /* return position in param1, flags in param2 */
-            msg.param1.I = ipos;
-            msg.param2.U = flags;
-            break;
-
-        case STC_CMD_CUEPOINT_CLEAR:
-            /* param1: cue point index, or -1 for all cue points
-             * param2: not used, zero
-             */
-            if (msg.param1.U == STC_ALL_CUEPOINTS)
-            {
-                /* Clear all points 0-9 */
-                CuePointClearAll();
-
-                /* Clear loop mark in/out points */
-                CuePointClear(CUE_POINT_MARK_IN);
-                CuePointClear(CUE_POINT_MARK_OUT);
-
-                /* Clear punch in/out points */
-                CuePointClear(CUE_POINT_PUNCH_IN);
-                CuePointClear(CUE_POINT_PUNCH_OUT);
-
-                SetButtonLedMask(0, STC_L_LOC_MASK |
-                                    STC_L_MARK_IN  | STC_L_MARK_OUT |
-                                    STC_L_PUNCH_IN | STC_L_PUNCH_OUT);
-            }
-            else
-            {
-                CuePointClear((size_t)msg.param1.U);
-            }
-            notify = true;
-            break;
-
-        case STC_CMD_LOCATE_AUTO_LOOP:
-            /* param1: cue flags, CF_AUTO_PLAY, etc
-             * param2: not used, zero
-             */
-            if (IsLocating())
-                LocateCancel();
-
-            status = LocateLoop((uint32_t)msg.param1.U);
-            break;
-
-        case STC_CMD_AUTO_PUNCH_SET:
-            if (msg.param1.U)
-            {
-                SetButtonLedMask(STC_L_AUTO_PUNCH, 0);
-                g_sys.autoPunch = TRUE;
-            }
-            else
-            {
-                SetButtonLedMask(0, STC_L_AUTO_PUNCH);
-                g_sys.autoPunch = FALSE;
-            }
-            notify = TRUE;
-            break;
-
-        case STC_CMD_TRACK_GET_COUNT:
-            msg.param1.U = g_sys.trackCount;
-            msg.param2.U = g_sys.dcsFound;
-            break;
-
-        case STC_CMD_TRACK_SET_STATE:
-            /* param1: index or -1 for all tracks
-             * param2: track state bits
-             */
-            if (msg.param1.U == STC_ALL_TRACKS)
-                Track_SetAll((uint8_t)msg.param2.U, 0);
-            else
-                Track_SetState((size_t)msg.param1.U, (uint8_t)msg.param2.U);
-            break;
-
-        case STC_CMD_TRACK_MASK_ALL:
-            /* param1 = set mask,
-             * param2 = clear mask
-             */
-            Track_MaskAll((uint8_t)msg.param1.U, (uint8_t)msg.param2.U);
-            break;
-
-        case STC_CMD_TRACK_MODE_ALL:
-            /* param1 = new transport mode
-             * param2 = 0
-             */
-            Track_SetModeAll((uint8_t)msg.param1.U);
+            status = HandleCuePointGet(clientfd, (STC_COMMAND_CUEPOINT_GET*)buf);
             break;
 
         case STC_CMD_TRACK_TOGGLE_ALL:
-            /* param1 = bit flags to toggle
-             * param2 = 0
-             */
-            Track_ToggleMaskAll((uint8_t)msg.param1.U);
+            status = HandleTrackToggleAll(clientfd, (STC_COMMAND_TRACK_TOGGLE_ALL*)buf);
             break;
 
-        case STC_CMD_MONITOR:
-            /* Enable standby monitor mode for all tracks */
-            g_sys.standbyMonitor = (msg.param1.U) ? true : false;
-            notify = true;
+        case STC_CMD_TRACK_SET_STATE:
+            status = HandleTrackSetState(clientfd, (STC_COMMAND_TRACK_SET_STATE*)buf);
+            break;
+
+        case STC_CMD_TRACK_GET_STATE:
+            status = HandleTrackGetState(clientfd, (STC_COMMAND_TRACK_GET_STATE*)buf);
+            break;
+
+        case STC_CMD_TRACK_MASK_ALL:
+            status = HandleTrackMaskAll(clientfd, (STC_COMMAND_TRACK_MASK_ALL*)buf);
+            break;
+
+        case STC_CMD_TRACK_MODE_ALL:
+            status = HandleTrackModeAll(clientfd, (STC_COMMAND_TRACK_MODE_ALL*)buf);
             break;
 
         case STC_CMD_ZERO_RESET:
-            /* param1 = 0
-             * param2 = 0
-             */
-            PositionZeroReset();
+            status = HandleZeroReset(clientfd, (STC_COMMAND_ZERO_RESET*)buf);
             notify = true;
             break;
 
-        case STC_CMD_TAPE_SPEED_SET:
-            /* Set transport tape speed */
-            Track_SetTapeSpeed((int)msg.param1.U);
-            break;
-
         case STC_CMD_CANCEL:
-            /* param1 = 0
-             * param2 = 0
-             */
-            LocateCancel();
+            status = HandleCancel(clientfd, (STC_COMMAND_CANCEL*)buf);
             break;
 
-        case STC_CMD_CONFIG_SET:
-            /* param1: 0=load, 1=store, 3=reset
-             * param2 = 0
-             */
-            if (msg.param1.U == 0)
-                ConfigLoad(1);
-            else if (msg.param1.U == 1)
-                ConfigSave(1);
-            else if (msg.param1.U == 2)
-                ConfigReset(1);
-            notify = TRUE;
+        case STC_CMD_TAPE_SPEED_SET:
+            status = HandleTapeSpeedSet(clientfd, (STC_COMMAND_TAPE_SPEED_SET*)buf);
+            break;
+
+        case STC_CMD_CONFIG_EPROM:
+            status = HandleConfigEPROM(clientfd, (STC_COMMAND_CONFIG_EPROM*)buf);
+            break;
+
+        case STC_CMD_MONITOR:
+            status = HandleMonitor(clientfd, (STC_COMMAND_MONITOR*)buf);
+            notify = true;
+            break;
+
+        case STC_CMD_TRACK_GET_COUNT:
+            status = HandleTrackGetCount(clientfd, (STC_COMMAND_TRACK_GET_COUNT*)buf);
+            break;
+
+        case STC_CMD_MACHINE_CONFIG:
+            status = HandleMachineConfig(clientfd, (STC_COMMAND_MACHINE_CONFIG*)buf);
+            break;
+
+        case STC_CMD_MACHINE_CONFIG_GET:
+            status = HandleMachineConfigGet(clientfd, (STC_COMMAND_MACHINE_CONFIG_GET*)buf);
+            break;
+
+        case STC_CMD_MACHINE_CONFIG_SET:
+            status = HandleMachineConfigSet(clientfd, (STC_COMMAND_MACHINE_CONFIG_SET*)buf);
+            break;
+
+        default:
             break;
         }
 
-        /* Now send the response packet */
+        /* Send the response packet */
 
-        msg.status  = status;
-        msg.datalen = 0;
-        msg.index   = index;
-
-        bytesSent =  WriteData(clientfd, &msg, sizeof(STC_COMMAND_HDR), 0);
+        bytesSent =  WriteData(clientfd, &buf, hdr->length, 0);
 
         if (bytesSent <= 0)
         {
             System_printf("Error: TCP write error %d.\n", bytesSent);
+            System_flush();
             connected = false;
             break;
         }
 
-        /* Notify refresh of current transport state change to wired remote */
-
+        /* Refresh transport state change to DRC1200 wired remote */
         if (notify)
             Event_post(g_eventTransport, Event_Id_03);
+
+        (void)status;
     }
 
+    /* Close the TCP handle */
+    close(clientfd);
+
+    /* Free rx buffer memory allocated */
+    Memory_free(NULL, buf, RXBUF_SIZE);
+
+    /* Debugger Message */
     System_printf("tcpCommandWorker DISCONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
-
-    close(clientfd);
 }
 
-/* This function performs a blocked read for 'size' number of bytes. It will
- * continue to read until all bytes are read, or return if an error occurs.
- */
+//*****************************************************************************
+// COMMAND MESSAGE HANDLERS
+//*****************************************************************************
 
-int ReadData(int fd, void *pbuf, int size, int flags)
+uint16_t HandleVersion(int fd, STC_COMMAND_VERSION* cmd)
 {
-    int bytesRcvd = 0;
-    int bytesToRecv = size;
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_VERSION);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
 
-    uint8_t* buf = (uint8_t*)pbuf;
+    /* Reply Message Data */
+    cmd->arg.param1.U = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
 
-    do {
-
-        if ((bytesRcvd = recv(fd, buf, bytesToRecv, 0)) <= 0)
-        {
-            System_printf("Error: TCP recv failed %d.\n", bytesRcvd);
-            break;
-        }
-
-        bytesToRecv -= bytesRcvd;
-
-        buf += bytesRcvd;
-
-    } while(bytesToRecv > 0);
-
-    return bytesRcvd;
+    return 0;
 }
 
-/* This function performs a blocked write for 'size' number of bytes. It will
- * continue to write until all bytes are sent, or return if an error occurs.
- */
 
-int WriteData(int fd, void *pbuf, int size, int flags)
+uint16_t HandleStop(int fd, STC_COMMAND_STOP* cmd)
 {
-    int bytesSent = 0;
-    int bytesToSend = size;
+    /* Cancel an locate in progress */
+    if (IsLocating())
+        LocateCancel();
 
-    uint8_t* buf = (uint8_t*)pbuf;
+    /* Send STOP button press */
+    Transport_PostButtonPress(S_STOP);
 
-    do {
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_STOP);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
 
-        if ((bytesSent = send(fd, buf, bytesToSend, 0)) <= 0)
-        {
-            System_printf("Error: TCP send failed %d.\n", bytesSent);
-            break;
-        }
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
 
-        bytesToSend -= bytesSent;
+    return 0;
+}
 
-        buf += bytesSent;
 
-    } while (bytesToSend > 0);
+uint16_t HandleRew(int fd, STC_COMMAND_REW* cmd)
+{
+    uint32_t mask = S_REW;
 
-    return bytesSent;
+    /* param1: flags STC_M_LIBWIND
+     * param2: not used, zero
+     */
+    if (IsLocating())
+        LocateCancel();
+
+    /* simulate REC+FWD for lib wind mode */
+    if (cmd->arg.param1.U & STC_M_LIBWIND)
+        mask |= S_REC;
+
+    Transport_PostButtonPress(mask);
+    //Transport_Rew(0, msg.param1);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_REW);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleFwd(int fd, STC_COMMAND_FWD* cmd)
+{
+    uint32_t mask = S_FWD;
+
+    /* param1: flags STC_M_LIBWIND
+     * param2: not used, zero
+     */
+    if (IsLocating())
+        LocateCancel();
+
+    /* simulate REC+FWD for lib wind mode */
+    if (cmd->arg.param1.U & STC_M_LIBWIND)
+        mask |= S_REC;
+
+    Transport_PostButtonPress(mask);
+    //Transport_Fwd(0, msg.param1);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_FWD);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandlePlay(int fd, STC_COMMAND_PLAY* cmd)
+{
+    /* param1: 1=play+record, 0=play mode
+     * param2: not used, zero
+     */
+    if (IsLocating())
+        LocateCancel();
+
+    if (cmd->arg.param1.U == 1)
+        Transport_PostButtonPress(S_PLAY|S_REC);
+    else
+        Transport_PostButtonPress(S_PLAY);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_PLAY);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleLifter(int fd, STC_COMMAND_LIFTER* cmd)
+{
+    /* param1: not used, zero
+     * param2: not used, zero
+     */
+    Transport_PostButtonPress(S_LDEF);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_LIFTER);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleLocateModeSet(int fd, STC_COMMAND_LOCATE_MODE_SET* cmd)
+{
+    /* param1: 1=store-mode, 0=cue-mode
+     * param2: not used, zero
+     */
+    Remote_PostSwitchPress((cmd->arg.param1.U == 1) ? SW_STORE : SW_CUE, 0);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_LOCATE_MODE_SET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleLocate(int fd, STC_COMMAND_LOCATE* cmd)
+{
+    size_t      index;
+    uint32_t    flags;
+
+    // Start the auto-locator for the cue point index given
+    /* param1: cue point index (0-9)
+     * param2: cue flags, STC_CF_AUTO_PLAY or STC_CF_AUTO_REC
+     */
+    if (IsLocating())
+        LocateCancel();
+
+    index = 0;
+
+    flags = cmd->arg.param2.U;
+
+    switch(cmd->arg.param1.U)
+    {
+    case  STC_CUE_POINT_HOME:
+        index = CUE_POINT_HOME;
+        break;
+
+    case STC_CUE_POINT_MARK_IN:
+        index = CUE_POINT_MARK_IN;
+        break;
+
+    case STC_CUE_POINT_MARK_OUT:
+        index = CUE_POINT_MARK_OUT;
+        break;
+
+    case STC_CUE_POINT_PUNCH_IN:
+        index = CUE_POINT_PUNCH_IN;
+        break;
+
+    case STC_CUE_POINT_PUNCH_OUT:
+        index = CUE_POINT_PUNCH_OUT;
+        break;
+
+    default:
+        index = (cmd->arg.param1.U <= 9) ? cmd->arg.param1.U : 0;
+        break;
+    }
+
+    //SetLocateButtonLED(index);
+    LocateSearch(index, flags);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_LOCATE);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleCuePointStore(int fd, STC_COMMAND_CUEPOINT_STORE* cmd)
+{
+    int         ipos;
+    size_t      index;
+    uint32_t    flags;
+
+    /* Index into cue table or track table */
+    index = (size_t)cmd->hdr.index;
+
+    /* param1: tape position
+     * param2: cue flags (CF_ACTIVE, etc)
+     */
+    if (cmd->arg.param1.I == -1)
+        ipos = g_sys.tapePosition;
+    else
+        ipos = cmd->arg.param1.I;
+
+    flags = cmd->arg.param2.U;
+
+    if (index == STC_CUE_POINT_MARK_IN)
+    {
+        SetButtonLedMask(STC_L_MARK_IN, 0);
+        CuePointSet(index, ipos, flags);
+    }
+    else if (index == STC_CUE_POINT_MARK_OUT)
+    {
+        SetButtonLedMask(STC_L_MARK_OUT, 0);
+        CuePointSet(index, ipos, flags);
+    }
+    else if (index == STC_CUE_POINT_PUNCH_IN)
+    {
+        SetButtonLedMask(STC_L_PUNCH_IN, 0);
+        CuePointSet(index, ipos, flags);
+    }
+    else if (index == STC_CUE_POINT_PUNCH_OUT)
+    {
+        SetButtonLedMask(STC_L_PUNCH_OUT, 0);
+        CuePointSet(index, ipos, flags);
+    }
+    else if (index <= 9)
+    {
+        SetLocateButtonLED(index);
+        //SetButtonLedMask(smask[index] , 0);
+        CuePointSet(index, ipos, flags);
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CUEPOINT_STORE);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleCuePointSet(int fd, STC_COMMAND_CUEPOINT_SET* cmd)
+{
+    /* Index into cue table or track table */
+    size_t index = (size_t)cmd->hdr.index;
+
+    /* param1: tape position
+     * param2: cue flags (CF_ACTIVE, etc)
+     */
+    CuePointSet(index, cmd->arg.param1.I, cmd->arg.param2.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CUEPOINT_SET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleCuePointGet(int fd, STC_COMMAND_CUEPOINT_GET* cmd)
+{
+    int ipos;
+    uint32_t flags;
+
+    /* param1: cue point index
+     * param2: not used, zero
+     */
+    CuePointGet((size_t)cmd->arg.param1.U, &ipos, &flags);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CUEPOINT_GET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.I = ipos;       /* return position in param1 */
+    cmd->arg.param2.U = flags;      /* return flags in param2    */
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleCuePointClear(int fd, STC_COMMAND_CUEPOINT_CLEAR* cmd)
+{
+    /* param1: cue point index, or -1 for all cue points
+     * param2: not used, zero
+     */
+    if (cmd->arg.param1.U == STC_ALL_CUEPOINTS)
+    {
+        /* Clear all points 0-9 */
+        CuePointClearAll();
+
+        /* Clear loop mark in/out points */
+        CuePointClear(CUE_POINT_MARK_IN);
+        CuePointClear(CUE_POINT_MARK_OUT);
+
+        /* Clear punch in/out points */
+        CuePointClear(CUE_POINT_PUNCH_IN);
+        CuePointClear(CUE_POINT_PUNCH_OUT);
+
+        SetButtonLedMask(0, STC_L_LOC_MASK |
+                            STC_L_MARK_IN  | STC_L_MARK_OUT |
+                            STC_L_PUNCH_IN | STC_L_PUNCH_OUT);
+    }
+    else
+    {
+        CuePointClear((size_t)cmd->arg.param1.U);
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CUEPOINT_CLEAR);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleLocateAutoLoop(int fd, STC_COMMAND_LOCATE_AUTO_LOOP* cmd)
+{
+    bool status;
+
+    /* param1: cue flags, CF_AUTO_PLAY, etc
+     * param2: not used, zero
+     */
+    if (IsLocating())
+        LocateCancel();
+
+    status = LocateLoop((uint32_t)cmd->arg.param1.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CUEPOINT_CLEAR);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = (uint16_t)status;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleAutoPunchSet(int fd, STC_COMMAND_AUTO_PUNCH_SET* cmd)
+{
+    if (cmd->arg.param1.U)
+    {
+        SetButtonLedMask(STC_L_AUTO_PUNCH, 0);
+
+        g_sys.autoPunch = TRUE;
+    }
+    else
+    {
+        SetButtonLedMask(0, STC_L_AUTO_PUNCH);
+
+        g_sys.autoPunch = FALSE;
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_AUTO_PUNCH_SET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleAutoPunchGet(int fd, STC_COMMAND_AUTO_PUNCH_GET* cmd)
+{
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_AUTO_PUNCH_GET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = g_sys.autoPunch;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTrackSetState(int fd, STC_COMMAND_TRACK_SET_STATE* cmd)
+{
+    /* param1: index or -1 for all tracks
+     * param2: track state bits
+     */
+    if (cmd->arg.param1.U == STC_ALL_TRACKS)
+        Track_SetAll((uint8_t)cmd->arg.param2.U, 0);
+    else
+        Track_SetState((size_t)cmd->arg.param1.U, (uint8_t)cmd->arg.param2.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TRACK_SET_STATE);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTrackGetState(int fd, STC_COMMAND_TRACK_GET_STATE* cmd)
+{
+    size_t track;
+    uint8_t trackState;
+
+    track = (size_t)cmd->arg.param1.U;
+
+    Track_GetState(track, &trackState);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TRACK_GET_STATE);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = track;
+    cmd->arg.param2.U = trackState;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTrackMaskAll(int fd, STC_COMMAND_TRACK_MASK_ALL* cmd)
+{
+    /* param1 = set mask,
+     * param2 = clear mask
+     */
+    Track_MaskAll((uint8_t)cmd->arg.param1.U, (uint8_t)cmd->arg.param2.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TRACK_MASK_ALL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTrackModeAll(int fd, STC_COMMAND_TRACK_MODE_ALL* cmd)
+{
+    /* param1 = new transport mode
+     * param2 = 0
+     */
+    Track_SetModeAll((uint8_t)cmd->arg.param1.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TRACK_MODE_ALL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTrackToggleAll(int fd, STC_COMMAND_TRACK_TOGGLE_ALL* cmd)
+{
+    /* param1 = bit flags to toggle
+     * param2 = 0
+     */
+    Track_ToggleMaskAll((uint8_t)cmd->arg.param1.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TRACK_TOGGLE_ALL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleZeroReset(int fd, STC_COMMAND_ZERO_RESET* cmd)
+{
+    PositionZeroReset();
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_ZERO_RESET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleCancel(int fd, STC_COMMAND_CANCEL* cmd)
+{
+    /* Cancel any locate request active */
+    LocateCancel();
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CANCEL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTapeSpeedSet(int fd, STC_COMMAND_TAPE_SPEED_SET* cmd)
+{
+    /* Set transport tape speed */
+    Track_SetTapeSpeed((int)cmd->arg.param1.U);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TAPE_SPEED_SET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleConfigEPROM(int fd, STC_COMMAND_CONFIG_EPROM* cmd)
+{
+    /* param1: 0=load, 1=store, 3=reset
+     * param2 = 0
+     */
+    switch(cmd->arg.param1.U)
+    {
+    case 0:
+        ConfigLoad(1);
+        break;
+
+    case 1:
+        ConfigSave(1);
+        break;
+
+    case 3:
+        ConfigReset(1);
+        break;
+
+    default:
+        break;
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_CONFIG_EPROM);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleMonitor(int fd, STC_COMMAND_MONITOR* cmd)
+{
+    /* Enable standby monitor mode for all tracks */
+    g_sys.standbyMonitor = (cmd->arg.param1.U) ? true : false;
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_MONITOR);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleTrackGetCount(int fd, STC_COMMAND_TRACK_GET_COUNT* cmd)
+{
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_TRACK_GET_COUNT);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = g_sys.trackCount;
+    cmd->arg.param2.U = g_sys.dcsFound;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd)
+{
+    /* This allows the STC to tell the DTC to load, store or
+     * reset it configuration parameters to/from EPROM
+     */
+    switch(cmd->arg.param1.U)
+    {
+    case 0:         /* load DTC config */
+        break;
+
+    case 1:         /* store DTC config */
+        break;
+
+    case 2:         /* reset DTC config */
+        break;
+
+    default:
+        break;
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
+{
+    /* Gets the STC and DTC configuration parameters struct in memory */
+    memset(&(cmd->stc), 0, sizeof(STC_CONFIG_DATA));
+    memset(&(cmd->dtc), 0, sizeof(DTC_CONFIG_DATA));
+
+    if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
+    {
+        /* Copy STC global system config data into message buffer */
+        memcpy(&(cmd->stc), &g_cfg, sizeof(STC_CONFIG_DATA));
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_GET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
+}
+
+
+uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
+{
+    /* Sets the STC and DTC configuration parameters in memory */
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_SET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = 0;
+
+    /* Reply Message Data */
+    cmd->arg.param1.U = 0;
+    cmd->arg.param2.U = 0;
+    cmd->arg.bitflags = 0;
+
+    return 0;
 }
 
 // End-Of-File

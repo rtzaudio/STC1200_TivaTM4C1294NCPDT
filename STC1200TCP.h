@@ -1,4 +1,4 @@
-// =========================================================================
+// ==========================================================================
 // STC1200TCP.h v1.02 01/04/2020
 //
 // STC-1200 Client/Server Network Packet Definitions for the software based
@@ -6,52 +6,132 @@
 //
 // Developed by Robert E. Starr, Jr.
 //
-// Copyright (C) 2019, RTZ Professional Audio, LLC
+// Copyright (C) 2019-2023, RTZ Professional Audio, LLC
 //
 // RTZ is a registered trademark of RTZ Professional Audio, LLC
 // All Rights Reserved
-// =========================================================================
+// ==========================================================================
 
 #pragma once
 #pragma pack(push, 8)
 
 #include <stdint.h>
 
-// =========================================================================
-// STC Specific Constants
-// =========================================================================
+// ===========================================================================
+// DTC-1200 CONFIG PARAMETERS - MUST MATCH SYSPARMS STRUCT IN DTC1200.h
+// ===========================================================================
 
-// The Ampex MM1200 tape roller quadrature encoder wheel has 40 ppr. This gives
-// either 80 or 160 edges per revolution depending on the quadrature encoder
-// configuration set by QEIConfig(). Currently we use Cha-A mode which
-// gives 80 edges per revolution. If Cha-A/B mode is used this must be
-// set to 160.
+typedef struct _DTC_CONFIG_DATA {
+    uint32_t    magic;
+    uint32_t    version;
+    uint32_t    build;
+    /*** GLOBAL PARAMETERS ***/
+    int32_t     debug;                      /* debug level */
+    int32_t     pinch_settle_time;          /* delay before engaging play mode   */
+    int32_t     lifter_settle_time;         /* lifter settling time in ms        */
+    int32_t     brake_settle_time;          /* break settling time after STOP    */
+    int32_t     play_settle_time;           /* play after shuttle settling time  */
+    int32_t     rechold_settle_time;        /* record pulse length time          */
+    int32_t     record_pulse_time;          /* record pulse length time          */
+    int32_t     vel_detect_threshold;       /* vel detect threshold (10)         */
+    uint32_t    debounce;                   /* debounce transport buttons time   */
+    uint32_t    sysflags;                   /* global system bit flags           */
+    /*** SOFTWARE GAIN PARAMETERS ***/
+    float       reel_radius_gain;           /* reeling radius play gain factor   */
+    float       reel_offset_gain;           /* reeling radius offset gain factor */
+    float       tension_sensor_gain;        /* tension sensor gain divisor       */
+    float       tension_sensor_midscale1;   /* ADC mid-scale for 1" tape         */
+    float       tension_sensor_midscale2;   /* ADC mid-scale for 2" tape         */
+    /*** THREAD TAPE PARAMETERS ***/
+    int32_t     thread_supply_tension;      /* supply tension level (0-DAC_MAX)  */
+    int32_t     thread_takeup_tension;      /* takeup tension level (0-DAC_MAX)  */
+    /*** STOP SERVO PARAMETERS ***/
+    int32_t     stop_supply_tension;        /* supply tension level (0-DAC_MAX)  */
+    int32_t     stop_takeup_tension;        /* takeup tension level (0-DAC_MAX)  */
+    int32_t     stop_brake_torque;          /* stop brake torque in shuttle mode */
+    /*** SHUTTLE SERVO PARAMETERS ***/
+    int32_t     shuttle_supply_tension;     /* play supply tension (0-DAC_MAX)   */
+    int32_t     shuttle_takeup_tension;     /* play takeup tension               */
+    int32_t     shuttle_velocity;           /* target speed for shuttle mode     */
+    int32_t     shuttle_lib_velocity;       /* library wind mode velocity        */
+    int32_t     shuttle_autoslow_velocity;  /* velocity to reduce speed to       */
+    int32_t     autoslow_at_offset;         /* auto-slow trigger at offset       */
+    int32_t     autoslow_at_velocity;       /* auto-slow trigger at velocity     */
+    float       shuttle_fwd_holdback_gain;  /* velocity tension gain factor      */
+    float       shuttle_rew_holdback_gain;  /* velocity tension gain factor      */
+    /* reel servo PID values */
+    float       shuttle_servo_pgain;        /* P-gain */
+    float       shuttle_servo_igain;        /* I-gain */
+    float       shuttle_servo_dgain;        /* D-gain */
+    /*** PLAY SERVO PARAMETERS ***/
+    /* play high speed boost parameters */
+    int32_t     play_hi_supply_tension;     /* play supply tension (0-DAC_MAX) */
+    int32_t     play_hi_takeup_tension;     /* play takeup tension (0-DAC_MAX) */
+    int32_t     play_hi_boost_end;
+    float       play_hi_boost_pgain;        /* P-gain */
+    float       play_hi_boost_igain;        /* I-gain */
+    /* play low speed boost parameters */
+    int32_t     play_lo_supply_tension;     /* play supply tension (0-DAC_MAX) */
+    int32_t     play_lo_takeup_tension;     /* play takeup tension (0-DAC_MAX) */
+    int32_t     play_lo_boost_end;
+    float       play_lo_boost_pgain;        /* P-gain */
+    float       play_lo_boost_igain;        /* I-gain */
+} DTC_CONFIG_DATA;
 
-#define STC_ROLLER_TICKS_PER_REV        80
-#define STC_ROLLER_TICKS_PER_REV_F      80.0f
+/* System Bit Flags for DTC1200_CONFIG.sysflags */
+#define DTC_SF_LIFTER_AT_STOP       0x0001  /* leave lifter engaged at stop */
+#define DTC_SF_BRAKES_AT_STOP       0x0002  /* leave brakes engaged at stop */
+#define DTC_SF_BRAKES_STOP_PLAY     0x0004  /* use brakes to stop play mode */
+#define DTC_SF_ENGAGE_PINCH_ROLLER  0x0008  /* engage pinch roller at play  */
+#define DTC_SF_STOP_AT_TAPE_END     0x0010  /* stop @tape end leader detect */
 
- // This is the diameter of the tape timer roller
-#define STC_ROLLER_CIRCUMFERENCE_F      5.0014f
+// ===========================================================================
+// STC-1200 CONFIG PARAMETERS - MUST MATCH SYSPARMS STRUCT IN STC1200.h
+// ===========================================================================
 
-// This is the maximum signed position value we can have. Anything past
-// this is treated as a negative position value.
+typedef struct _STC_CONFIG_DATA
+{
+    uint32_t    magic;
+    uint32_t    version;
+    uint32_t    build;
+    uint32_t    length;                 /* debug level */
+    /** Remote Parameters **/
+    bool        showLongTime;
+    /** Locator Parameters **/
+    bool        searchBlink;            /* blink 7-seg during search */
+    /** Locator velocities for various distances from the locate point **/
+    uint32_t    jog_vel_far;            /* 0 = use DTC default shuttle velocity */
+    uint32_t    jog_vel_mid;            /* vel for mid distance from locate point */
+    uint32_t    jog_vel_near;           /* vel for near distance from locate point */
+    /* NCO reference freq */
+    float       ref_freq;               /* default reference freq */
+    /* shadow copy of track config */
+    uint8_t     trackState[24];
+    uint8_t     tapeSpeed;              /* 15=low speed, 30=high speed */
+    /* SMPTE board config */
+    uint16_t    smpteFPS;               /* frames per sec config */
+    /* MIDI config */
+    uint8_t     midiDevID;              /* midi device ID */
+    uint8_t     reserved;
+} STC_CONFIG_DATA;
 
-#define STC_MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
-#define STC_MIN_ROLLER_POSITION			(-STC_MAX_ROLLER_POSITION - 1)
+#define STC_REF_FREQ        9600.0f
+#define STC_REF_FREQ_MIN    1000.0f
+#define STC_REF_FREQ_MAX    18000.0f
 
-// =========================================================================
-// General purpose time structure for tape position
-// =========================================================================
+// ==========================================================================
+// General purpose tape time structure for tape position in time
+// ==========================================================================
 
 #ifdef _WINDOWS
 typedef struct _TAPETIME {
-    uint8_t     hour;       /* hour (0-1)      */
-    uint8_t     mins;       /* minutes (0-59)  */
-    uint8_t     secs;       /* seconds  (0-59) */
-    uint8_t     tens;       /* tens secs (0-9) */
-    uint8_t     frame;      /* smpte frame#    */
-    uint8_t     flags;      /* display flags   */
-    uint16_t    align;      /* word alignment  */
+    uint8_t     hour;                   /* hour (0-1)      */
+    uint8_t     mins;                   /* minutes (0-59)  */
+    uint8_t     secs;                   /* seconds  (0-59) */
+    uint8_t     tens;                   /* tens secs (0-9) */
+    uint8_t     frame;                  /* smpte frame#    */
+    uint8_t     flags;                  /* display flags   */
+    uint16_t    align;                  /* word alignment  */
 } TAPETIME;
 
 /* TAPETIME.flags */
@@ -60,9 +140,9 @@ typedef struct _TAPETIME {
 #define F_TAPETIME_BLANK    0x80        /* blank the entire display  */
 #endif
 
-// =========================================================================
+// ==========================================================================
 // TCP/IP Port Numbers for STC remote server
-// =========================================================================
+// ==========================================================================
 
 #define STC_PORT_STATE          1200    /* streaming transport state   */
 #define STC_PORT_COMMAND        1201    /* transport cmd/response port */
@@ -72,7 +152,7 @@ typedef struct _TAPETIME {
  */
 #define STC_MAX_TRACKS          24      /* max number of audio tracks  */
 
-/* We support 10 cue points for the remote, but three extra cue memories
+/* We support 10 cue points for the remote, but five extra cue memories
  * are reserved for system use. One of these holds the 'home' cue point
  * associated with the search/cue buttons on the transport deck. This is
  * a dedicated cue point for the machine operator and is associated with
@@ -94,14 +174,13 @@ typedef struct _TAPETIME {
 #define STC_CUE_POINT_PUNCH_IN      (STC_MAX_CUE_POINTS - 4)
 #define STC_CUE_POINT_PUNCH_OUT     (STC_MAX_CUE_POINTS - 5)
 
-// =========================================================================
-// STC state update message structure. This message streams from the STC
-// to the TCP client to indicate the current transport time, the led/lamp
-// states and other real time feedback information. State packets stream
-// anytime there is tape motion, or any other transport state change 
-// event occurs. This is a one way stream to the client and the STC-1200
-// server does not attempt to receive any data back on this port stream.
-// =========================================================================
+/* STC state update message structure. This message streams from the STC
+ * to the TCP client to indicate the current transport time, the led/lamp
+ * states and other real time feedback information. State packets stream
+ * anytime there is tape motion, or any other transport state change 
+ * event occurs. This is a one way stream to the client and the STC-1200
+ * server does not attempt to receive any data back on this port stream.
+ */
 
 typedef struct _STC_STATE_MSG {
     uint32_t    length;                 /* size of this msg structure */
@@ -155,9 +234,9 @@ typedef struct _STC_STATE_MSG {
 #define STC_TRACK_SYNC      1           /* track is in sync mode      */
 #define STC_TRACK_INPUT     2           /* track is in input mode     */
 
-#define STC_TRACK_MASK      0x07        /* low 3-bits are track mode  */
+#define STC_TRACK_MASK      0x03        /* low 2-bits are track state */
 
-/* Upper bits indicate ready/record state */
+/* Upper bits of trackState indicate ready/record state */
 #define STC_T_STANDBY       0x10        /* standby monitor active flag */
 #define STC_T_MONITOR       0x20        /* standby monitor enable      */
 #define STC_T_RECORD        0x40        /* track record active flag    */
@@ -172,9 +251,9 @@ typedef struct _STC_STATE_MSG {
 #define STC_CF_AUTO_PLAY    0x02        /* auto-play after locate     */
 #define STC_CF_AUTO_REC     0x04        /* auto-play+rec after locate */
 
-// =========================================================================
+// ==========================================================================
 // STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
-// =========================================================================
+// ==========================================================================
 
 /* U7 is for transport control switches and button LEDs.
  * 5-bits for output LED's and 5-bits for pushbutton switch inputs.
@@ -222,18 +301,47 @@ typedef struct _STC_STATE_MSG {
                              STC_L_LOC5|STC_L_LOC6|STC_L_LOC7|STC_L_LOC8| \
                              STC_L_LOC9|STC_L_LOC0)
 
-// =========================================================================
-// STC COMMAND/RESPONSE Messages
-// =========================================================================
+// ==========================================================================
+// STC Specific Constants
+// ==========================================================================
+
+/* The Ampex MM1200 tape roller quadrature encoder wheel has 40 ppr. This gives
+ * either 80 or 160 edges per revolution depending on the quadrature encoder
+ * configuration set by QEIConfig(). Currently we use Cha-A mode which
+ * gives 80 edges per revolution. If Cha-A/B mode is used this must be
+ * set to 160.
+ */
+
+#define STC_ROLLER_TICKS_PER_REV        80
+#define STC_ROLLER_TICKS_PER_REV_F      80.0f
+
+ /* This is the diameter of the tape timer roller */
+#define STC_ROLLER_CIRCUMFERENCE_F      5.0014f
+
+/* This is the maximum signed position value we can have.Anything past
+ * this is treated as a negative position value.
+ */
+
+#define STC_MAX_ROLLER_POSITION			(0x7FFFFFFF - 1UL)
+#define STC_MIN_ROLLER_POSITION			(-STC_MAX_ROLLER_POSITION - 1)
+
+// ==========================================================================
+// STC COMMAND/RESPONSE MESSAGES
+// ==========================================================================
 
 #define STC_ALL_TRACKS      ((uint32_t)(-1))
 #define STC_ALL_CUEPOINTS   ((uint32_t)(-1))
 
 typedef struct _STC_COMMAND_HDR {
-    uint16_t    hdrlen;                 /* size of this msg structure */
+    uint16_t    length;                 /* size of full msg structure */
     uint16_t    command;                /* the command ID to execute  */
     uint16_t    index;                  /* track or cue point index   */
     uint16_t    status;                 /* return status/error code   */
+} STC_COMMAND_HDR;
+
+/*** COMMON ARGUMENTS FOR MOST COMMANDS ************************************/
+
+typedef struct _STC_COMMAND_ARG {
     union {
         uint32_t    U;
         int32_t     I;
@@ -244,37 +352,250 @@ typedef struct _STC_COMMAND_HDR {
         int32_t     I;
         float       F;
     }  param2;                          /* int, unsigned or float     */
-    uint16_t    datalen;                /* trailing payload data len  */
-} STC_COMMAND_HDR;
+    uint16_t        bitflags;           /* optional flags mask word   */
+} STC_COMMAND_ARG;
 
-/*
- * Locator Command Message Types for 'STC_COMMAND_HDR.command'
- */
+ // ==========================================================================
+ // MESSAGE COMMAND TYPES FOR 'STC_COMMAND_HDR.command'
+ // ==========================================================================
 
-#define STC_CMD_STOP                1
-#define STC_CMD_PLAY                2   /* param0 1=record */
-#define STC_CMD_REW                 3
-#define STC_CMD_FWD                 4
-#define STC_CMD_LIFTER              5
-#define STC_CMD_LOCATE              6   /* param1 1=autoplay, 2=autorec    */
-#define STC_CMD_LOCATE_MODE_SET     8   /* param1 0=cue-mode, 1=store-mode */
-#define STC_CMD_LOCATE_AUTO_LOOP    7   /* param1 1=autoplay, 2=autorec    */
-#define STC_CMD_AUTO_PUNCH_SET      9
-#define STC_CMD_AUTO_PUNCH_GET      10
-#define STC_CMD_CUEPOINT_CLEAR      11  /* param1=index                    */
-#define STC_CMD_CUEPOINT_STORE      12
-#define STC_CMD_CUEPOINT_SET        13
-#define STC_CMD_CUEPOINT_GET        14
-#define STC_CMD_TRACK_TOGGLE_ALL    15  /* param1=mask to toggle           */
-#define STC_CMD_TRACK_SET_STATE     16  /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_GET_STATE     17  /* param1=index, param2=flags      */
-#define STC_CMD_TRACK_MASK_ALL      18  /* param1=setmask, param2=clrmask  */
-#define STC_CMD_TRACK_MODE_ALL      19  /* param1=newmode, param2=0        */
-#define STC_CMD_ZERO_RESET          20  /* param1=0, param2=0              */
-#define STC_CMD_CANCEL              21  /* param1=0, param2=0              */
-#define STC_CMD_TAPE_SPEED_SET      22  /* param1=30/15, param2=0          */
-#define STC_CMD_CONFIG_SET          23  /* param1 0=load, 1=store, 2=reset */
-#define STC_CMD_MONITOR             24  /* param1 0=off, 1=standby mon     */
-#define STC_CMD_TRACK_GET_COUNT     25  /* number of tracks from DCS or 0  */
+#define STC_CMD_VERSION                 0   /* return the current STC version   */
+#define STC_CMD_STOP                    1
+#define STC_CMD_PLAY                    2   /* param0 1=record                  */
+#define STC_CMD_REW                     3
+#define STC_CMD_FWD                     4
+#define STC_CMD_LIFTER                  5
+#define STC_CMD_LOCATE                  6   /* param1 1=autoplay, 2=autorec     */
+#define STC_CMD_LOCATE_AUTO_LOOP        7   /* param1 1=autoplay, 2=autorec     */
+#define STC_CMD_LOCATE_MODE_SET         8   /* param1 0=cue-mode, 1=store-mode  */
+#define STC_CMD_AUTO_PUNCH_SET          9
+#define STC_CMD_AUTO_PUNCH_GET          10
+#define STC_CMD_CUEPOINT_CLEAR          11  /* param1=index                     */
+#define STC_CMD_CUEPOINT_STORE          12
+#define STC_CMD_CUEPOINT_SET            13
+#define STC_CMD_CUEPOINT_GET            14
+#define STC_CMD_TRACK_TOGGLE_ALL        15  /* param1=mask to toggle            */
+#define STC_CMD_TRACK_SET_STATE         16  /* param1=index, param2=flags       */
+#define STC_CMD_TRACK_GET_STATE         17  /* param1=index, param2=flags       */
+#define STC_CMD_TRACK_MASK_ALL          18  /* param1=setmask, param2=clrmask   */
+#define STC_CMD_TRACK_MODE_ALL          19  /* param1=newmode, param2=0         */
+#define STC_CMD_ZERO_RESET              20  /* param1=0, param2=0               */
+#define STC_CMD_CANCEL                  21  /* param1=0, param2=0               */
+#define STC_CMD_TAPE_SPEED_SET          22  /* param1=30/15, param2=0           */
+#define STC_CMD_CONFIG_EPROM            23  /* param1 0=load, 1=store, 2=reset  */
+#define STC_CMD_MONITOR                 24  /* param1 0=off, 1=standby, 2=mon   */
+#define STC_CMD_TRACK_GET_COUNT         25
+#define STC_CMD_MACHINE_CONFIG          26  /* param1 0=load, 1=store, 2=reset  */
+#define STC_CMD_MACHINE_CONFIG_GET      27
+#define STC_CMD_MACHINE_CONFIG_SET      28
+
+/*** STC_CMD_STOP ***********************************************************/
+
+typedef struct _STC_COMMAND_VERSION {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_VERSION;
+
+/*** STC_CMD_STOP ***********************************************************/
+
+typedef struct _STC_COMMAND_STOP {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_STOP;
+
+/*** STC_CMD_PLAY ***********************************************************/
+
+typedef struct _STC_COMMAND_PLAY {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_PLAY;
+
+/*** STC_CMD_REW ************************************************************/
+
+typedef struct _STC_COMMAND_REW {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_REW; 
+
+/*** STC_CMD_FWD ************************************************************/
+
+typedef struct _STC_COMMAND_FWD {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_FWD;
+
+/*** STC_CMD_LIFTER *********************************************************/
+
+typedef struct _STC_COMMAND_LIFTER {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_LIFTER;
+
+/*** STC_CMD_LOCATE *********************************************************/
+
+typedef struct _STC_COMMAND_LOCATE {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1 1=autoplay, 2=autorec    */
+} STC_COMMAND_LOCATE;
+
+/*** STC_CMD_LOCATE_MODE_SET ************************************************/
+
+typedef struct _STC_COMMAND_LOCATE_MODE_SET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1 1=autoplay, 2=autorec    */
+} STC_COMMAND_LOCATE_MODE_SET;
+
+/*** STC_CMD_LOCATE_MODE_SET ************************************************/
+
+typedef struct _STC_COMMAND_LOCATE_AUTO_LOOP {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1 1=autoplay, 2=autorec    */
+} STC_COMMAND_LOCATE_AUTO_LOOP;
+
+/*** STC_CMD_AUTO_PUNCH_SET *************************************************/
+
+typedef struct _STC_COMMAND_AUTO_PUNCH_SET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_AUTO_PUNCH_SET;
+
+/*** STC_CMD_AUTO_PUNCH_GET *************************************************/
+
+typedef struct _STC_COMMAND_AUTO_PUNCH_GET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_AUTO_PUNCH_GET;
+
+/*** STC_CMD_CUEPOINT_CLEAR *************************************************/
+
+typedef struct _STC_COMMAND_CUEPOINT_CLEAR {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_CUEPOINT_CLEAR;
+
+/*** STC_CMD_CUEPOINT_STORE *************************************************/
+
+typedef struct _STC_COMMAND_CUEPOINT_STORE {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_CUEPOINT_STORE;
+
+/*** STC_CMD_CUEPOINT_SET ***************************************************/
+
+typedef struct _STC_COMMAND_CUEPOINT_SET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_CUEPOINT_SET;
+
+/*** STC_CMD_CUEPOINT_GET ***************************************************/
+
+typedef struct _STC_COMMAND_CUEPOINT_GET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_CUEPOINT_GET;
+
+/*** STC_CMD_TRACK_TOGGLE_ALL ***********************************************/
+
+typedef struct _STC_COMMAND_TRACK_TOGGLE_ALL {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_TRACK_TOGGLE_ALL;
+
+/*** STC_CMD_TRACK_SET_STATE ************************************************/
+
+typedef struct _STC_COMMAND_TRACK_SET_STATE {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_TRACK_SET_STATE;
+
+/*** STC_CMD_TRACK_GET_STATE ************************************************/
+
+typedef struct _STC_COMMAND_TRACK_GET_STATE {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;
+} STC_COMMAND_TRACK_GET_STATE;
+
+/*** STC_CMD_TRACK_MASK_ALL *************************************************/
+
+typedef struct _STC_COMMAND_TRACK_MASK_ALL {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=setmask, param2=clrmask  */
+} STC_COMMAND_TRACK_MASK_ALL;
+
+/*** STC_CMD_TRACK_MODE_ALL *************************************************/
+
+typedef struct _STC_COMMAND_TRACK_MODE_ALL {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=newmode, param2=0        */
+} STC_COMMAND_TRACK_MODE_ALL;
+
+/*** STC_CMD_ZERO_RESET *****************************************************/
+
+typedef struct _STC_COMMAND_ZERO_RESET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=0, param2=0               */
+} STC_COMMAND_ZERO_RESET;
+
+/*** STC_CMD_CANCEL *********************************************************/
+
+typedef struct _STC_COMMAND_CANCEL {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=0, param2=0               */
+} STC_COMMAND_CANCEL;
+
+/*** STC_CMD_TAPE_SPEED_SET *************************************************/
+
+typedef struct _STC_COMMAND_TAPE_SPEED_SET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=0, param2=0               */
+} STC_COMMAND_TAPE_SPEED_SET;
+
+/*** STC_CMD_TRACK_CONFIG_EPROM *********************************************/
+
+typedef struct _STC_COMMAND_CONFIG_EPROM {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* parm1: 0=load, 1=store, 2=reset  */
+} STC_COMMAND_CONFIG_EPROM;
+
+/*** STC_CMD_TAPE_MONITOR ***************************************************/
+
+typedef struct _STC_COMMAND_MONITOR {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1 0=off, 1=standby, 2=mon   */
+} STC_COMMAND_MONITOR;
+
+/*** STC_CMD_TRACK_GET_COUNT ************************************************/
+
+typedef struct _STC_COMMAND_TRACK_GET_COUNT {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=0, param2=0              */
+} STC_COMMAND_TRACK_GET_COUNT;
+
+/*** STC_CMD_MACHINE_CONFIG *************************************************/
+
+typedef struct _STC_COMMAND_MACHINE_CONFIG {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1 0=load,1=store,2=defaults*/
+} STC_COMMAND_MACHINE_CONFIG;
+
+/*** STC_CMD_MACHINE_CONFIG_GET *********************************************/
+
+typedef struct _STC_COMMAND_MACHINE_CONFIG_GET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=0, param2=0              */
+    STC_CONFIG_DATA     stc;        /* STC config parameters struct    */
+    DTC_CONFIG_DATA     dtc;        /* DTC config parameters struct    */
+} STC_COMMAND_MACHINE_CONFIG_GET;
+
+/*** STC_CMD_MACHINE_CONFIG_SET *********************************************/
+
+typedef struct _STC_COMMAND_MACHINE_CONFIG_SET {
+    STC_COMMAND_HDR     hdr;
+    STC_COMMAND_ARG     arg;        /* param1=0, param2=0              */
+    STC_CONFIG_DATA     stc;        /* STC config parameters struct    */
+    DTC_CONFIG_DATA     dtc;        /* DTC config parameters struct    */
+} STC_COMMAND_MACHINE_CONFIG_SET;
 
 #pragma pack(pop)
+
+/* End-Of-File */
