@@ -1578,8 +1578,14 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
 {
     /* Sets the STC and DTC configuration parameters in memory */
 
+    if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
+    {
+        /* Copy message config data into system config buffer */
+        memcpy(&g_cfg, &(cmd->stc), sizeof(STC_CONFIG_DATA));
+    }
+
     /* Reply Header Data */
-    cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_SET);
+    cmd->hdr.length = sizeof(STC_COMMAND_HDR) + sizeof(STC_COMMAND_ARG);
     cmd->hdr.index  = 0;
     cmd->hdr.status = 0;
 
