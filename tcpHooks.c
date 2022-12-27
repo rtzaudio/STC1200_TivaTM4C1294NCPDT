@@ -88,6 +88,7 @@
 #include "Board.h"
 #include "STC1200.h"
 #include "STC1200TCP.h"
+#include "IPCToDTC.h"
 #include "IPCCommands.h"
 #include "IPCMessage.h"
 #include "RemoteTask.h"
@@ -1550,6 +1551,8 @@ uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd)
 
 uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
 {
+    int rc;
+
     /* Gets the STC and DTC configuration parameters struct in memory */
     memset(&(cmd->stc), 0, sizeof(STC_CONFIG_DATA));
     memset(&(cmd->dtc), 0, sizeof(DTC_CONFIG_DATA));
@@ -1559,6 +1562,12 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
         /* Copy STC global system config data into message buffer */
         memcpy(&(cmd->stc), &g_cfg, sizeof(STC_CONFIG_DATA));
     }
+
+    /* Get the DTC configuration data from the DTC over the IPC channel.
+     * The config data will be ready direction include the machine
+     * config message buffer.
+     */
+    rc = IPCToDTC_ConfigGet(g_sys.ipcToDTC, &cmd->dtc);
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_GET);
@@ -1576,6 +1585,7 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
 
 uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
 {
+
     /* Sets the STC and DTC configuration parameters in memory */
 
     if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
