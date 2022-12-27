@@ -205,6 +205,23 @@ typedef struct _STC_STATE_MSG {
     uint8_t     cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;
 
+#if 0
+    /* SUPPLY */
+    uint32_t    dac_supply;
+    float       velocity_supply;
+    uint32_t    qei_supply_error_cnt;
+    float       stop_torque_supply;
+    float       offset_supply;
+    float       radius_supply;
+    /* TAKEUP */
+    uint32_t    dac_takeup;
+    float       velocity_takeup;
+    uint32_t    qei_takeup_error_cnt;
+    float       stop_torque_takeup;
+    float       offset_takeup;
+    float       radius_takeup;
+#endif
+
 /* The lower three bits of STC_STATE_MSG.transportMode are the
  * current transport mode. The upper bit flags are defined below.
  */
