@@ -13,8 +13,6 @@
 #ifndef _TRACKCTRL_H_
 #define _TRACKCTRL_H_
 
-#include "..\DCS1200_TivaTM4C123AE6PM2\IPCCMD_DCS1200.h"
-
 /*** CONSTANTS *************************************************************/
 
 #define MAX_TRACKS      24
@@ -61,6 +59,5 @@ bool Track_SetModeAll(uint8_t setmode);
 bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 bool Track_ToggleMaskAll(uint8_t flags);
 bool Track_StandbyTransfer(bool enable);
-
 
 #endif /* _TRACKCTRL_H_ */

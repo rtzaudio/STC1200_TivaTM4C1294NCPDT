@@ -441,6 +441,9 @@ void Init_Application(void)
     /* Startup the wired remote task */
     Remote_Task_startup();
 
+    /* Open the IPC channel on UART-B to the DTC */
+    g_sys.ipcToDTC = IPCToDTC_Open();
+
     /*
      * Create the various system tasks
      */

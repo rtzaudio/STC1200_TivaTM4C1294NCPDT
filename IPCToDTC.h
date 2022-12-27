@@ -40,11 +40,8 @@
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * ============================================================================ */
 
-#ifndef IPC_TO_DTC_H_
-#define IPC_TO_DTC_H_
-
-#include "IPCCMD.h"
-#include "..\DTC1200_TivaTM4C123AE6PM\IPCCMD_DTC1200.h"
+#ifndef _IPC_TO_DTC_H_
+#define _IPC_TO_DTC_H_
 
 //*****************************************************************************
 //  Function Prototypes
@@ -56,4 +53,4 @@ int IPCToDTC_ConfigEPROM(IPCCMD_Handle handle, int store);
 int IPCToDTC_ConfigGet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg);
 int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg);
 
-#endif /* IPC_TO_DTC_H_ */
+#endif /* _IPC_TO_DTC_H_ */

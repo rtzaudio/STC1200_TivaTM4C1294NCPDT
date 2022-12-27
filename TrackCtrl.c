@@ -73,13 +73,11 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include <TrackCtrl.h>
 
 /* STC1200 Board Header file */
 #include "STC1200.h"
-#include "Board.h"
-#include "IPCFrame.h"
 #include "STC1200TCP.h"
+#include "Board.h"
 
 /* Default AT45DB parameters structure */
 const TRACK_Params TRACK_defaultParams = {

@@ -15,9 +15,18 @@
 
 #include "PositionTask.h"
 #include "LocateTask.h"
-#include "TrackCtrl.h"
 #include "MCP79410.h"
 #include "AD9837.h"
+
+#include "IPCFrame.h"
+#include "IPCCMD.h"
+
+#include "..\DCS1200_TivaTM4C123AE6PM2\IPCCMD_DCS1200.h"
+#include "..\DTC1200_TivaTM4C123AE6PM\IPCCMD_DTC1200.h"
+
+#include "IPCToDTC.h"
+
+#include "TrackCtrl.h"
 
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
@@ -132,6 +141,7 @@ typedef struct _SYSDAT
     bool            rtcFound;                   /* true if MCP79410 RTC found */
     UART_Handle     handleUartDCS;
     TRACK_Handle    handleDCS;
+    IPCCMD_Handle   ipcToDTC;
     bool            dcsFound;                   /* true if DCS-1200 found     */
     bool            smpteFound;                 /* true if SMPTE card found   */
     bool            standbyMonitor;             /* standby monitor enable     */

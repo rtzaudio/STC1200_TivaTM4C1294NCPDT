@@ -80,6 +80,7 @@
 #include "STC1200.h"
 #include "Board.h"
 #include "IPCToDTC.h"
+#include "..\DTC1200_TivaTM4C123AE6PM\IPCCMD_DTC1200.h"
 
 //*****************************************************************************
 // This task handles IPC messages from the STC via Board_UART_IPC_B.

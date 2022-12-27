@@ -21,6 +21,9 @@
 // DTC-1200 CONFIG PARAMETERS - MUST MATCH SYSPARMS STRUCT IN DTC1200.h
 // ===========================================================================
 
+#ifndef _DTC_CONFIG_DATA_DEFINED_
+#define _DTC_CONFIG_DATA_DEFINED_
+
 typedef struct _DTC_CONFIG_DATA {
     uint32_t    magic;
     uint32_t    version;
@@ -85,9 +88,14 @@ typedef struct _DTC_CONFIG_DATA {
 #define DTC_SF_ENGAGE_PINCH_ROLLER  0x0008  /* engage pinch roller at play  */
 #define DTC_SF_STOP_AT_TAPE_END     0x0010  /* stop @tape end leader detect */
 
+#endif /* _DTC_CONFIG_DATA_DEFINED_ */
+
 // ===========================================================================
 // STC-1200 CONFIG PARAMETERS - MUST MATCH SYSPARMS STRUCT IN STC1200.h
 // ===========================================================================
+
+#ifndef _STC_CONFIG_DATA_DEFINED_
+#define _STC_CONFIG_DATA_DEFINED_
 
 typedef struct _STC_CONFIG_DATA
 {
@@ -118,6 +126,8 @@ typedef struct _STC_CONFIG_DATA
 #define STC_REF_FREQ        9600.0f
 #define STC_REF_FREQ_MIN    1000.0f
 #define STC_REF_FREQ_MAX    18000.0f
+
+#endif /* _STC_CONFIG_DATA_DEFINED_ */
 
 // ==========================================================================
 // General purpose tape time structure for tape position in time
