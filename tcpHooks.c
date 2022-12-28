@@ -1551,7 +1551,7 @@ uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd)
 
 uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
 {
-    int rc;
+    int rc = IPC_ERR_SUCCESS;
 
     /* Gets the STC and DTC configuration parameters struct in memory */
     memset(&(cmd->stc), 0, sizeof(STC_CONFIG_DATA));
@@ -1561,13 +1561,10 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
     {
         /* Copy STC global system config data into message buffer */
         memcpy(&(cmd->stc), &g_cfg, sizeof(STC_CONFIG_DATA));
-    }
 
-    /* Get the DTC configuration data from the DTC over the IPC channel.
-     * The config data will be ready direction include the machine
-     * config message buffer.
-     */
-    rc = IPCToDTC_ConfigGet(g_sys.ipcToDTC, &cmd->dtc);
+        /* Get the DTC config data via IPC from DTC */
+        rc = IPCToDTC_ConfigGet(g_sys.ipcToDTC, &cmd->dtc);
+    }
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_GET);
@@ -1579,12 +1576,13 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
     cmd->arg.param2.U = 0;
     cmd->arg.bitflags = 0;
 
-    return 0;
+    return rc;
 }
 
 
 uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
 {
+    int rc = IPC_ERR_SUCCESS;
 
     /* Sets the STC and DTC configuration parameters in memory */
 
@@ -1592,6 +1590,9 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
     {
         /* Copy message config data into system config buffer */
         memcpy(&g_cfg, &(cmd->stc), sizeof(STC_CONFIG_DATA));
+
+        /* Send the DTC new config data via IPC */
+        rc = IPCToDTC_ConfigSet(g_sys.ipcToDTC, &cmd->dtc);
     }
 
     /* Reply Header Data */
@@ -1604,7 +1605,7 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
     cmd->arg.param2.U = 0;
     cmd->arg.bitflags = 0;
 
-    return 0;
+    return rc;
 }
 
 // End-Of-File

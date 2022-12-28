@@ -176,7 +176,6 @@ int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
     return rc;
 }
 
-
 /*  0 = recall DTC config from EPROM to memory
  *  1 = store DTC config in memory to EPROM
  */
