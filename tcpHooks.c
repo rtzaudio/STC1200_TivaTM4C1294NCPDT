@@ -1459,14 +1459,17 @@ uint16_t HandleConfigEPROM(int fd, STC_COMMAND_CONFIG_EPROM* cmd)
     switch(cmd->arg.param1.U)
     {
     case 0:
+        // load STC config data to EPROM */
         ConfigLoad(1);
         break;
 
     case 1:
+        // save STC config data to EPROM */
         ConfigSave(1);
         break;
 
     case 3:
+        // reset STC config data in memory to defaults */
         ConfigReset(1);
         break;
 
@@ -1525,18 +1528,32 @@ uint16_t HandleTrackGetCount(int fd, STC_COMMAND_TRACK_GET_COUNT* cmd)
 
 uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd)
 {
+    int rc;
+
     /* This allows the STC to tell the DTC to load, store or
      * reset it configuration parameters to/from EPROM
      */
     switch(cmd->arg.param1.U)
     {
-    case 0:         /* load DTC config */
+    case 0:
+        // load the STC config data
+        ConfigLoad(1);
+        /* load DTC config */
+        rc = IPCToDTC_ConfigEPROM(g_sys.ipcToDTC, 0);
         break;
 
-    case 1:         /* store DTC config */
+    case 1:
+        // save the STC config data
+        ConfigSave(1);
+        // save DTC config
+        rc = IPCToDTC_ConfigEPROM(g_sys.ipcToDTC, 1);
         break;
 
     case 2:         /* reset DTC config */
+        // reset STC config data to defaults
+        ConfigReset(1);
+        // reset DTC config data to defaults
+        rc = IPCToDTC_ConfigEPROM(g_sys.ipcToDTC, 2);
         break;
 
     default:
@@ -1546,7 +1563,7 @@ uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd)
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG);
     cmd->hdr.index  = 0;
-    cmd->hdr.status = 0;
+    cmd->hdr.status = (uint16_t)rc;
 
     /* Reply Message Data */
     cmd->arg.param1.U = 0;
@@ -1567,7 +1584,7 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
 
     if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
     {
-        /* Copy STC global system config data into message buffer */
+        /* Return global STC system config data in the message buffer */
         memcpy(&(cmd->stc), &g_cfg, sizeof(STC_CONFIG_DATA));
 
         /* Get the DTC config data via IPC from DTC */
@@ -1577,7 +1594,7 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_GET);
     cmd->hdr.index  = 0;
-    cmd->hdr.status = 0;
+    cmd->hdr.status = (uint16_t)rc;
 
     /* Reply Message Data */
     cmd->arg.param1.U = 0;
@@ -1596,7 +1613,7 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
 
     if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
     {
-        /* Copy message config data into system config buffer */
+        /* Copy STC config data into the STC config buffer */
         memcpy(&g_cfg, &(cmd->stc), sizeof(STC_CONFIG_DATA));
 
         /* Send the DTC new config data via IPC */
@@ -1606,7 +1623,7 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_HDR) + sizeof(STC_COMMAND_ARG);
     cmd->hdr.index  = 0;
-    cmd->hdr.status = 0;
+    cmd->hdr.status = (uint16_t)rc;
 
     /* Reply Message Data */
     cmd->arg.param1.U = 0;

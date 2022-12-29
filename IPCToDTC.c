@@ -178,6 +178,7 @@ int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
 
 /*  0 = recall DTC config from EPROM to memory
  *  1 = store DTC config in memory to EPROM
+ *  2 = reset DTC config data to defaults
  */
 int IPCToDTC_ConfigEPROM(IPCCMD_Handle handle, int store)
 {
@@ -186,7 +187,7 @@ int IPCToDTC_ConfigEPROM(IPCCMD_Handle handle, int store)
 
     msg.hdr.opcode = DTC_OP_CONFIG_EPROM;
     msg.hdr.msglen = sizeof(DTC_IPCMSG_CONFIG_EPROM);
-    msg.store = store;      /* 0=recall, 1=store */
+    msg.store = store;      /* 0=recall, 1=store, 2=reset */
     msg.status = 0;
 
     rc = IPCCMD_Transaction(handle, &msg.hdr, &msg.hdr);
