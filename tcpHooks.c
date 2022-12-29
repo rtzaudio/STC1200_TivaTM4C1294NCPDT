@@ -733,10 +733,12 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_TRACK_TOGGLE_ALL:
             status = HandleTrackToggleAll(clientfd, (STC_COMMAND_TRACK_TOGGLE_ALL*)buf);
+            notify = true;
             break;
 
         case STC_CMD_TRACK_SET_STATE:
             status = HandleTrackSetState(clientfd, (STC_COMMAND_TRACK_SET_STATE*)buf);
+            notify = true;
             break;
 
         case STC_CMD_TRACK_GET_STATE:
@@ -745,10 +747,12 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_TRACK_MASK_ALL:
             status = HandleTrackMaskAll(clientfd, (STC_COMMAND_TRACK_MASK_ALL*)buf);
+            notify = true;
             break;
 
         case STC_CMD_TRACK_MODE_ALL:
             status = HandleTrackModeAll(clientfd, (STC_COMMAND_TRACK_MODE_ALL*)buf);
+            notify = true;
             break;
 
         case STC_CMD_ZERO_RESET:
@@ -762,10 +766,12 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_TAPE_SPEED_SET:
             status = HandleTapeSpeedSet(clientfd, (STC_COMMAND_TAPE_SPEED_SET*)buf);
+            notify = true;
             break;
 
         case STC_CMD_CONFIG_EPROM:
             status = HandleConfigEPROM(clientfd, (STC_COMMAND_CONFIG_EPROM*)buf);
+            notify = true;
             break;
 
         case STC_CMD_MONITOR:
@@ -779,6 +785,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_MACHINE_CONFIG:
             status = HandleMachineConfig(clientfd, (STC_COMMAND_MACHINE_CONFIG*)buf);
+            notify = true;
             break;
 
         case STC_CMD_MACHINE_CONFIG_GET:
@@ -787,6 +794,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_MACHINE_CONFIG_SET:
             status = HandleMachineConfigSet(clientfd, (STC_COMMAND_MACHINE_CONFIG_SET*)buf);
+            notify = true;
             break;
 
         default:
