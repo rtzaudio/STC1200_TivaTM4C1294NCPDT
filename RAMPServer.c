@@ -95,9 +95,6 @@
 #include "IPCServer.h"
 #include "STC1200.h"
 
-/* External Data Items */
-extern SYSDAT g_sys;
-
 /* Static Function Prototypes */
 static RAMP_SVR_OBJECT g_svr;
 

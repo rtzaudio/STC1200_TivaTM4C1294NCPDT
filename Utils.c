@@ -494,6 +494,7 @@ int SysParamsWrite(SYSCFG* sp)
     sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     sp->build   = FIRMWARE_BUILD;
     sp->magic   = MAGIC;
+    sp->length  = sizeof(SYSCFG);
 
     /* Store the configuration parameters to EPROM */
     rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSCFG));

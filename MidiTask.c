@@ -87,11 +87,6 @@
 #include "IPCMessage.h"
 #include "CLITask.h"
 
-/* External Data Items */
-
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 /* Static Data Items */
 
 static Mailbox_Handle g_mailboxMidi = NULL;

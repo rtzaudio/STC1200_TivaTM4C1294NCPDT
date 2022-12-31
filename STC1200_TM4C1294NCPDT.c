@@ -74,11 +74,6 @@
 #define TI_DRIVERS_UART_DMA     0
 #endif
 
-/* Global STC-1200 System data */
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
-
 /*
  *  =============================== DMA ===============================
  */

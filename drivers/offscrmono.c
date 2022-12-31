@@ -70,8 +70,6 @@
 #include "../STC1200.h"
 #include "../RAMPServer.h"
 
-extern SYSDAT g_sys;
-
 /* Global context for drawing */
 tContext g_context;
 

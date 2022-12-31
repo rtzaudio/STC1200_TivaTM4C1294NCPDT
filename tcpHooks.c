@@ -103,10 +103,6 @@
 #define TCPHANDLERSTACK     1024
 #endif
 
-/* Global STC-1200 System data */
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 /* Static Function Prototypes */
 void netOpenHook(void);
 void netIPUpdate(unsigned int IPAddr, unsigned int IfIdx, unsigned int fAdd);

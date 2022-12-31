@@ -83,9 +83,6 @@
 #include "LocateTask.h"
 #include "PositionTask.h"
 
-/* External Data Items */
-extern SYSDAT g_sys;
-
 /* Static Function Prototypes */
 static uint32_t dtc_to_drc_lamp_mask(uint32_t bits);
 

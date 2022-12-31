@@ -103,8 +103,6 @@ extern tFont *g_psFontWDseg7bold16pt;
 extern tFont *g_psFontWDseg7bold14pt;
 extern tFont *g_psFontWDseg7bold12pt;
 extern tFont *g_psFontWDseg7bold10pt;
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
 
 //*****************************************************************************
 // Display the current measurement screen data

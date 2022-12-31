@@ -94,8 +94,6 @@ static uint32_t s_uScreenNum = 0;
 /* External Global Data */
 extern tContext g_context;
 extern Mailbox_Handle g_mailboxRemote;
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
 
 /* Static Function Prototypes */
 static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);

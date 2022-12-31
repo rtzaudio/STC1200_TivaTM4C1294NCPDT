@@ -80,10 +80,6 @@
 #include "Board.h"
 #include "SMPTE.h"
 
-/* Global STC-1200 System data */
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 /* Default AT45DB parameters structure */
 const SMPTE_Params SMPTE_defaultParams = {
     NULL,

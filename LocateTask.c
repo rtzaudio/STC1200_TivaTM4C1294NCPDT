@@ -122,8 +122,6 @@ typedef enum _LocateState {
 
 /*** External Data Items ***/
 
-extern SYSDAT g_sys;
-
 extern Mailbox_Handle g_mailboxLocate;
 
 /*** Static Function Prototypes ***/

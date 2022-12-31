@@ -20,12 +20,9 @@
 
 #include "IPCFrame.h"
 #include "IPCCMD.h"
-
 #include "..\DCS1200_TivaTM4C123AE6PM2\IPCCMD_DCS1200.h"
 #include "..\DTC1200_TivaTM4C123AE6PM\IPCCMD_DTC1200.h"
-
 #include "IPCToDTC.h"
-
 #include "TrackCtrl.h"
 
 //*****************************************************************************
@@ -40,8 +37,8 @@
  * eprom as normal. This provides a means to force run time config defaults
  * to be reset or not.
  */
-#define FIRMWARE_VER        2           /* firmware version */
-#define FIRMWARE_REV        3           /* firmware revision */
+#define FIRMWARE_VER        3           /* firmware version */
+#define FIRMWARE_REV        0           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -65,7 +62,7 @@ typedef struct _SYSCFG
     uint32_t    magic;
     uint32_t    version;
     uint32_t    build;
-    uint32_t    length;              /* debug level */
+    uint32_t    length;
     /** Remote Parameters **/
     bool        showLongTime;
     /** Locator Parameters **/

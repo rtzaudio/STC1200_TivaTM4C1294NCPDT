@@ -305,9 +305,9 @@ void Init_Peripherals(void)
     //UART_Params uartParams;
     I2C_Params  i2cParams;
 
-    /*-----------------------------------------------------------*/
-    /* Open I2C-0 bus, read MAC, S/N and probe if RTC available  */
-    /*-----------------------------------------------------------*/
+    /*
+     * Open I2C-0 bus, read MAC, S/N and probe if RTC available
+     */
 
     I2C_Params_init(&i2cParams);
 
@@ -352,9 +352,9 @@ void Init_Peripherals(void)
         HibernateCounterMode(HIBERNATE_COUNTER_24HR);
     }
 
-    /*-----------------------------------------------------------*/
-    /*  Initialize the SD drive for operation                    */
-    /*-----------------------------------------------------------*/
+    /*
+     * Initialize the SD drive for operation
+     */
 
     SDSPI_Params_init(&sdParams);
 

@@ -102,7 +102,7 @@ typedef struct _STC_CONFIG_DATA
     uint32_t    magic;
     uint32_t    version;
     uint32_t    build;
-    uint32_t    length;                 /* debug level */
+    uint32_t    length;
     /** Remote Parameters **/
     bool        showLongTime;
     /** Locator Parameters **/
@@ -130,10 +130,11 @@ typedef struct _STC_CONFIG_DATA
 #endif /* _STC_CONFIG_DATA_DEFINED_ */
 
 // ==========================================================================
-// General purpose tape time structure for tape position in time
+// General Purpose Tape time and RTC time/date structures
 // ==========================================================================
 
 #ifdef _WINDOWS
+/* Tape time structure for tape position in time */
 typedef struct _TAPETIME {
     uint8_t     hour;                   /* hour (0-1)      */
     uint8_t     mins;                   /* minutes (0-59)  */
@@ -149,6 +150,18 @@ typedef struct _TAPETIME {
 #define F_TAPETIME_BLINK    0x02        /* blink all seven segments  */
 #define F_TAPETIME_BLANK    0x80        /* blank the entire display  */
 #endif
+
+/* RTC time/date structure for the STC real time clock */
+typedef struct _DATETIME
+{
+    uint8_t     sec;                    /* seconds 0-59      */
+    uint8_t     min;                    /* minutes 0-59      */
+    uint8_t     hour;                   /* 24-hour 0-23      */
+    uint8_t     weekday;                /* weekday 1-7       */
+    uint8_t     date;                   /* day of month 0-30 */
+    uint8_t     month;                  /* month 0-11        */
+    uint8_t     year;                   /* year 0-128 (+2000)*/
+} _DATETIME;
 
 // ==========================================================================
 // TCP/IP Port Numbers for STC remote server
@@ -214,23 +227,6 @@ typedef struct _STC_STATE_MSG {
     uint8_t     trackState[STC_MAX_TRACKS];
     uint8_t     cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;
-
-#if 0
-    /* SUPPLY */
-    uint32_t    dac_supply;
-    float       velocity_supply;
-    uint32_t    qei_supply_error_cnt;
-    float       stop_torque_supply;
-    float       offset_supply;
-    float       radius_supply;
-    /* TAKEUP */
-    uint32_t    dac_takeup;
-    float       velocity_takeup;
-    uint32_t    qei_takeup_error_cnt;
-    float       stop_torque_takeup;
-    float       offset_takeup;
-    float       radius_takeup;
-#endif
 
 /* The lower three bits of STC_STATE_MSG.transportMode are the
  * current transport mode. The upper bit flags are defined below.

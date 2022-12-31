@@ -92,9 +92,6 @@
 static bool rec_arm = false;
 static bool rec_active = false;
 
-extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
-
 /* Static CGI callback functions */
 static Int sendIndexHtml(SOCKET htmlSock, int length);
 static Int sendConfigHtml(SOCKET htmlSock, int length);
