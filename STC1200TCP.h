@@ -382,7 +382,7 @@ typedef struct _STC_COMMAND_ARG {
  // MESSAGE COMMAND TYPES FOR 'STC_COMMAND_HDR.command'
  // ==========================================================================
 
-#define STC_CMD_VERSION                 0   /* return the current STC version   */
+#define STC_CMD_VERSION_GET             0   /* return the current STC version   */
 #define STC_CMD_STOP                    1
 #define STC_CMD_PLAY                    2   /* param0 1=record                  */
 #define STC_CMD_REW                     3
@@ -414,10 +414,10 @@ typedef struct _STC_COMMAND_ARG {
 
 /*** STC_CMD_STOP ***********************************************************/
 
-typedef struct _STC_COMMAND_VERSION {
+typedef struct _STC_COMMAND_VERSION_GET {
     STC_COMMAND_HDR     hdr;
     STC_COMMAND_ARG     arg;
-} STC_COMMAND_VERSION;
+} STC_COMMAND_VERSION_GET;
 
 /*** STC_CMD_STOP ***********************************************************/
 

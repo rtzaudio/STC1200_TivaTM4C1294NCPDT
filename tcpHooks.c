@@ -114,7 +114,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1);
 static int ReadData(int fd, void *pbuf, int size, int flags);
 static int WriteData(int fd, void *pbuf, int size, int flags);
 
-static uint16_t HandleVersion(int fd, STC_COMMAND_VERSION* cmd);
+static uint16_t HandleVersionGet(int fd, STC_COMMAND_VERSION_GET* cmd);
 static uint16_t HandleStop(int fd, STC_COMMAND_STOP* cmd);
 static uint16_t HandleRew(int fd, STC_COMMAND_REW* cmd);
 static uint16_t HandleFwd(int fd, STC_COMMAND_FWD* cmd);
@@ -663,8 +663,8 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
         switch(hdr->command)
         {
 
-        case STC_CMD_VERSION:
-            status = HandleVersion(clientfd, (STC_COMMAND_VERSION*)buf);
+        case STC_CMD_VERSION_GET:
+            status = HandleVersionGet(clientfd, (STC_COMMAND_VERSION_GET*)buf);
             break;
 
         case STC_CMD_STOP:
@@ -831,19 +831,33 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 // COMMAND MESSAGE HANDLERS
 //*****************************************************************************
 
-uint16_t HandleVersion(int fd, STC_COMMAND_VERSION* cmd)
+uint16_t HandleVersionGet(int fd, STC_COMMAND_VERSION_GET* cmd)
 {
+    int rc;
+    uint32_t dtc_version;
+    uint32_t dtc_build;
+
+    /* Make an attempt to get the DTC version. If it's not there it will
+     * timeout with an error and we just set the DTC version to zero.
+     */
+    rc = IPCToDTC_VersionGet(g_sys.ipcToDTC, &dtc_version, &dtc_build);
+
+    if (rc != IPC_ERR_SUCCESS)
+    {
+        dtc_version = dtc_build = 0;
+    }
+
     /* Reply Header Data */
-    cmd->hdr.length = sizeof(STC_COMMAND_VERSION);
+    cmd->hdr.length = sizeof(STC_COMMAND_VERSION_GET);
     cmd->hdr.index  = 0;
-    cmd->hdr.status = 0;
+    cmd->hdr.status = (uint16_t)rc;
 
     /* Reply Message Data */
-    cmd->arg.param1.U = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
-    cmd->arg.param2.U = 0;
+    cmd->arg.param1.U = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);    /* STC version */
+    cmd->arg.param2.U = dtc_version;                            /* DTC version */
     cmd->arg.bitflags = 0;
 
-    return 0;
+    return rc;
 }
 
 

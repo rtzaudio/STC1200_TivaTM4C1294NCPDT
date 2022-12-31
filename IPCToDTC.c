@@ -130,6 +130,30 @@ IPCCMD_Handle IPCToDTC_Open()
     return ipcHandle;
 }
 
+/* This reads DTC firmware version and build number */
+
+int IPCToDTC_VersionGet(IPCCMD_Handle handle, uint32_t* version, uint32_t* build)
+{
+    int rc;
+    IPCMSG_HDR request;
+    DTC_IPCMSG_VERSION_GET reply;
+
+    request.opcode = DTC_OP_VERSION_GET;
+    request.msglen = sizeof(IPCMSG_HDR);
+
+    reply.hdr.msglen = sizeof(DTC_IPCMSG_VERSION_GET);
+
+    rc = IPCCMD_Transaction(handle, &request, &reply.hdr);
+
+    if (rc == IPC_ERR_SUCCESS)
+    {
+        *version = reply.version;
+        *build   = reply.build;
+    }
+
+    return rc;
+}
+
 /* This reads all DTC configuration parameters currently in memory
  * and fills all values into the structure pointed to by 'cfg'.
  */
@@ -158,6 +182,7 @@ int IPCToDTC_ConfigGet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
 /* This sets all DTC configuration parameters to the values passed in
  * the structure 'cfg'. All runtime parameters in memory are overwritten.
  */
+
 int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
 {
     int rc;
@@ -180,6 +205,7 @@ int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
  *  1 = store DTC config in memory to EPROM
  *  2 = reset DTC config data to defaults
  */
+
 int IPCToDTC_ConfigEPROM(IPCCMD_Handle handle, int store)
 {
     int rc;

@@ -49,6 +49,7 @@
 
 IPCCMD_Handle IPCToDTC_Open(void);
 
+int IPCToDTC_VersionGet(IPCCMD_Handle handle, uint32_t* version, uint32_t* build);
 int IPCToDTC_ConfigEPROM(IPCCMD_Handle handle, int store);
 int IPCToDTC_ConfigGet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg);
 int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg);
