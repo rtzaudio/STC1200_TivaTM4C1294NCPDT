@@ -139,9 +139,9 @@ int IPCToDTC_VersionGet(IPCCMD_Handle handle, uint32_t* version, uint32_t* build
     DTC_IPCMSG_VERSION_GET reply;
 
     request.opcode = DTC_OP_VERSION_GET;
-    request.msglen = sizeof(IPCMSG_HDR);
+    request.length = sizeof(IPCMSG_HDR);
 
-    reply.hdr.msglen = sizeof(DTC_IPCMSG_VERSION_GET);
+    reply.hdr.length = sizeof(DTC_IPCMSG_VERSION_GET);
 
     rc = IPCCMD_Transaction(handle, &request, &reply.hdr);
 
@@ -165,9 +165,9 @@ int IPCToDTC_ConfigGet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
     DTC_IPCMSG_CONFIG_GET reply;
 
     request.opcode = DTC_OP_CONFIG_GET;
-    request.msglen = sizeof(IPCMSG_HDR);
+    request.length = sizeof(IPCMSG_HDR);
 
-    reply.hdr.msglen = sizeof(DTC_IPCMSG_CONFIG_GET);
+    reply.hdr.length = sizeof(DTC_IPCMSG_CONFIG_GET);
 
     rc = IPCCMD_Transaction(handle, &request, &reply.hdr);
 
@@ -190,11 +190,11 @@ int IPCToDTC_ConfigSet(IPCCMD_Handle handle, DTC_CONFIG_DATA* cfg)
     DTC_IPCMSG_CONFIG_SET request;
 
     request.hdr.opcode = DTC_OP_CONFIG_SET;
-    request.hdr.msglen = sizeof(DTC_IPCMSG_CONFIG_SET);
+    request.hdr.length = sizeof(DTC_IPCMSG_CONFIG_SET);
 
     memcpy(&request.cfg, cfg, sizeof(DTC_CONFIG_DATA));
 
-    reply.msglen = sizeof(IPCMSG_HDR);
+    reply.length = sizeof(IPCMSG_HDR);
 
     rc = IPCCMD_Transaction(handle, &request.hdr, &reply);
 
@@ -212,7 +212,7 @@ int IPCToDTC_ConfigEPROM(IPCCMD_Handle handle, int store)
     DTC_IPCMSG_CONFIG_EPROM msg;
 
     msg.hdr.opcode = DTC_OP_CONFIG_EPROM;
-    msg.hdr.msglen = sizeof(DTC_IPCMSG_CONFIG_EPROM);
+    msg.hdr.length = sizeof(DTC_IPCMSG_CONFIG_EPROM);
     msg.store = store;      /* 0=recall, 1=store, 2=reset */
     msg.status = 0;
 

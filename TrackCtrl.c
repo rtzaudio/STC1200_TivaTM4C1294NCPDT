@@ -287,12 +287,12 @@ int TRACK_Command(TRACK_Handle handle,
     txFCB.acknak = 0;
 
     /* Send IPC command/data to track controller */
-    rc = IPC_FrameTx(handle->uartHandle, &txFCB, request, request->msglen);
+    rc = IPC_FrameTx(handle->uartHandle, &txFCB, request, request->length);
 
     if (rc == IPC_ERR_SUCCESS)
     {
         /* Try to read ack/nak response back */
-        rc = IPC_FrameRx(handle->uartHandle, &rxFCB, reply, &(reply->msglen));
+        rc = IPC_FrameRx(handle->uartHandle, &rxFCB, reply, &(reply->length));
 
         if (rc == IPC_ERR_SUCCESS)
         {
@@ -322,7 +322,7 @@ bool Track_SetTapeSpeed(int speed)
     DCS_IPCMSG_SET_SPEED msg;
 
     msg.hdr.opcode = DCS_OP_SET_SPEED;
-    msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_SPEED);
+    msg.hdr.length = sizeof(DCS_IPCMSG_SET_SPEED);
 
     msg.tapeSpeed =  (speed >= 30) ? 1 : 0;
 
@@ -350,7 +350,7 @@ bool Track_GetCount(uint32_t* count)
     *count = 0;
 
     msg.hdr.opcode = DCS_OP_GET_NUMTRACKS;
-    msg.hdr.msglen = sizeof(DCS_IPCMSG_GET_NUMTRACKS);
+    msg.hdr.length = sizeof(DCS_IPCMSG_GET_NUMTRACKS);
 
     rc = TRACK_Command(g_sys.handleDCS,
                        (DCS_IPCMSG_HDR*)&msg,
@@ -375,7 +375,7 @@ bool Track_ApplyState(size_t track, uint8_t state)
         return false;
 
     msg.hdr.opcode = DCS_OP_SET_TRACK;
-    msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACK);
+    msg.hdr.length = sizeof(DCS_IPCMSG_SET_TRACK);
 
     msg.trackNum   = track;
     msg.trackState = state;
@@ -397,7 +397,7 @@ bool Track_ApplyAllStates(uint8_t* trackStates)
     DCS_IPCMSG_SET_TRACKS msg;
 
     msg.hdr.opcode = DCS_OP_SET_TRACKS;
-    msg.hdr.msglen = sizeof(DCS_IPCMSG_SET_TRACKS);
+    msg.hdr.length = sizeof(DCS_IPCMSG_SET_TRACKS);
 
     memcpy(msg.trackState, trackStates, DCS_NUM_TRACKS);
 
