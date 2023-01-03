@@ -389,7 +389,6 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
     uint8_t*    buf;
     size_t      i;
     bool        connected = true;
-
     STC_STATE_MSG stateMsg;
 
     System_printf("tcpStateWorker: CONNECT clientfd = 0x%x\n", clientfd);
@@ -414,14 +413,13 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
         uint32_t transportMode = g_sys.transportMode;
 
-        /* If locate is active, set search bit flag */
+        /* Test for search mode active */
         if (g_sys.searching)
             transportMode |= STC_M_SEARCH;
-
-        /* If loop mode is active, set loop mode bit flag */
+        /* Test for loop mode active */
         if (g_sys.autoLoop)
             transportMode |= STC_M_LOOP;
-
+        /* Test for auto-punch mode */
         if (g_sys.autoPunch)
             transportMode |= STC_M_PUNCH;
 
@@ -435,6 +433,19 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         /* Simulate tape lifter button LED active flag */
         if (g_sys.transportMode & M_LIFTER)
             maskTransport |= STC_L_LDEF;
+
+        /* Determine hardware status bit flags */
+        uint8_t hardwareFlags = 0;
+
+        /* SMPTE controller found */
+        if (g_sys.smpteFound)
+            hardwareFlags |= STC_HF_SMPTE;
+        /* DCS channel switcher found */
+        if (g_sys.dcsFound)
+            hardwareFlags |= STC_HF_DCS;
+        /* External RTC clock found */
+        if (g_sys.rtcFound)
+            hardwareFlags |= STC_HF_RTC;
 
         stateMsg.length             = textlen;
         stateMsg.errorCount         = g_sys.qei_error_cnt;
@@ -450,7 +461,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.searching          = g_sys.searching;
         stateMsg.monitorFlags       = (uint8_t)g_sys.standbyMonitor;
         stateMsg.trackCount         = (uint8_t)g_sys.trackCount;
-        stateMsg.reserved1          = 0;
+        stateMsg.hardwareFlags      = hardwareFlags;
         stateMsg.reserved2          = 0;
         stateMsg.reserved3          = 0;
 
@@ -468,6 +479,15 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
         buf = (uint8_t*)&stateMsg;
 
+        if ((bytesSent = WriteData(clientfd, buf, bytesToSend, 0)) <= 0)
+        {
+            connected = false;
+            break;
+        }
+
+        (void)bytesSent;
+
+#if 0
         do {
             //if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
 
@@ -482,6 +502,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
             buf += bytesSent;
 
         } while (bytesToSend > 0);
+#endif
     }
 
     System_printf("tcpStateWorker DISCONNECT clientfd = 0x%x\n", clientfd);

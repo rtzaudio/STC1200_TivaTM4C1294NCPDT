@@ -220,8 +220,8 @@ typedef struct _STC_STATE_MSG {
     uint8_t     searchProgress;         /* search progress 0-100%     */
     uint8_t     searching;              /* true if search in progress */
     uint8_t     monitorFlags;           /* monitor mode flags         */
-    uint8_t     trackCount;
-    uint8_t     reserved1;
+    uint8_t     trackCount;             /* number of tracks supported */
+    uint8_t     hardwareFlags;          /* optional hardware status   */
     uint8_t     reserved2;
     uint8_t     reserved3;
     uint8_t     trackState[STC_MAX_TRACKS];
@@ -273,6 +273,15 @@ typedef struct _STC_STATE_MSG {
 #define STC_CF_ACTIVE       0x01        /* cue point available        */
 #define STC_CF_AUTO_PLAY    0x02        /* auto-play after locate     */
 #define STC_CF_AUTO_REC     0x04        /* auto-play+rec after locate */
+
+/* STC_STATE_MSG.hardwareFlags status bit flags. These flags
+ * indicate the status of optional hardware systems supported.
+ */
+#define STC_HF_NONE         0x00        /* no cue point stored addr   */
+#define STC_HF_RTC          0x01        /* external RTC clock found   */
+#define STC_HF_DCS          0x02        /* DCS channel switcher       */
+#define STC_HF_SMPTE        0x04        /* SMPTE daughter card        */
+#define STC_HF_NCO          0x08        /* external NCO ref clock     */
 
 // ==========================================================================
 // STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
