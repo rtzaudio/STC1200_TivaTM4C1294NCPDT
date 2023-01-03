@@ -1,5 +1,5 @@
 // ==========================================================================
-// STC1200TCP.h v1.02 01/04/2020
+// STC1200TCP.h     v1.03 03/04/2023
 //
 // STC-1200 Client/Server Network Packet Definitions for the software based
 // version of the DRC digital remote control. 
@@ -411,6 +411,7 @@ typedef struct _STC_COMMAND_ARG {
 #define STC_CMD_MACHINE_CONFIG          26  /* param1 0=load, 1=store, 2=reset  */
 #define STC_CMD_MACHINE_CONFIG_GET      27
 #define STC_CMD_MACHINE_CONFIG_SET      28
+#define STC_CMD_SMPTE_MASTER_CTRL       29
 
 /*** STC_CMD_STOP ***********************************************************/
 
@@ -618,6 +619,14 @@ typedef struct _STC_COMMAND_MACHINE_CONFIG_SET {
     STC_CONFIG_DATA     stc;        /* STC config parameters struct    */
     DTC_CONFIG_DATA     dtc;        /* DTC config parameters struct    */
 } STC_COMMAND_MACHINE_CONFIG_SET;
+
+/*** STC_CMD_SMPTE_MASTER_CTRL **********************************************/
+
+typedef struct _STC_COMMAND_SMPTE_MASTER_CTRL {
+    STC_COMMAND_HDR     hdr;
+    uint32_t            ctrl;
+    uint32_t            mode;
+} STC_COMMAND_SMPTE_MASTER_CTRL;
 
 #pragma pack(pop)
 

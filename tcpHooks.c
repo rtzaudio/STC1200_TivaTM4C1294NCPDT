@@ -93,6 +93,7 @@
 #include "IPCMessage.h"
 #include "RemoteTask.h"
 #include "CLITask.h"
+#include "SMPTE.h"
 
 /* Configuration Constants and Definitions */
 #define NUMTCPWORKERS       4
@@ -143,6 +144,7 @@ static uint16_t HandleConfigEPROM(int fd, STC_COMMAND_CONFIG_EPROM* cmd);
 static uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd);
 static uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd);
 static uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd);
+static uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd);
 
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
@@ -791,6 +793,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
         case STC_CMD_MACHINE_CONFIG_SET:
             status = HandleMachineConfigSet(clientfd, (STC_COMMAND_MACHINE_CONFIG_SET*)buf);
             notify = true;
+            break;
+
+        case STC_CMD_SMPTE_MASTER_CTRL:
+            status = HandleSMPTEMasterCtrl(clientfd, (STC_COMMAND_SMPTE_MASTER_CTRL*)buf);
             break;
 
         default:
@@ -1641,6 +1647,48 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
     cmd->arg.bitflags = 0;
 
     return rc;
+}
+
+
+uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd)
+{
+    uint16_t status = 0;
+
+    if (!g_sys.smpteFound)
+    {
+        status = 0xFFFF;
+    }
+    else
+    {
+        switch(cmd->ctrl)
+        {
+        case 0:
+            /* stop the SMPTE generator */
+            SMPTE_generator_stop();
+            break;
+
+        case 1:
+            /* start the SMPTE generator */
+            SMPTE_generator_start();
+            break;
+
+        case 2:
+            /* resume the SMPTE generator */
+            SMPTE_generator_resume();
+            break;
+
+        default:
+            status = 0xFFFF;
+            break;
+        }
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_SMPTE_MASTER_CTRL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = status;
+
+    return status;
 }
 
 // End-Of-File
