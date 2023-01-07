@@ -1,5 +1,5 @@
 // ==========================================================================
-// STC1200TCP.h     v1.03 03/04/2023
+// STC1200TCP.h     v1.04 01/07/2023
 //
 // STC-1200 Client/Server Network Packet Definitions for the software based
 // version of the DRC digital remote control. 
@@ -161,7 +161,7 @@ typedef struct _DATETIME
     uint8_t     date;                   /* day of month 0-30 */
     uint8_t     month;                  /* month 0-11        */
     uint8_t     year;                   /* year 0-128 (+2000)*/
-} _DATETIME;
+} DATETIME;
 
 // ==========================================================================
 // TCP/IP Port Numbers for STC remote server
@@ -421,6 +421,8 @@ typedef struct _STC_COMMAND_ARG {
 #define STC_CMD_MACHINE_CONFIG_GET      27
 #define STC_CMD_MACHINE_CONFIG_SET      28
 #define STC_CMD_SMPTE_MASTER_CTRL       29
+#define STC_CMD_RTC_TIMEDATE_GET        30
+#define STC_CMD_RTC_TIMEDATE_SET        31
 
 /*** STC_CMD_STOP ***********************************************************/
 
@@ -636,6 +638,20 @@ typedef struct _STC_COMMAND_SMPTE_MASTER_CTRL {
     uint32_t            ctrl;
     uint32_t            mode;
 } STC_COMMAND_SMPTE_MASTER_CTRL;
+
+/*** STC_CMD_RTC_TIMEDATE_GET ***********************************************/
+
+typedef struct _STC_COMMAND_RTC_TIMEDATE_GET {
+    STC_COMMAND_HDR     hdr;
+    DATETIME            datetime;
+} STC_COMMAND_RTC_TIMEDATE_GET;
+
+/*** STC_CMD_RTC_TIMEDATE_SET ***********************************************/
+
+typedef struct _STC_COMMAND_RTC_TIMEDATE_SET {
+    STC_COMMAND_HDR     hdr;
+    DATETIME            datetime;
+} STC_COMMAND_RTC_TIMEDATE_SET;
 
 #pragma pack(pop)
 

@@ -94,6 +94,7 @@
 #include "RemoteTask.h"
 #include "CLITask.h"
 #include "SMPTE.h"
+#include "Utils.h"
 
 /* Configuration Constants and Definitions */
 #define NUMTCPWORKERS       4
@@ -145,6 +146,8 @@ static uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd);
 static uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd);
 static uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd);
 static uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd);
+static uint16_t HandleRTCTimeDateGet(int fd, STC_COMMAND_RTC_TIMEDATE_GET* cmd);
+static uint16_t HandleRTCTimeDateSet(int fd, STC_COMMAND_RTC_TIMEDATE_SET* cmd);
 
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
@@ -818,6 +821,14 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_SMPTE_MASTER_CTRL:
             status = HandleSMPTEMasterCtrl(clientfd, (STC_COMMAND_SMPTE_MASTER_CTRL*)buf);
+            break;
+
+        case STC_CMD_RTC_TIMEDATE_GET:
+            status = HandleRTCTimeDateGet(clientfd, (STC_COMMAND_RTC_TIMEDATE_GET*)buf);
+            break;
+
+        case STC_CMD_RTC_TIMEDATE_SET:
+            status = HandleRTCTimeDateSet(clientfd, (STC_COMMAND_RTC_TIMEDATE_SET*)buf);
             break;
 
         default:
@@ -1706,6 +1717,79 @@ uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd)
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_SMPTE_MASTER_CTRL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = status;
+
+    return status;
+}
+
+
+uint16_t HandleRTCTimeDateGet(int fd, STC_COMMAND_RTC_TIMEDATE_GET* cmd)
+{
+    uint16_t status = 0;
+    RTCC_Struct ts;
+
+    /* Read the current RTC time/date */
+
+    if (RTC_GetDateTime(&ts))
+    {
+        /* Fill in the return members */
+        cmd->datetime.sec     = ts.sec;         /* seconds 0-59      */
+        cmd->datetime.min     = ts.min;         /* minutes 0-59      */
+        cmd->datetime.hour    = ts.hour;        /* 24-hour 0-23      */
+        cmd->datetime.weekday = ts.weekday;     /* weekday 1-7       */
+        cmd->datetime.date    = ts.date;        /* day of month 0-30 */
+        cmd->datetime.month   = ts.month;       /* month 0-11        */
+        cmd->datetime.year    = ts.year;        /* year 0-128 (+2000)*/
+    }
+    else
+    {
+        /* Error reading time/date */
+        status = 1;
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_RTC_TIMEDATE_GET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = status;
+
+    return status;
+}
+
+
+uint16_t HandleRTCTimeDateSet(int fd, STC_COMMAND_RTC_TIMEDATE_SET* cmd)
+{
+    uint16_t status = 0;
+    RTCC_Struct ts;
+
+    /* Fill in time/date with values received */
+
+    ts.sec     = cmd->datetime.sec;         /* seconds 0-59      */
+    ts.min     = cmd->datetime.min;         /* minutes 0-59      */
+    ts.hour    = cmd->datetime.hour;        /* 24-hour 0-23      */
+    ts.weekday = cmd->datetime.weekday;     /* weekday 1-7       */
+    ts.date    = cmd->datetime.date;        /* day of month 0-30 */
+    ts.month   = cmd->datetime.month;       /* month 0-11        */
+    ts.year    = cmd->datetime.year;        /* year 0-128 (+2000)*/
+
+    /* Check that the time/date parameters are all valid */
+    if (RTC_IsValidTime(&ts))
+    {
+        /* Attempt to set the RTC time/date */
+        if (!RTC_SetDateTime(&ts))
+        {
+            /* Error setting time/date */
+            status = 1;
+        }
+    }
+    else
+    {
+        /* Invalid time or date */
+        status = 2;
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_RTC_TIMEDATE_SET);
     cmd->hdr.index  = 0;
     cmd->hdr.status = status;
 
