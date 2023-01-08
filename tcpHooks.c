@@ -148,6 +148,7 @@ static uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* c
 static uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd);
 static uint16_t HandleRTCTimeDateGet(int fd, STC_COMMAND_RTC_TIMEDATE_GET* cmd);
 static uint16_t HandleRTCTimeDateSet(int fd, STC_COMMAND_RTC_TIMEDATE_SET* cmd);
+static uint16_t HandleMACAddrGet(int fd, STC_COMMAND_MACADDR_GET* cmd);
 
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
@@ -829,6 +830,10 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_RTC_TIMEDATE_SET:
             status = HandleRTCTimeDateSet(clientfd, (STC_COMMAND_RTC_TIMEDATE_SET*)buf);
+            break;
+
+        case STC_CMD_MACADDR_GET:
+            status = HandleMACAddrGet(clientfd, (STC_COMMAND_MACADDR_GET*)buf);
             break;
 
         default:
@@ -1795,5 +1800,26 @@ uint16_t HandleRTCTimeDateSet(int fd, STC_COMMAND_RTC_TIMEDATE_SET* cmd)
 
     return status;
 }
+
+
+uint16_t HandleMACAddrGet(int fd, STC_COMMAND_MACADDR_GET* cmd)
+{
+    uint16_t status = 0;
+
+    /* Copy the MAC address */
+    memcpy(&(cmd->macaddr), &g_sys.ui8MAC, 6);
+    /* Copy the serial number */
+    memcpy(&(cmd->sernum_stc), &g_sys.ui8SerialNumber, 16);
+    /* Zero out DTC serial number for now */
+    memset(&(cmd->sernum_dtc), 0, 16);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_MACADDR_GET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = status;
+
+    return status;
+}
+
 
 // End-Of-File

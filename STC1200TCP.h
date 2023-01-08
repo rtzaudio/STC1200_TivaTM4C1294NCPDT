@@ -423,6 +423,7 @@ typedef struct _STC_COMMAND_ARG {
 #define STC_CMD_SMPTE_MASTER_CTRL       29
 #define STC_CMD_RTC_TIMEDATE_GET        30
 #define STC_CMD_RTC_TIMEDATE_SET        31
+#define STC_CMD_MACADDR_GET             32
 
 /*** STC_CMD_STOP ***********************************************************/
 
@@ -652,6 +653,15 @@ typedef struct _STC_COMMAND_RTC_TIMEDATE_SET {
     STC_COMMAND_HDR     hdr;
     DATETIME            datetime;
 } STC_COMMAND_RTC_TIMEDATE_SET;
+
+/*** STC_CMD_RTC_TIMEDATE_SET ***********************************************/
+
+typedef struct _STC_COMMAND_MACADDR_GET {
+    STC_COMMAND_HDR     hdr;
+    uint8_t             macaddr[6];             /* 48-bit MAC from EPROM */
+    uint8_t             sernum_stc[16];         /* 128-bit serial number */
+    uint8_t             sernum_dtc[16];         /* 128-bit serial number */
+} STC_COMMAND_MACADDR_GET;
 
 #pragma pack(pop)
 
