@@ -150,7 +150,8 @@ int main(void)
     Mailbox_Params mboxParams;
 
     /* default GUID values */
-    memset(g_sys.ui8SerialNumber, 0xFF, 16);
+    memset(g_sys.ui8SerialNumberSTC, 0xFF, 16);
+    memset(g_sys.ui8SerialNumberDTC, 0xFF, 16);
     memset(g_sys.ui8MAC, 0xFF, 6);
 
     g_sys.rtcFound       = false;
@@ -324,7 +325,7 @@ void Init_Peripherals(void)
     /* Read the globally unique serial number from the AT24MAC EPROM.
      * We also read a 6-byte MAC address from this EPROM part.
      */
-    if (!ReadGUIDS(g_sys.handleI2C0, g_sys.ui8SerialNumber, g_sys.ui8MAC))
+    if (!ReadGUIDS(g_sys.handleI2C0, g_sys.ui8SerialNumberSTC, g_sys.ui8MAC))
     {
         System_printf("Read Serial Number Failed!\n");
         System_flush();
@@ -443,6 +444,12 @@ void Init_Application(void)
 
     /* Open the IPC channel on UART-B to the DTC */
     g_sys.ipcToDTC = IPCToDTC_Open();
+
+    /* Read the DTC firmware version and serial number */
+    IPCToDTC_VersionGet(g_sys.ipcToDTC,
+                        &g_sys.dtcVersion,
+                        &g_sys.dtcBuild,
+                        &g_sys.ui8SerialNumberDTC[0]);
 
     /*
      * Create the various system tasks

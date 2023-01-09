@@ -134,7 +134,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     Char mac[32];
 
     /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sys.ui8SerialNumber, 16);
+    GetHexStr(serialnum, g_sys.ui8SerialNumberSTC, 16);
 
     sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
             g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],

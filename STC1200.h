@@ -91,7 +91,10 @@ typedef struct _SYSCFG
 
 typedef struct _SYSDAT
 {
-    uint8_t		    ui8SerialNumber[16];		/* 128-bit serial number      */
+    uint32_t        dtcVersion;
+    uint32_t        dtcBuild;
+    uint8_t         ui8SerialNumberDTC[16];     /* 128-bit serial number      */
+    uint8_t		    ui8SerialNumberSTC[16];		/* 128-bit serial number      */
     uint8_t         ui8MAC[6];                  /* 48-bit MAC from EPROM      */
     char            ipAddr[32];                 /* IP address from DHCP       */
     /* Items below are updated from DTC notifications */

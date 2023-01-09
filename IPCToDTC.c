@@ -132,7 +132,7 @@ IPCCMD_Handle IPCToDTC_Open()
 
 /* This reads DTC firmware version and build number */
 
-int IPCToDTC_VersionGet(IPCCMD_Handle handle, uint32_t* version, uint32_t* build)
+int IPCToDTC_VersionGet(IPCCMD_Handle handle, uint32_t* version, uint32_t* build, uint8_t* sn)
 {
     int rc;
     IPCMSG_HDR request;
@@ -147,8 +147,17 @@ int IPCToDTC_VersionGet(IPCCMD_Handle handle, uint32_t* version, uint32_t* build
 
     if (rc == IPC_ERR_SUCCESS)
     {
-        *version = reply.version;
-        *build   = reply.build;
+        /* Return the version info */
+        if (version)
+            *version = reply.version;
+
+        /* Return the build info */
+        if (build)
+            *build   = reply.build;
+
+        /* Return the serial number */
+        if (sn)
+            memcpy(sn, reply.sn, 16);
     }
 
     return rc;

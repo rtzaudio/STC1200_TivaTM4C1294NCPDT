@@ -685,7 +685,7 @@ void cmd_sn(int argc, char *argv[])
 {
     char serialnum[64];
     /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sys.ui8SerialNumber, 16);
+    GetHexStr(serialnum, g_sys.ui8SerialNumberSTC, 16);
     CLI_printf("%s\n", serialnum);
 }
 

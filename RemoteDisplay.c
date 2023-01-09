@@ -183,7 +183,7 @@ void DrawAbout(void)
     y += height + spacing + 4;
 
     /* Get the serial number string and display it */
-    GetHexStr(buf, g_sys.ui8SerialNumber, 16);
+    GetHexStr(buf, g_sys.ui8SerialNumberSTC, 16);
     GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
 }
 

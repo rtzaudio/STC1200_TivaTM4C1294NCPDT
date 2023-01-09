@@ -490,23 +490,6 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         }
 
         (void)bytesSent;
-
-#if 0
-        do {
-            //if ((bytesSent = send(clientfd, buf, bytesToSend, 0)) <= 0)
-
-            if ((bytesSent = WriteData(clientfd, buf, bytesToSend, 0)) <= 0)
-            {
-                connected = false;
-                break;
-            }
-
-            bytesToSend -= bytesSent;
-
-            buf += bytesSent;
-
-        } while (bytesToSend > 0);
-#endif
     }
 
     System_printf("tcpStateWorker DISCONNECT clientfd = 0x%x\n", clientfd);
@@ -883,7 +866,7 @@ uint16_t HandleVersionGet(int fd, STC_COMMAND_VERSION_GET* cmd)
     /* Make an attempt to get the DTC version. If it's not there it will
      * timeout with an error and we just set the DTC version to zero.
      */
-    rc = IPCToDTC_VersionGet(g_sys.ipcToDTC, &dtc_version, &dtc_build);
+    rc = IPCToDTC_VersionGet(g_sys.ipcToDTC, &dtc_version, &dtc_build, NULL);
 
     if (rc != IPC_ERR_SUCCESS)
     {
@@ -1808,10 +1791,12 @@ uint16_t HandleMACAddrGet(int fd, STC_COMMAND_MACADDR_GET* cmd)
 
     /* Copy the MAC address */
     memcpy(&(cmd->macaddr), &g_sys.ui8MAC, 6);
-    /* Copy the serial number */
-    memcpy(&(cmd->sernum_stc), &g_sys.ui8SerialNumber, 16);
-    /* Zero out DTC serial number for now */
-    memset(&(cmd->sernum_dtc), 0, 16);
+
+    /* Copy the STC serial number */
+    memcpy(&(cmd->sernum_stc), &g_sys.ui8SerialNumberSTC, 16);
+
+    /* Copy the DTC serial number*/
+    memcpy(&(cmd->sernum_dtc), &g_sys.ui8SerialNumberDTC, 16);
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_MACADDR_GET);
