@@ -133,12 +133,11 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     Char serialnum[64];
     Char mac[32];
 
-    /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sys.ui8SerialNumberSTC, 16);
+    /* Format the 128-bit serial number as a string */
+    GetSerialNumStr(serialnum, g_sys.ui8SerialNumberSTC);
 
-    sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-            g_sys.ui8MAC[0], g_sys.ui8MAC[1], g_sys.ui8MAC[2],
-            g_sys.ui8MAC[3], g_sys.ui8MAC[4], g_sys.ui8MAC[5]);
+    /* Format the MAC address as a string */
+    GetMACAddrStr(mac, g_sys.ui8MAC);
 
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");

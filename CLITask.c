@@ -684,8 +684,7 @@ void cmd_cls(int argc, char *argv[])
 void cmd_sn(int argc, char *argv[])
 {
     char serialnum[64];
-    /*  Format the 64 bit GUID as a string */
-    GetHexStr(serialnum, g_sys.ui8SerialNumberSTC, 16);
+    GetSerialNumStr(serialnum, g_sys.ui8SerialNumberSTC);
     CLI_printf("%s\n", serialnum);
 }
 
@@ -697,9 +696,7 @@ void cmd_ip(int argc, char *argv[])
 void cmd_mac(int argc, char *argv[])
 {
     char mac[32];
-    sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-            g_sys.ui8MAC[5], g_sys.ui8MAC[4], g_sys.ui8MAC[3],
-            g_sys.ui8MAC[2], g_sys.ui8MAC[1], g_sys.ui8MAC[0]);
+    GetMACAddrStr(mac, g_sys.ui8MAC);
     CLI_printf("%s\n", mac);
 }
 

@@ -38,6 +38,7 @@ void InitSysDefaults(SYSCFG* p);
 int SysParamsRead(SYSCFG* sp);
 int SysParamsWrite(SYSCFG* sp);
 
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen);
+int GetMACAddrStr(char* buf, uint8_t* mac);
+int GetSerialNumStr(char* buf, uint8_t* mac);
 
 #endif /* __UTILS_H */

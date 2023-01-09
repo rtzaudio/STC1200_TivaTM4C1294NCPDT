@@ -564,67 +564,28 @@ int SysParamsRead(SYSCFG* sp)
 // Helper Functions
 //*****************************************************************************
 
-#if 1
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
+int GetMACAddrStr(char* buf, uint8_t* mac)
 {
-    char *p = textbuf;
-    uint8_t *d;
-    uint32_t i;
-    int32_t l;
+    int len;
 
-    const uint32_t wordSize = 4;
+    len = sprintf(buf, "%02X:%02X:%02X:%02X:%02X:%02X",
+                  mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    /* Null output text buffer initially */
-    *textbuf = 0;
-
-    /* Make sure buffer length is not zero */
-    if (!datalen)
-        return 0;
-
-    /* Read data bytes in reverse order so we print most significant byte first */
-    d = databuf + (datalen-1);
-
-    for (i=0; i < datalen; i++)
-    {
-        l = sprintf(p, "%02X", *d--);
-        p += l;
-
-        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
-        {
-            l = sprintf(p, "-");
-            p += l;
-        }
-    }
-
-    return strlen(textbuf);
+    return len;
 }
-#else
-int GetHexStr(char* textbuf, uint8_t* databuf, int datalen)
+
+int GetSerialNumStr(char* buf, uint8_t* sn)
 {
-    char fmt[8];
-    uint32_t i;
-    int32_t l;
+    int len;
 
-    const uint32_t wordSize = 4;
+    len = sprintf(buf, "%02X%02X%02X%02X-%02X%02X%02X%02X-%02X%02X%02X%02X-%02X%02X%02X%02X",
+        sn[0], sn[1], sn[2], sn[3],
+        sn[4], sn[5], sn[6], sn[7],
+        sn[8], sn[9], sn[10], sn[11],
+        sn[12], sn[13], sn[14], sn[15]);
 
-    *textbuf = 0;
-    strcpy(fmt, "%02X");
-
-    for (i=0; i < datalen; i++)
-    {
-        l = sprintf(textbuf, fmt, *databuf++);
-        textbuf += l;
-
-        if (((i % wordSize) == (wordSize-1)) && (i != (datalen-1)))
-        {
-            l = sprintf(textbuf, "-");
-            textbuf += l;
-        }
-    }
-
-    return strlen(textbuf);
+    return len;
 }
-#endif
 
 //*****************************************************************************
 //
