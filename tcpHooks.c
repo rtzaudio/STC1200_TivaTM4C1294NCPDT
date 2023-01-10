@@ -859,6 +859,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
 uint16_t HandleVersionGet(int fd, STC_COMMAND_VERSION_GET* cmd)
 {
+#if 0
     int rc;
     uint32_t dtc_version;
     uint32_t dtc_build;
@@ -872,18 +873,19 @@ uint16_t HandleVersionGet(int fd, STC_COMMAND_VERSION_GET* cmd)
     {
         dtc_version = dtc_build = 0;
     }
+#endif
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_VERSION_GET);
     cmd->hdr.index  = 0;
-    cmd->hdr.status = (uint16_t)rc;
+    cmd->hdr.status = (uint16_t)0;
 
     /* Reply Message Data */
     cmd->arg.param1.U = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);    /* STC version */
-    cmd->arg.param2.U = dtc_version;                            /* DTC version */
+    cmd->arg.param2.U = g_sys.dtcVersion;   //dtc_version;      /* DTC version */
     cmd->arg.bitflags = 0;
 
-    return rc;
+    return 0;
 }
 
 
