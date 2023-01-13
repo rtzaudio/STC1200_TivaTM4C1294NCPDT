@@ -157,6 +157,7 @@ int main(void)
     g_sys.rtcFound       = false;
     g_sys.dcsFound       = false;
     g_sys.smpteFound     = false;
+    g_sys.smpteMode      = 0;
     g_sys.varispeedMode  = false;
     g_sys.standbyActive  = false;
     g_sys.standbyMonitor = false;

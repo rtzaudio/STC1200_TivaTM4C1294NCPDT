@@ -296,6 +296,8 @@ bool SMPTE_generator_start()
           SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
           SMPTE_ENCCTL_ENABLE;
 
+    g_sys.smpteMode = 1;
+
     return SMPTE_Write(cmd);
 }
 
@@ -308,6 +310,8 @@ bool SMPTE_generator_resume()
           SMPTE_ENCCTL_RESUME |
           SMPTE_ENCCTL_ENABLE;
 
+    g_sys.smpteMode = 1;
+
     return SMPTE_Write(cmd);
 }
 
@@ -318,6 +322,8 @@ bool SMPTE_generator_stop()
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
           SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
           SMPTE_ENCCTL_DISABLE;
+
+    g_sys.smpteMode = 0;
 
    return SMPTE_Write(cmd);
 }

@@ -1,5 +1,5 @@
 // ==========================================================================
-// STC1200TCP.h     v1.04 01/07/2023
+// STC1200TCP.h     v1.05 01/13/2023
 //
 // STC-1200 Client/Server Network Packet Definitions for the software based
 // version of the DRC digital remote control. 
@@ -222,7 +222,7 @@ typedef struct _STC_STATE_MSG {
     uint8_t     monitorFlags;           /* monitor mode flags         */
     uint8_t     trackCount;             /* number of tracks supported */
     uint8_t     hardwareFlags;          /* optional hardware status   */
-    uint8_t     reserved2;
+    uint8_t     smpteMode;              /* SMPTE master/slave mode    */
     uint8_t     reserved3;
     uint8_t     trackState[STC_MAX_TRACKS];
     uint8_t     cueState[STC_MAX_CUE_POINTS];
@@ -282,6 +282,12 @@ typedef struct _STC_STATE_MSG {
 #define STC_HF_DCS          0x02        /* DCS channel switcher       */
 #define STC_HF_SMPTE        0x04        /* SMPTE daughter card        */
 #define STC_HF_NCO          0x08        /* external NCO ref clock     */
+
+/* Current SMPTE master/slave mode in STC_STATE_MSG.smpteMode.
+ */
+#define STC_SMPTE_OFF       0           /* smpte module off           */
+#define STC_SMPTE_MASTER    1           /* master stripe mode active  */
+#define STC_SMPTE_SLAVE     2           /* slave mode decode active   */
 
 // ==========================================================================
 // STC Notification Bit Flags (MUST MATCH VALUES IN DRC1200 HEADERS!)
@@ -429,7 +435,11 @@ typedef struct _STC_COMMAND_ARG {
 
 typedef struct _STC_COMMAND_VERSION_GET {
     STC_COMMAND_HDR     hdr;
-    STC_COMMAND_ARG     arg;
+    uint32_t            version_stc;
+    uint32_t            version_dtc;
+    uint8_t             macaddr[6];             /* 48-bit MAC from EPROM */
+    uint8_t             sernum_stc[16];         /* 128-bit serial number */
+    uint8_t             sernum_dtc[16];         /* 128-bit serial number */
 } STC_COMMAND_VERSION_GET;
 
 /*** STC_CMD_STOP ***********************************************************/

@@ -146,6 +146,7 @@ typedef struct _SYSDAT
     bool            smpteFound;                 /* true if SMPTE card found   */
     bool            standbyMonitor;             /* standby monitor enable     */
     bool            standbyActive;              /* true if standby mode active*/
+    uint32_t        smpteMode;
 } SYSDAT;
 
 //*****************************************************************************

@@ -466,7 +466,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.monitorFlags       = (uint8_t)g_sys.standbyMonitor;
         stateMsg.trackCount         = (uint8_t)g_sys.trackCount;
         stateMsg.hardwareFlags      = hardwareFlags;
-        stateMsg.reserved2          = 0;
+        stateMsg.smpteMode          = (uint8_t)g_sys.smpteMode;
         stateMsg.reserved3          = 0;
 
         /* Copy the track state info */
@@ -881,9 +881,15 @@ uint16_t HandleVersionGet(int fd, STC_COMMAND_VERSION_GET* cmd)
     cmd->hdr.status = (uint16_t)0;
 
     /* Reply Message Data */
-    cmd->arg.param1.U = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);    /* STC version */
-    cmd->arg.param2.U = g_sys.dtcVersion;   //dtc_version;      /* DTC version */
-    cmd->arg.bitflags = 0;
+    cmd->version_stc = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
+    cmd->version_dtc = g_sys.dtcVersion;
+
+    /* Copy the MAC address */
+    memcpy(&(cmd->macaddr), &g_sys.ui8MAC, 6);
+    /* Copy the STC serial number */
+    memcpy(&(cmd->sernum_stc), &g_sys.ui8SerialNumberSTC, 16);
+    /* Copy the DTC serial number*/
+    memcpy(&(cmd->sernum_dtc), &g_sys.ui8SerialNumberDTC, 16);
 
     return 0;
 }
