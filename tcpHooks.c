@@ -768,6 +768,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_CANCEL:
             status = HandleCancel(clientfd, (STC_COMMAND_CANCEL*)buf);
+            notify = true;
             break;
 
         case STC_CMD_TAPE_SPEED_SET:
@@ -805,6 +806,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_SMPTE_MASTER_CTRL:
             status = HandleSMPTEMasterCtrl(clientfd, (STC_COMMAND_SMPTE_MASTER_CTRL*)buf);
+            notify = true;
             break;
 
         case STC_CMD_RTC_TIMEDATE_GET:
@@ -813,6 +815,7 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_RTC_TIMEDATE_SET:
             status = HandleRTCTimeDateSet(clientfd, (STC_COMMAND_RTC_TIMEDATE_SET*)buf);
+            notify = true;
             break;
 
         case STC_CMD_MACADDR_GET:
