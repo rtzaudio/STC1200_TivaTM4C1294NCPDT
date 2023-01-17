@@ -80,13 +80,33 @@
 #include "Board.h"
 #include "SMPTE.h"
 
+/* SMPTE CONTROLLER SPI SLAVE REGISTERS
+ *
+ * All registers are 16-bits with the upper word containing the command
+ * and flag bits. The lower 8-bits contains any associated data byte.
+ *
+ *   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *   | R | A | A | A | C | C | C | C | B | B | B | B | B | B | B | B |
+ *   | W | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *     |   |       |   |           |   |                           |
+ *     |   +---+---+   +-----+-----+   +-------------+-------------+
+ *     |       |             |                       |
+ *    R/W     RSVD          REG                  DATA/FLAGS
+ */
+
 /* Default AT45DB parameters structure */
 const SMPTE_Params SMPTE_defaultParams = {
     NULL,
     Board_SMPTE_FS
 };
 
+/* Static Data Items */
 static SMPTE_Handle g_smpteHandle;
+
+/* Static Function Prototypes */
+static bool SMPTE_Write(uint16_t opcode);
+static bool SMPTE_Read(uint16_t opcode, uint16_t *result);
 
 //*****************************************************************************
 // SMPTE Controller Construction/Destruction
@@ -294,6 +314,7 @@ bool SMPTE_generator_start()
 
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
           SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
+          SMPTE_ENCCTL_RESET |
           SMPTE_ENCCTL_ENABLE;
 
     g_sys.smpteMode = 1;
@@ -307,7 +328,6 @@ bool SMPTE_generator_resume()
 
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
           SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
-          SMPTE_ENCCTL_RESUME |
           SMPTE_ENCCTL_ENABLE;
 
     g_sys.smpteMode = 1;
@@ -320,12 +340,35 @@ bool SMPTE_generator_stop()
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
-          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
           SMPTE_ENCCTL_DISABLE;
 
     g_sys.smpteMode = 0;
 
    return SMPTE_Write(cmd);
+}
+
+bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
+                              uint8_t secs, uint8_t frame)
+{
+    uint16_t cmd;
+
+    /* Set the hours register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_HOUR) | SMPTE_DATA_SET(hours);
+    SMPTE_Write(cmd);
+
+    /* Set the minutes register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_MINS) | SMPTE_DATA_SET(mins);
+    SMPTE_Write(cmd);
+
+    /* Set the seconds register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_SECS) | SMPTE_DATA_SET(secs);
+    SMPTE_Write(cmd);
+
+    /* Set the frame register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_FRAME) | SMPTE_DATA_SET(frame);
+    SMPTE_Write(cmd);
+
+   return true;
 }
 
 /* End-Of-File */

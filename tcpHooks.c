@@ -145,10 +145,11 @@ static uint16_t HandleConfigEPROM(int fd, STC_COMMAND_CONFIG_EPROM* cmd);
 static uint16_t HandleMachineConfig(int fd, STC_COMMAND_MACHINE_CONFIG* cmd);
 static uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd);
 static uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd);
-static uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd);
 static uint16_t HandleRTCTimeDateGet(int fd, STC_COMMAND_RTC_TIMEDATE_GET* cmd);
 static uint16_t HandleRTCTimeDateSet(int fd, STC_COMMAND_RTC_TIMEDATE_SET* cmd);
 static uint16_t HandleMACAddrGet(int fd, STC_COMMAND_MACADDR_GET* cmd);
+static uint16_t HandleSMPTEEncoderCtrl(int fd, STC_COMMAND_SMPTE_ENCODER_CTRL* cmd);
+static uint16_t HandleSMPTETimeSet(int fd, STC_COMMAND_SMPTE_TIME_SET* cmd);
 
 /* External Function Prototypes */
 extern void NtIPN2Str(uint32_t IPAddr, char *str);
@@ -804,11 +805,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
             notify = true;
             break;
 
-        case STC_CMD_SMPTE_MASTER_CTRL:
-            status = HandleSMPTEMasterCtrl(clientfd, (STC_COMMAND_SMPTE_MASTER_CTRL*)buf);
-            notify = true;
-            break;
-
         case STC_CMD_RTC_TIMEDATE_GET:
             status = HandleRTCTimeDateGet(clientfd, (STC_COMMAND_RTC_TIMEDATE_GET*)buf);
             break;
@@ -820,6 +816,16 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         case STC_CMD_MACADDR_GET:
             status = HandleMACAddrGet(clientfd, (STC_COMMAND_MACADDR_GET*)buf);
+            break;
+
+        case STC_CMD_SMPTE_ENCODER_CTRL:
+            status = HandleSMPTEEncoderCtrl(clientfd, (STC_COMMAND_SMPTE_ENCODER_CTRL*)buf);
+            notify = true;
+            break;
+
+        case STC_CMD_SMPTE_TIME_SET:
+            status = HandleSMPTETimeSet(clientfd, (STC_COMMAND_SMPTE_TIME_SET*)buf);
+            notify = true;
             break;
 
         default:
@@ -1681,48 +1687,6 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
 }
 
 
-uint16_t HandleSMPTEMasterCtrl(int fd, STC_COMMAND_SMPTE_MASTER_CTRL* cmd)
-{
-    uint16_t status = 0;
-
-    if (!g_sys.smpteFound)
-    {
-        status = 0xFFFF;
-    }
-    else
-    {
-        switch(cmd->ctrl)
-        {
-        case 0:
-            /* stop the SMPTE generator */
-            SMPTE_generator_stop();
-            break;
-
-        case 1:
-            /* start the SMPTE generator */
-            SMPTE_generator_start();
-            break;
-
-        case 2:
-            /* resume the SMPTE generator */
-            SMPTE_generator_resume();
-            break;
-
-        default:
-            status = 0xFFFF;
-            break;
-        }
-    }
-
-    /* Reply Header Data */
-    cmd->hdr.length = sizeof(STC_COMMAND_SMPTE_MASTER_CTRL);
-    cmd->hdr.index  = 0;
-    cmd->hdr.status = status;
-
-    return status;
-}
-
-
 uint16_t HandleRTCTimeDateGet(int fd, STC_COMMAND_RTC_TIMEDATE_GET* cmd)
 {
     uint16_t status = 0;
@@ -1817,5 +1781,61 @@ uint16_t HandleMACAddrGet(int fd, STC_COMMAND_MACADDR_GET* cmd)
     return status;
 }
 
+
+uint16_t HandleSMPTEEncoderCtrl(int fd, STC_COMMAND_SMPTE_ENCODER_CTRL* cmd)
+{
+    uint16_t status = 0;
+
+    if (!g_sys.smpteFound)
+    {
+        status = 0xFFFF;
+    }
+    else
+    {
+        switch(cmd->ctrl)
+        {
+        case 0:
+            /* stop the SMPTE generator */
+            SMPTE_generator_stop();
+            break;
+
+        case 1:
+            /* start the SMPTE generator */
+            SMPTE_generator_start();
+            break;
+
+        case 2:
+            /* resume the SMPTE generator */
+            SMPTE_generator_resume();
+            break;
+
+        default:
+            status = 0xFFFF;
+            break;
+        }
+    }
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_SMPTE_ENCODER_CTRL);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = status;
+
+    return status;
+}
+
+
+uint16_t HandleSMPTETimeSet(int fd, STC_COMMAND_SMPTE_TIME_SET* cmd)
+{
+    uint16_t status = 0;
+
+    SMPTE_generator_set_time(cmd->hours, cmd->mins, cmd->secs, cmd->frame);
+
+    /* Reply Header Data */
+    cmd->hdr.length = sizeof(STC_COMMAND_SMPTE_TIME_SET);
+    cmd->hdr.index  = 0;
+    cmd->hdr.status = status;
+
+    return status;
+}
 
 // End-Of-File

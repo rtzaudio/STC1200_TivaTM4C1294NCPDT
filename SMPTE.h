@@ -44,5 +44,7 @@ bool SMPTE_get_revid(uint16_t* revid);
 bool SMPTE_generator_start(void);
 bool SMPTE_generator_stop(void);
 bool SMPTE_generator_resume(void);
+bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
+                              uint8_t secs, uint8_t frame);
 
 #endif  /* _SMPTE_H_ */

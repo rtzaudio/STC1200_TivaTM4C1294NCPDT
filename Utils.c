@@ -472,7 +472,7 @@ void InitSysDefaults(SYSCFG* p)
     p->ref_freq     = REF_FREQ;             /* default ref clock 9600.0 Hz  */
     p->tapeSpeed    = 30;                   /* default tape speed high      */
     /** SMPE card config */
-    p->smpteFPS     = SMPTE_ENCCTL_FPS30;
+    p->smpteFPS     = SMPTE_CTL_FPS30;
     p->midiDevID    = MIDI_DEVID_ALL_CALL;  /* respond to any midi dev id   */
 
     /* Initial track state zero for all channels */

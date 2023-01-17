@@ -286,7 +286,7 @@ typedef struct _STC_STATE_MSG {
 /* Current SMPTE master/slave mode in STC_STATE_MSG.smpteMode.
  */
 #define STC_SMPTE_OFF       0           /* smpte module off           */
-#define STC_SMPTE_MASTER    1           /* master stripe mode active  */
+#define STC_SMPTE_ENCODER   1           /* master stripe mode active  */
 #define STC_SMPTE_SLAVE     2           /* slave mode decode active   */
 
 // ==========================================================================
@@ -426,10 +426,11 @@ typedef struct _STC_COMMAND_ARG {
 #define STC_CMD_MACHINE_CONFIG          26  /* param1 0=load, 1=store, 2=reset  */
 #define STC_CMD_MACHINE_CONFIG_GET      27
 #define STC_CMD_MACHINE_CONFIG_SET      28
-#define STC_CMD_SMPTE_MASTER_CTRL       29
-#define STC_CMD_RTC_TIMEDATE_GET        30
-#define STC_CMD_RTC_TIMEDATE_SET        31
-#define STC_CMD_MACADDR_GET             32
+#define STC_CMD_RTC_TIMEDATE_GET        29
+#define STC_CMD_RTC_TIMEDATE_SET        30
+#define STC_CMD_MACADDR_GET             31
+#define STC_CMD_SMPTE_ENCODER_CTRL      32
+#define STC_CMD_SMPTE_TIME_SET          33
 
 /*** STC_CMD_STOP ***********************************************************/
 
@@ -642,14 +643,6 @@ typedef struct _STC_COMMAND_MACHINE_CONFIG_SET {
     DTC_CONFIG_DATA     dtc;        /* DTC config parameters struct    */
 } STC_COMMAND_MACHINE_CONFIG_SET;
 
-/*** STC_CMD_SMPTE_MASTER_CTRL **********************************************/
-
-typedef struct _STC_COMMAND_SMPTE_MASTER_CTRL {
-    STC_COMMAND_HDR     hdr;
-    uint32_t            ctrl;
-    uint32_t            mode;
-} STC_COMMAND_SMPTE_MASTER_CTRL;
-
 /*** STC_CMD_RTC_TIMEDATE_GET ***********************************************/
 
 typedef struct _STC_COMMAND_RTC_TIMEDATE_GET {
@@ -672,6 +665,24 @@ typedef struct _STC_COMMAND_MACADDR_GET {
     uint8_t             sernum_stc[16];         /* 128-bit serial number */
     uint8_t             sernum_dtc[16];         /* 128-bit serial number */
 } STC_COMMAND_MACADDR_GET;
+
+/*** STC_CMD_SMPTE_ENCODER_CTRL *********************************************/
+
+typedef struct _STC_COMMAND_SMPTE_ENCODER_CTRL {
+    STC_COMMAND_HDR     hdr;
+    uint32_t            ctrl;
+    uint32_t            mode;
+} STC_COMMAND_SMPTE_ENCODER_CTRL;
+
+/*** STC_CMD_SMPTE_ENCODER_CTRL *********************************************/
+
+typedef struct _STC_COMMAND_SMPTE_TIME_SET {
+    STC_COMMAND_HDR     hdr;
+    uint8_t             hours;
+    uint8_t             mins;
+    uint8_t             secs;
+    uint8_t             frame;
+} STC_COMMAND_SMPTE_TIME_SET;
 
 #pragma pack(pop)
 
