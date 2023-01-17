@@ -283,6 +283,8 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
 // SMPTE Controller Commands
 //*****************************************************************************
 
+/* Test for presence of SMPTE controller daughter card */
+
 bool SMPTE_probe(void)
 {
     uint16_t cmd;
@@ -296,6 +298,8 @@ bool SMPTE_probe(void)
     return (revid == SMPTE_REVID) ? true : false;
 }
 
+/* Get SMPTE module firmware version */
+
 bool SMPTE_get_revid(uint16_t *revid)
 {
     uint16_t cmd;
@@ -308,49 +312,16 @@ bool SMPTE_get_revid(uint16_t *revid)
     return true;
 }
 
-bool SMPTE_generator_start()
-{
-    uint16_t cmd;
-
-    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
-          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
-          SMPTE_ENCCTL_RESET |
-          SMPTE_ENCCTL_ENABLE;
-
-    g_sys.smpteMode = 1;
-
-    return SMPTE_Write(cmd);
-}
-
-bool SMPTE_generator_resume()
-{
-    uint16_t cmd;
-
-    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
-          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
-          SMPTE_ENCCTL_ENABLE;
-
-    g_sys.smpteMode = 1;
-
-    return SMPTE_Write(cmd);
-}
-
-bool SMPTE_generator_stop()
-{
-    uint16_t cmd;
-
-    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
-          SMPTE_ENCCTL_DISABLE;
-
-    g_sys.smpteMode = 0;
-
-   return SMPTE_Write(cmd);
-}
-
+/* Set the encoder starting time in HH:MM:SS:Frame.
+ * The encoder must not be running when calling this.
+ */
 bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
                               uint8_t secs, uint8_t frame)
 {
     uint16_t cmd;
+
+    /* Encoder must be stopped before changing the time */
+    SMPTE_generator_stop();
 
     /* Set the hours register */
     cmd = SMPTE_REG_SET(SMPTE_REG_HOUR) | SMPTE_DATA_SET(hours);
@@ -369,6 +340,37 @@ bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
     SMPTE_Write(cmd);
 
    return true;
+}
+
+bool SMPTE_generator_start(bool reset)
+{
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
+          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
+          SMPTE_ENCCTL_ENABLE;
+
+    /* Reset start time to zero if reset flag specified,
+     * otherwise resume counting at the last stop time.
+     */
+    if (reset)
+        cmd |=  SMPTE_ENCCTL_RESET;
+
+    g_sys.smpteMode = 1;
+
+    return SMPTE_Write(cmd);
+}
+
+bool SMPTE_generator_stop()
+{
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
+          SMPTE_ENCCTL_DISABLE;
+
+    g_sys.smpteMode = 0;
+
+   return SMPTE_Write(cmd);
 }
 
 /* End-Of-File */

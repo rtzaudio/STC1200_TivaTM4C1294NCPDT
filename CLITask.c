@@ -963,7 +963,7 @@ void cmd_smpte(int argc, char *argv[])
 
     if (strcmp(argv[0], "start") == 0)
     {
-        SMPTE_generator_start();
+        SMPTE_generator_start(true);
         CLI_puts("START\n");
     }
     else if (strcmp(argv[0], "stop") == 0)
@@ -973,7 +973,7 @@ void cmd_smpte(int argc, char *argv[])
     }
     else if (strcmp(argv[0], "resume") == 0)
     {
-        SMPTE_generator_resume();
+        SMPTE_generator_start(false);
         CLI_puts("RESUME\n");
     }
     else if (strcmp(argv[0], "revid") == 0)

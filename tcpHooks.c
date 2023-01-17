@@ -1785,6 +1785,7 @@ uint16_t HandleMACAddrGet(int fd, STC_COMMAND_MACADDR_GET* cmd)
 uint16_t HandleSMPTEEncoderCtrl(int fd, STC_COMMAND_SMPTE_ENCODER_CTRL* cmd)
 {
     uint16_t status = 0;
+    bool reset = false;
 
     if (!g_sys.smpteFound)
     {
@@ -1792,21 +1793,19 @@ uint16_t HandleSMPTEEncoderCtrl(int fd, STC_COMMAND_SMPTE_ENCODER_CTRL* cmd)
     }
     else
     {
-        switch(cmd->ctrl)
+        switch(cmd->ctrl & 0xFF)
         {
-        case 0:
-            /* stop the SMPTE generator */
+        case STC_SMPTE_ENCODER_CTRL_STOP:
+            /* Stop the SMPTE generator */
             SMPTE_generator_stop();
             break;
 
-        case 1:
-            /* start the SMPTE generator */
-            SMPTE_generator_start();
-            break;
-
-        case 2:
-            /* resume the SMPTE generator */
-            SMPTE_generator_resume();
+        case STC_SMPTE_ENCODER_CTRL_START:
+            /* Check if we need to reset the time first */
+            if (cmd->flags & STC_ENCODER_CTRL_F_RESET)
+                reset = true;
+            /* Start generator at time zero */
+            SMPTE_generator_start(reset);
             break;
 
         default:

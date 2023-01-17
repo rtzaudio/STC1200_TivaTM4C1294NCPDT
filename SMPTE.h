@@ -41,9 +41,8 @@ Void SMPTE_destruct(SMPTE_Handle handle);
 bool SMPTE_init(void);
 bool SMPTE_probe(void);
 bool SMPTE_get_revid(uint16_t* revid);
-bool SMPTE_generator_start(void);
+bool SMPTE_generator_start(bool reset);
 bool SMPTE_generator_stop(void);
-bool SMPTE_generator_resume(void);
 bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
                               uint8_t secs, uint8_t frame);
 

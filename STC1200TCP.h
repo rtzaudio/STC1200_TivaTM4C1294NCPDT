@@ -671,8 +671,13 @@ typedef struct _STC_COMMAND_MACADDR_GET {
 typedef struct _STC_COMMAND_SMPTE_ENCODER_CTRL {
     STC_COMMAND_HDR     hdr;
     uint32_t            ctrl;
-    uint32_t            mode;
+    uint32_t            flags;
 } STC_COMMAND_SMPTE_ENCODER_CTRL;
+
+#define STC_SMPTE_ENCODER_CTRL_STOP     0       /* stop encoder  */
+#define STC_SMPTE_ENCODER_CTRL_START    1       /* start encoder */
+
+#define STC_ENCODER_CTRL_F_RESET        0x8000  /* reset time on start */
 
 /*** STC_CMD_SMPTE_ENCODER_CTRL *********************************************/
 
