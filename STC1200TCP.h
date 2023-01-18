@@ -208,6 +208,7 @@ typedef struct _DATETIME
 typedef struct _STC_STATE_MSG {
     uint32_t    length;                 /* size of this msg structure */
     TAPETIME    tapeTime;               /* current tape time position */
+    DATETIME    dateTime;               /* current RTC time/date      */
     uint32_t    errorCount;             /* QEI phase error count      */
     uint32_t    ledMaskButton;          /* locater button LED mask    */
     uint32_t    ledMaskTransport;       /* transport button LED mask  */
@@ -223,7 +224,8 @@ typedef struct _STC_STATE_MSG {
     uint8_t     trackCount;             /* number of tracks supported */
     uint8_t     hardwareFlags;          /* optional hardware status   */
     uint8_t     smpteMode;              /* SMPTE master/slave mode    */
-    uint8_t     reserved3;
+    uint8_t     smpteFPS;               /* SMPTE frame rate id        */
+    uint8_t     reserved[32];           /* reserved for future use    */
     uint8_t     trackState[STC_MAX_TRACKS];
     uint8_t     cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;

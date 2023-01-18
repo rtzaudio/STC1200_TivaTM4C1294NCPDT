@@ -468,7 +468,9 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.trackCount         = (uint8_t)g_sys.trackCount;
         stateMsg.hardwareFlags      = hardwareFlags;
         stateMsg.smpteMode          = (uint8_t)g_sys.smpteMode;
-        stateMsg.reserved3          = 0;
+
+        /* Zero out the reserved space bytes */
+        memset(stateMsg.reserved, 0, sizeof(stateMsg.reserved));
 
         /* Copy the track state info */
         for (i=0; i < STC_MAX_TRACKS; i++)
