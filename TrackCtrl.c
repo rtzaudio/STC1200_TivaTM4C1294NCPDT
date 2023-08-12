@@ -177,21 +177,15 @@ Void TrackControllerTask(UArg arg0, UArg arg1)
         switch(msg.msgType)
         {
         case TRACK_STANDBY_TRANSFER:
-            if (!msg.ui32Param)
-                Track_StandbyTransferAll(false);
-            else
-                Track_StandbyTransferAll(true);
+            Track_StandbyTransferAll((msg.ui32Param == 0) ? false : true);
             break;
 
         case TRACK_RECORD_ENTER:
-            System_printf("TrackControllerTask() ENTER RECORD\n");
-            System_flush();
-            /* Send notice to DCS to ENTER record mode */
+            Track_RecordEnterAll();
             break;
 
         case TRACK_RECORD_EXIT:
-            System_printf("TrackControllerTask() EXIT RECORD\n");
-            System_flush();
+            Track_RecordExitAll();
             break;
         }
     }
@@ -449,8 +443,6 @@ bool Track_ApplyAllStates(uint8_t* trackStates)
     return success;
 }
 
-
-
 bool Track_GetState(size_t track, uint8_t* trackState)
 {
     if (track >= MAX_TRACKS)
@@ -572,6 +564,42 @@ bool Track_StandbyTransferAll(bool enable)
             else
                 g_sys.trackState[i] &= ~(STC_T_STANDBY);
         }
+    }
+
+    /* Update DCS channel switcher states */
+    Track_ApplyAllStates(g_sys.trackState);
+
+    Event_post(g_eventTransport, Event_Id_03);
+
+    return true;
+}
+
+bool Track_RecordEnterAll(void)
+{
+    size_t i;
+
+    for (i=0; i < MAX_TRACKS; i++)
+    {
+        if (g_sys.trackState[i] & STC_T_READY)
+            g_sys.trackState[i] |= STC_T_RECORD;
+    }
+
+    /* Update DCS channel switcher states */
+    Track_ApplyAllStates(g_sys.trackState);
+
+    Event_post(g_eventTransport, Event_Id_03);
+
+    return true;
+}
+
+bool Track_RecordExitAll(void)
+{
+    size_t i;
+
+    for (i=0; i < MAX_TRACKS; i++)
+    {
+        if (g_sys.trackState[i] & STC_T_RECORD)
+            g_sys.trackState[i] &= ~(STC_T_RECORD);
     }
 
     /* Update DCS channel switcher states */

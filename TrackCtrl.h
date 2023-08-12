@@ -76,5 +76,7 @@ bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 bool Track_ToggleMaskAll(uint8_t flags);
 
 bool Track_StandbyTransferAll(bool enable);
+bool Track_RecordEnterAll(void);
+bool Track_RecordExitAll(void);
 
 #endif /* _TRACKCTRL_H_ */
