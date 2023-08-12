@@ -15,7 +15,7 @@
 
 /*** CONSTANTS *************************************************************/
 
-#define MAX_TRACKS      24
+#define MAX_TRACKS          24
 
 /*** DATA STRUCTURES *******************************************************/
 
@@ -24,17 +24,33 @@ typedef struct TRACK_Params {
 } TRACK_Params;
 
 typedef struct TRACK_Object {
-    UART_Handle         uartHandle;
-    GateMutex_Struct    gate;
-    uint8_t             seqnum;
+    UART_Handle             uartHandle;
+    GateMutex_Struct        gate;
+    uint8_t                 seqnum;
 } TRACK_Object;
 
 typedef TRACK_Object *TRACK_Handle;
+
+/*** TRACK MANAGER MESSAGES ************************************************/
+
+/* Mailbox Event Messages */
+typedef enum TrackCtrlMessageType{
+    TRACK_STANDBY_TRANSFER,
+    TRACK_RECORD_ENTER,
+    TRACK_RECORD_EXIT,
+} TrackCtrlMessageType;
+
+typedef struct TrackCtrlMessage{
+    TrackCtrlMessageType    msgType;
+    uint32_t                ui32Param;
+} TrackCtrlMessage;
 
 /*** FUNCTION PROTOTYPES ***************************************************/
 
 bool TRACK_Manager_startup(void);
 bool TRACK_Manager_standby(bool enable);
+bool TRACK_Manager_recordExit(void);
+bool TRACK_Manager_recordStrobe(void);
 
 TRACK_Handle TRACK_construct(TRACK_Object *obj, UART_Handle uartHandle,
                              TRACK_Params *params);
@@ -58,6 +74,7 @@ bool Track_SetAll(uint8_t mode, uint8_t flags);
 bool Track_SetModeAll(uint8_t setmode);
 bool Track_MaskAll(uint8_t setmask, uint8_t clearmask);
 bool Track_ToggleMaskAll(uint8_t flags);
-bool Track_StandbyTransfer(bool enable);
+
+bool Track_StandbyTransferAll(bool enable);
 
 #endif /* _TRACKCTRL_H_ */

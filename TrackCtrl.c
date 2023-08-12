@@ -84,12 +84,12 @@ const TRACK_Params TRACK_defaultParams = {
     0,   /* dummy */
 };
 
-static Mailbox_Handle s_mailboxStandby = NULL;
+static Mailbox_Handle s_mailboxTrackControl = NULL;
 
 //static uint8_t s_seqnum = IPC_MIN_SEQ;
 
 /* Static Function Prototypes */
-Void StandbySwitcherFxn(UArg arg0, UArg arg1);
+Void TrackControllerTask(UArg arg0, UArg arg1);
 
 //*****************************************************************************
 // Track Manager Initialization
@@ -135,7 +135,7 @@ bool TRACK_Manager_startup(void)
     Error_init(&eb);
     Mailbox_Params_init(&mboxParams);
 
-    if ((s_mailboxStandby = Mailbox_create(sizeof(uint8_t), 16, &mboxParams, &eb)) == NULL)
+    if ((s_mailboxTrackControl = Mailbox_create(sizeof(TrackCtrlMessage), 16, &mboxParams, &eb)) == NULL)
     {
         TRACK_delete(g_sys.handleDCS);
         UART_close(g_sys.handleUartDCS);
@@ -150,7 +150,7 @@ bool TRACK_Manager_startup(void)
     taskParams.stackSize = 1024;
     taskParams.priority  = 8;
 
-    if (Task_create((Task_FuncPtr)StandbySwitcherFxn, &taskParams, &eb) == NULL)
+    if (Task_create((Task_FuncPtr)TrackControllerTask, &taskParams, &eb) == NULL)
     {
         TRACK_delete(g_sys.handleDCS);
         UART_close(g_sys.handleUartDCS);
@@ -161,17 +161,56 @@ bool TRACK_Manager_startup(void)
 }
 
 //*****************************************************************************
+// Track Controller Construction/Destruction
+//*****************************************************************************
+
+Void TrackControllerTask(UArg arg0, UArg arg1)
+{
+    TrackCtrlMessage msg;
+
+    while(true)
+    {
+        /* Wait for a message up to 1 second */
+        if (!Mailbox_pend(s_mailboxTrackControl, &msg, BIOS_WAIT_FOREVER))
+            continue;
+
+        switch(msg.msgType)
+        {
+        case TRACK_STANDBY_TRANSFER:
+            if (!msg.ui32Param)
+                Track_StandbyTransferAll(false);
+            else
+                Track_StandbyTransferAll(true);
+            break;
+
+        case TRACK_RECORD_ENTER:
+            System_printf("TrackControllerTask() ENTER RECORD\n");
+            System_flush();
+            /* Send notice to DCS to ENTER record mode */
+            break;
+
+        case TRACK_RECORD_EXIT:
+            System_printf("TrackControllerTask() EXIT RECORD\n");
+            System_flush();
+            break;
+        }
+    }
+}
+
+//*****************************************************************************
 //
 //*****************************************************************************
 
 bool TRACK_Manager_standby(bool enable)
 {
-    if (s_mailboxStandby)
+    TrackCtrlMessage msg;
+
+    if (s_mailboxTrackControl)
     {
+        msg.msgType   = TRACK_STANDBY_TRANSFER;
+        msg.ui32Param = enable ?  1 : 0;
 
-        uint8_t cmd = (uint8_t)enable;
-
-        return Mailbox_post(s_mailboxStandby, &cmd, BIOS_NO_WAIT);
+        return Mailbox_post(s_mailboxTrackControl, &msg, BIOS_NO_WAIT);
     }
     else
     {
@@ -179,31 +218,30 @@ bool TRACK_Manager_standby(bool enable)
     }
 }
 
-//*****************************************************************************
-// Track Controller Construction/Destruction
-//*****************************************************************************
-
-Void StandbySwitcherFxn(UArg arg0, UArg arg1)
+bool TRACK_Manager_recordStrobe(void)
 {
-    uint8_t cmd;
+    TrackCtrlMessage msg;
 
-    while(true)
-    {
-        /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(s_mailboxStandby, &cmd, BIOS_WAIT_FOREVER))
-            continue;
+    if (!s_mailboxTrackControl)
+        return false;
 
-        switch(cmd)
-        {
-        case 0:
-            Track_StandbyTransfer(false);
-            break;
+    msg.msgType   = TRACK_RECORD_ENTER;
+    msg.ui32Param = 1;
 
-        case 1:
-            Track_StandbyTransfer(true);
-            break;
-        }
-    }
+    return Mailbox_post(s_mailboxTrackControl, &msg, BIOS_NO_WAIT);
+}
+
+bool TRACK_Manager_recordExit(void)
+{
+    TrackCtrlMessage msg;
+
+    if (!s_mailboxTrackControl)
+        return false;
+
+    msg.msgType   = TRACK_RECORD_EXIT;
+    msg.ui32Param = 0;
+
+    return Mailbox_post(s_mailboxTrackControl, &msg, BIOS_NO_WAIT);
 }
 
 //*****************************************************************************
@@ -411,6 +449,8 @@ bool Track_ApplyAllStates(uint8_t* trackStates)
     return success;
 }
 
+
+
 bool Track_GetState(size_t track, uint8_t* trackState)
 {
     if (track >= MAX_TRACKS)
@@ -519,7 +559,7 @@ bool Track_ToggleMaskAll(uint8_t flags)
     return true;
 }
 
-bool Track_StandbyTransfer(bool enable)
+bool Track_StandbyTransferAll(bool enable)
 {
     size_t i;
 

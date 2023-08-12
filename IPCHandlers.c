@@ -172,6 +172,19 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
         else
             g_sys.ledMaskTransport &= ~(L_REC);
 
+        /* Check mode to enable or disable record on the DCS */
+
+        if ((g_sys.transportMode & MODE_MASK) == MODE_PLAY)
+        {
+            if (g_sys.transportMode & M_RECORD)
+                TRACK_Manager_recordStrobe();
+        }
+        else if ((g_sys.transportMode & MODE_MASK) == MODE_STOP)
+        {
+            //if (g_sys.transportMode & M_RECORD)
+                TRACK_Manager_recordExit();
+        }
+
         break;
     }
 
