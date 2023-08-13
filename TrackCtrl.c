@@ -212,7 +212,7 @@ bool TRACK_Manager_standby(bool enable)
     }
 }
 
-bool TRACK_Manager_recordStrobe(void)
+bool TRACK_Manager_recordStrobe()
 {
     TrackCtrlMessage msg;
 
@@ -409,6 +409,7 @@ bool Track_ApplyState(size_t track, uint8_t state)
     msg.hdr.opcode = DCS_OP_SET_TRACK;
     msg.hdr.length = sizeof(DCS_IPCMSG_SET_TRACK);
 
+    msg.flags      = 1;
     msg.trackNum   = track;
     msg.trackState = state;
 
@@ -432,6 +433,8 @@ bool Track_ApplyAllStates(uint8_t* trackStates)
     msg.hdr.length = sizeof(DCS_IPCMSG_SET_TRACKS);
 
     memcpy(msg.trackState, trackStates, DCS_NUM_TRACKS);
+
+    msg.flags = 1;
 
     rc = TRACK_Command(g_sys.handleDCS,
                        (DCS_IPCMSG_HDR*)&msg,
