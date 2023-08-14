@@ -178,12 +178,16 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
         {
             if (g_sys.transportMode & M_RECORD)
                 TRACK_Manager_recordStrobe();
+            else
+                TRACK_Manager_recordExit();
         }
-        else if ((g_sys.transportMode & MODE_MASK) == MODE_STOP)
+        else
         {
             //if (g_sys.transportMode & M_RECORD)
                 TRACK_Manager_recordExit();
         }
+
+        System_printf("OP_NOTIFY_TRANSPORT %x %x\n", msg->param1.U, msg->param2.U);
 
         break;
     }

@@ -409,9 +409,9 @@ bool Track_ApplyState(size_t track, uint8_t state)
     msg.hdr.opcode = DCS_OP_SET_TRACK;
     msg.hdr.length = sizeof(DCS_IPCMSG_SET_TRACK);
 
-    msg.flags      = 1;
     msg.trackNum   = track;
     msg.trackState = state;
+    msg.flags      = 1;
 
     rc = TRACK_Command(g_sys.handleDCS,
                        (DCS_IPCMSG_HDR*)&msg,
@@ -461,6 +461,15 @@ bool Track_SetState(size_t track, uint8_t trackState)
 {
     if (track >= MAX_TRACKS)
         return false;
+
+    /* Record can't be active if ready(hold) is not set,
+     * do not allow this invalid state.
+     */
+    if (trackState & STC_T_RECORD)
+    {
+        if (!(trackState & STC_T_READY))
+                trackState &= ~(STC_T_RECORD);
+    }
 
     g_sys.trackState[track] = trackState;
 
