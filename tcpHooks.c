@@ -96,14 +96,16 @@
 #include "SMPTE.h"
 #include "Utils.h"
 
-/* Configuration Constants and Definitions */
-#define NUMTCPWORKERS       4
-
 #ifdef CYASSL_TIRTOS
 #define TCPHANDLERSTACK     8704
 #else
 #define TCPHANDLERSTACK     1024
 #endif
+
+/* Configuration Constants and Definitions */
+#define NUMTCPWORKERS       4
+
+int s_stateClientHandle[NUMTCPWORKERS];
 
 /* Static Function Prototypes */
 void netOpenHook(void);
@@ -224,13 +226,12 @@ void netOpenHook(void)
     Task_Params taskParams;
     Error_Block eb;
 
-    /* Make sure Error_Block is initialized */
-    Error_init(&eb);
-
     /* Create the task that listens for incoming TCP connections
      * to handle streaming transport state info. The parameter arg0
      * will be the port that this task listens on.
      */
+
+    Error_init(&eb);
 
     Task_Params_init(&taskParams);
 
@@ -380,6 +381,7 @@ shutdown:
         close(server);
     }
 }
+
 
 //*****************************************************************************
 // STREAMS TRANSPORT STATE CHANGE INFO TO CLIENT. THERE CAN BE MULTIPLE
