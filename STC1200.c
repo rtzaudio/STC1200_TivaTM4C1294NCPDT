@@ -372,6 +372,7 @@ void Init_Peripherals(void)
 
 void Init_Application(void)
 {
+    size_t i;
     Task_Params taskParams;
     Error_Block eb;
 
@@ -430,7 +431,11 @@ void Init_Application(void)
             /* Set all track states from EEPROM config */
             memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
 
-            Track_ApplyAllStates(g_cfg.trackState);
+            /* Make sure record active bit is clear! */
+            for (i=0; i < DCS_NUM_TRACKS; i++)
+                g_sys.trackState[i] &= ~(DCS_T_RECORD);
+
+            Track_ApplyAllStates(g_sys.trackState);
         }
     }
 
