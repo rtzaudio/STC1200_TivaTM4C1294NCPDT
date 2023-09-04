@@ -105,7 +105,12 @@
 /* Configuration Constants and Definitions */
 #define NUMTCPWORKERS       4
 
-int s_stateClientHandle[NUMTCPWORKERS];
+typedef struct _SESSION_ELEM {
+    Queue_Elem  elem;
+    int         handle;
+} SESSION_ELEM;
+
+static SESSION_ELEM* s_sessionList;
 
 /* Static Function Prototypes */
 void netOpenHook(void);
@@ -222,9 +227,23 @@ int WriteData(int fd, void *pbuf, int size, int flags)
 
 void netOpenHook(void)
 {
+    int i;
     Task_Handle taskHandle;
     Task_Params taskParams;
     Error_Block eb;
+
+    /* Allocate session list*/
+
+    Error_init(&eb);
+
+    s_sessionList = (SESSION_ELEM*)Memory_alloc(NULL, sizeof(SESSION_ELEM) * NUMTCPWORKERS, 0, &eb);
+
+    if (s_sessionList == NULL)
+        System_abort("TxBuf allocation failed");
+
+    /* Put all tx message buffers on the freeQueue */
+    for (i=0; i < IPC_MAX_WINDOW; i++, msg++)
+        Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem*)msg);
 
     /* Create the task that listens for incoming TCP connections
      * to handle streaming transport state info. The parameter arg0
