@@ -105,12 +105,9 @@
 /* Configuration Constants and Definitions */
 #define NUMTCPWORKERS       4
 
-typedef struct _SESSION_ELEM {
-    Queue_Elem  elem;
-    int         handle;
-} SESSION_ELEM;
+static int s_clientfd[NUMTCPWORKERS];
 
-static SESSION_ELEM* s_sessionList;
+static GateMutex_Struct s_gate;
 
 /* Static Function Prototypes */
 void netOpenHook(void);
@@ -181,6 +178,7 @@ int ReadData(int fd, void *pbuf, int size, int flags)
         if ((bytesRcvd = recv(fd, buf, bytesToRecv, 0)) <= 0)
         {
             System_printf("Error: TCP recv failed %d.\n", bytesRcvd);
+            bytesRcvd = 0;
             break;
         }
 
@@ -209,6 +207,7 @@ int WriteData(int fd, void *pbuf, int size, int flags)
         if ((bytesSent = send(fd, buf, bytesToSend, 0)) <= 0)
         {
             System_printf("Error: TCP send failed %d.\n", bytesSent);
+            bytesSent = 0;
             break;
         }
 
@@ -227,23 +226,11 @@ int WriteData(int fd, void *pbuf, int size, int flags)
 
 void netOpenHook(void)
 {
-    int i;
     Task_Handle taskHandle;
     Task_Params taskParams;
     Error_Block eb;
 
-    /* Allocate session list*/
-
-    Error_init(&eb);
-
-    s_sessionList = (SESSION_ELEM*)Memory_alloc(NULL, sizeof(SESSION_ELEM) * NUMTCPWORKERS, 0, &eb);
-
-    if (s_sessionList == NULL)
-        System_abort("TxBuf allocation failed");
-
-    /* Put all tx message buffers on the freeQueue */
-    for (i=0; i < IPC_MAX_WINDOW; i++, msg++)
-        Queue_enqueue(g_ipc.txFreeQue, (Queue_Elem*)msg);
+    GateMutex_construct(&s_gate, NULL);
 
     /* Create the task that listens for incoming TCP connections
      * to handle streaming transport state info. The parameter arg0
@@ -401,6 +388,51 @@ shutdown:
     }
 }
 
+//*****************************************************************************
+//
+//*****************************************************************************
+
+int ClientAdd(int fd)
+{
+    int i;
+    IArg key = GateMutex_enter(GateMutex_handle(&s_gate));
+
+    for(i=0; i < NUMTCPWORKERS; i++)
+    {
+        if (s_clientfd[i] == 0)
+        {
+            s_clientfd[i] = fd;
+            break;
+        }
+    }
+
+    GateMutex_leave(GateMutex_handle(&s_gate), key);
+
+    return i;
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+int ClientDelete(int fd)
+{
+    int i;
+    IArg key = GateMutex_enter(GateMutex_handle(&s_gate));
+
+    for(i=0; i < NUMTCPWORKERS; i++)
+    {
+        if (fd == s_clientfd[i])
+        {
+            s_clientfd[i] = 0;
+            break;
+        }
+    }
+
+    GateMutex_leave(GateMutex_handle(&s_gate), key);
+
+    return i;
+}
 
 //*****************************************************************************
 // STREAMS TRANSPORT STATE CHANGE INFO TO CLIENT. THERE CAN BE MULTIPLE
@@ -409,16 +441,18 @@ shutdown:
 
 Void tcpStateWorker(UArg arg0, UArg arg1)
 {
-    int         clientfd = (int)arg0;
-    int         bytesSent;
-    int         bytesToSend;
-    uint8_t*    buf;
-    size_t      i;
-    bool        connected = true;
+    int     clientfd = (int)arg0;
+    int     fd;
+    int     bytesSent;
+    int     bytesToSend;
+    size_t  i;
+    bool    connected = true;
     STC_STATE_MSG stateMsg;
 
     System_printf("tcpStateWorker: CONNECT clientfd = 0x%x\n", clientfd);
     System_flush();
+
+    ClientAdd(clientfd);
 
     /* Set initially to send tape time update packet
      * since the client just connected.
@@ -429,13 +463,18 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
 
     while (connected)
     {
-        /* Wait for a position change event from the tape roller position task */
+        /* Wait for a change event to update client status
+         *
+         * Event_Id_00     tape position change
+         * Event_Id_01     transport switch or LED state changed
+         * Event_Id_02     DRC remote switch state changed
+         * Event_Id_03     track assign state changed
+         * Event_Id_04     tape roller index pulse detected
+         */
         UInt events = Event_pend(g_eventTransport, Event_Id_NONE, EVENT_MASK, 2500);
 
         /* Get the tape time member values */
         PositionToTapeTime(g_sys.tapePosition, &stateMsg.tapeTime);
-
-        int textlen = sizeof(STC_STATE_MSG);
 
         uint32_t transportMode = g_sys.transportMode;
 
@@ -473,7 +512,7 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         if (g_sys.rtcFound)
             hardwareFlags |= STC_HF_RTC;
 
-        stateMsg.length             = textlen;
+        stateMsg.length             = sizeof(STC_STATE_MSG);
         stateMsg.errorCount         = g_sys.qei_error_cnt;
         stateMsg.ledMaskButton      = g_sys.ledMaskRemote;
         stateMsg.ledMaskTransport   = maskTransport;
@@ -501,16 +540,27 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         for (i=0; i < STC_MAX_CUE_POINTS; i++)
             stateMsg.cueState[i] = (uint8_t)g_sys.cuePoint[i].flags;
 
-        /* Prepare to start sending state message buffer */
+        /* Send state message buffer to all clients */
 
-        bytesToSend = textlen;
-
-        buf = (uint8_t*)&stateMsg;
-
-        if ((bytesSent = WriteData(clientfd, buf, bytesToSend, 0)) <= 0)
+        for(i=0; i < NUMTCPWORKERS; i++)
         {
-            connected = false;
-            break;
+            fd = s_clientfd[i];
+
+            if (fd != 0)
+            {
+                bytesToSend = sizeof(STC_STATE_MSG);
+
+                if ((bytesSent = WriteData(fd, &stateMsg, bytesToSend, 0)) <= 0)
+                {
+                    ClientDelete(fd);
+
+                    if (fd == clientfd)
+                    {
+                        connected = false;
+                        break;
+                    }
+                }
+            }
         }
 
         (void)bytesSent;
