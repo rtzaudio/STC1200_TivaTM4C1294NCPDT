@@ -187,7 +187,7 @@ Bool IPC_Handle_datagram(IPC_MSG* msg, IPC_FCB* fcb)
                 TRACK_Manager_recordExit();
         }
 
-        System_printf("OP_NOTIFY_TRANSPORT %x %x\n", msg->param1.U, msg->param2.U);
+        //System_printf("OP_NOTIFY_TRANSPORT %x %x\n", msg->param1.U, msg->param2.U);
 
         break;
     }
