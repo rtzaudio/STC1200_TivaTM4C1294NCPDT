@@ -170,7 +170,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">System Summary</legend>\r\n");
 
-    System_sprintf(buf, "<p>Firmware version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    System_sprintf(buf, "<p>Firmware: v%d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
     System_sprintf(buf, "<p>PCB serial#: %s</p>\r\n", serialnum);
     html(buf);
