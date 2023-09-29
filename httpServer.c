@@ -189,6 +189,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "<p>RTC clock type: %s</p>\r\n", g_sys.rtcFound ? "RTC" : "CPU");
     html(buf);
     System_sprintf(buf, "<p>DCS track controller found: ");
+    html(buf);
     if (g_sys.dcsFound)
         System_sprintf(buf, "%d tracks</p>\r\n", g_sys.trackCount);
     else
