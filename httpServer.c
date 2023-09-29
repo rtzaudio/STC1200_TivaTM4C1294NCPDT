@@ -161,7 +161,6 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
     html("<div id=\"top\">\r\n");
-    //html("    <img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
     html("<h1>STC-1200</h1>\r\n");
     html("<p>Tape Machine Services</p>\r\n");
     html("</div>\r\n");
@@ -177,28 +176,24 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
 
     System_sprintf(buf, "<p>Firmware version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
-
     System_sprintf(buf, "<p>PCB serial#: %s</p>\r\n", serialnum);
     html(buf);
-
     System_sprintf(buf, "<p>MAC address: %s</p>\r\n", mac);
     html(buf);
-
     System_sprintf(buf, "<p>IP address: %s</p>\r\n", g_sys.ipAddr);
     html(buf);
-
     System_sprintf(buf, "<p>Tape speed: %d IPS</p>\r\n", g_sys.tapeSpeed);
     html(buf);
-
     System_sprintf(buf, "<p>Roller encoder errors: %d</p>\r\n", g_sys.qei_error_cnt);
     html(buf);
-
     System_sprintf(buf, "<p>RTC clock type: %s</p>\r\n", g_sys.rtcFound ? "RTC" : "CPU");
     html(buf);
-
-    System_sprintf(buf, "<p>DCS track controller found: %s</p>\r\n", getStrYesNo(g_sys.dcsFound));
+    System_sprintf(buf, "<p>DCS track controller found: ");
+    if (g_sys.dcsFound)
+        System_sprintf(buf, "%d tracks</p>\r\n", g_sys.trackCount);
+    else
+        System_sprintf(buf, "%s</p>\r\n", getStrYesNo(false));
     html(buf);
-
     System_sprintf(buf, "<p>SMPTE time code card found: %s</p>\r\n", getStrYesNo(g_sys.smpteFound));
     html(buf);
 
@@ -229,7 +224,6 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<body>\r\n");
     html("<div class=\"container wrapper\">\r\n");
     html("<div id=\"top\">\r\n");
-//    html("<img class=\"imgr\" src=\"images/MM1200_01.png\" />\r\n");
     html("<h1>STC-1200</h1>\r\n");
     html("<p>Tape Machine Services</p>\r\n");
     html("</div>\r\n");
@@ -241,34 +235,39 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
     html("</ul>\r\n");
     html("</div>\r\n");
+
     html("<div id=\"main\">\r\n");
     html("<form action=\"config.cgi\" method=\"post\">\r\n");
-    html("<p class=\"bold\">General Settings</p>\r\n");
 
-    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?\r\n",
-                       g_cfg.showLongTime ? "checked" : "");
+    /* General Settings */
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">General Settings</legend>\r\n");
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?<br />\r\n", g_cfg.showLongTime ? "checked" : "");
     html(buf);
-    html("<br />\r\n");
-
-    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?\r\n",
-                   g_cfg.searchBlink ? "checked" : "");
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?<br />\r\n", g_cfg.searchBlink ? "checked" : "");
     html(buf);
-    html("<p class=\"bold\">Locator Settings</p>\r\n");
+    html("</fieldset><br />\r\n");
 
-    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"> <br />\r\n", g_cfg.jog_vel_near);
+    /* Locator Settings */
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Locator Settings</legend>\r\n");
+    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_near);
     html(buf);
-
-    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"> <br />\r\n", g_cfg.jog_vel_mid);
+    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_mid);
     html(buf);
-
-    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"> <br />\r\n", g_cfg.jog_vel_far);
+    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_far);
     html(buf);
+    html("</fieldset><br /><br />\r\n");
 
-    html("<br />\r\n");
+    /* End of form Save/Reset buttons */
+
     html("<input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
     html("<input class=\"btn\" type=\"reset\" name=\"submit\" value=\"Reset\">\r\n");
     html("</form>\r\n");
     html("</div>\r\n");
+
     html("</div>\r\n");
     html("<div id=\"bottom\">\r\n");
     html(strCopyright);
@@ -398,9 +397,9 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
     html("<form action=\"remote.cgi\" method=\"post\">\r\n");
+
     html("<fieldset>\r\n");
     html("<legend>Transport</legend>\r\n");
-
     if (rec_arm)
     {
         System_sprintf(buf, "<input class=\"btnrec0\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n");
@@ -413,63 +412,50 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
             System_sprintf(buf, "<input class=\"btn\" type=\"submit\" name=\"rec\" value=\"REC\">\r\n");
     }
     html(buf);
-
     html("<input class=\"btn\" type=\"submit\" name=\"play\" value=\"PLAY\">\r\n");
     html("<input class=\"btn\" type=\"submit\" name=\"rew\" value=\"REW\">\r\n");
     html("<input class=\"btn\" type=\"submit\" name=\"fwd\" value=\"FWD\">\r\n");
     html("<input class=\"btn\" type=\"submit\" name=\"stop\" value=\"STOP\">\r\n");
-
     html("</fieldset>\r\n");
+
     html("<fieldset>\r\n");
     html("<legend>Mode</legend>\r\n");
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"cue\" value=\"CUE\">\r\n", (g_sys.ledMaskRemote & L_CUE) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"store\" value=\"STORE\">\r\n", (g_sys.ledMaskRemote & L_STORE) ? '1' : '0');
     html(buf);
-
     html("</fieldset>\r\n");
+
     html("<fieldset>\r\n");
     html("<legend>Locate</legend>\r\n");
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sys.ledMaskRemote & L_LOC1) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc2\" value=\"LOC-2\">\r\n", (g_sys.ledMaskRemote & L_LOC2) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc3\" value=\"LOC-3\">\r\n", (g_sys.ledMaskRemote & L_LOC3) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc4\" value=\"LOC-4\">\r\n", (g_sys.ledMaskRemote & L_LOC4) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc5\" value=\"LOC-5\"><br />\r\n", (g_sys.ledMaskRemote & L_LOC5) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc6\" value=\"LOC-6\">\r\n", (g_sys.ledMaskRemote & L_LOC6) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc7\" value=\"LOC-7\">\r\n", (g_sys.ledMaskRemote & L_LOC7) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc8\" value=\"LOC-8\">\r\n", (g_sys.ledMaskRemote & L_LOC8) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc9\" value=\"LOC-9\">\r\n", (g_sys.ledMaskRemote & L_LOC9) ? '1' : '0');
     html(buf);
-
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sys.ledMaskRemote & L_LOC0) ? '1' : '0');
     html(buf);
-
     html("</fieldset>\r\n");
+
     html("</form>\r\n");
     html("</div>\r\n");
     html("</div>\r\n");
-    html("<div id=\"bottom\">\r\n");
-    html(strCopyright);
-    html("</div>\r\n");
+    //html("<div id=\"bottom\">\r\n");
+    //html(strCopyright);
+    //html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
     html("</html>\r\n");
