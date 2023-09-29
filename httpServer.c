@@ -128,8 +128,6 @@ Void RemoveWebFiles(Void)
 // CGI Callback Functions
 //*****************************************************************************
 
-static const char strYes[] = "Yes";
-static const char strNo[]  = "No";
 static const char strCopyright[] = "Copyright &copy; 2021-2023, RTZ Professional Audio\r\n";
 
 static Int sendIndexHtml(SOCKET htmlSock, int length)
@@ -167,6 +165,9 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("</ul>\r\n");
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">System Summary</legend>\r\n");
 
     System_sprintf(buf, "<p>Firmware version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
@@ -214,6 +215,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     {
         html("N/A</p>\r\n");
     }
+    html("</fieldset><br /><br />\r\n");
 
     html("</div>\r\n");
     html("</div>\r\n");
