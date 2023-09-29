@@ -127,6 +127,17 @@ Void RemoveWebFiles(Void)
 // CGI Callback Functions
 //*****************************************************************************
 
+static const char strYes[] = "Yes";
+static const char strNo[]  = "No";
+static const char strCopyright[] = "Copyright &copy; 2021-2023, RTZ Professional Audio\r\n";
+
+
+static const char* getStrYesNo(bool flag)
+{
+    return flag ? strYes : strNo;
+}
+
+
 static Int sendIndexHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
@@ -164,28 +175,37 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
 
-    System_sprintf(buf, "<p>Firmware Version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    System_sprintf(buf, "<p>Firmware version: %d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
 
-    System_sprintf(buf, "<p>PCB Serial#: %s</p>\r\n", serialnum);
+    System_sprintf(buf, "<p>PCB serial#: %s</p>\r\n", serialnum);
     html(buf);
 
-    System_sprintf(buf, "<p>MAC Address: %s</p>\r\n", mac);
+    System_sprintf(buf, "<p>MAC address: %s</p>\r\n", mac);
     html(buf);
 
-    System_sprintf(buf, "<p>IP Address: %s</p>\r\n", g_sys.ipAddr);
+    System_sprintf(buf, "<p>IP address: %s</p>\r\n", g_sys.ipAddr);
     html(buf);
 
-    System_sprintf(buf, "<p>Tape Speed: %d IPS</p>\r\n", g_sys.tapeSpeed);
+    System_sprintf(buf, "<p>Tape speed: %d IPS</p>\r\n", g_sys.tapeSpeed);
     html(buf);
 
-    System_sprintf(buf, "<p>Roller Encoder Errors: %d</p>\r\n", g_sys.qei_error_cnt);
+    System_sprintf(buf, "<p>Roller encoder errors: %d</p>\r\n", g_sys.qei_error_cnt);
+    html(buf);
+
+    System_sprintf(buf, "<p>RTC clock type: %s</p>\r\n", g_sys.rtcFound ? "RTC" : "CPU");
+    html(buf);
+
+    System_sprintf(buf, "<p>DCS track controller found: %s</p>\r\n", getStrYesNo(g_sys.dcsFound));
+    html(buf);
+
+    System_sprintf(buf, "<p>SMPTE time code card found: %s</p>\r\n", getStrYesNo(g_sys.smpteFound));
     html(buf);
 
     html("</div>\r\n");
     html("</div>\r\n");
     html("<div id=\"bottom\">\r\n");
-    html("Copyright &copy; 2021, RTZ Professional Audio, LLC\r\n");
+    html(strCopyright);
     html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
@@ -251,7 +271,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</div>\r\n");
     html("</div>\r\n");
     html("<div id=\"bottom\">\r\n");
-    html("Copyright &copy; 2021, RTZ Professional Audio, LLC\r\n");
+    html(strCopyright);
     html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
@@ -368,18 +388,18 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 //    html("  <div id=\"top\">\r\n");
 //    html("    <p>REMOTE</p>\r\n");
 //    html("  </div>\r\n");
-    html("  <div class=\"wrapper\">\r\n");
-    html("    <div id=\"menubar\">\r\n");
-    html("      <ul id=\"menulist\">\r\n");
-    html("        <li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("        <li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("        <li class=\"menuitem active\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("      </ul>\r\n");
-    html("    </div>\r\n");
-    html("    <div id=\"main\">\r\n");
-    html("      <form action=\"remote.cgi\" method=\"post\">\r\n");
-    html("        <fieldset>\r\n");
-    html("        <legend>Transport</legend>\r\n");
+    html("<div class=\"wrapper\">\r\n");
+    html("<div id=\"menubar\">\r\n");
+    html("<ul id=\"menulist\">\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("<li class=\"menuitem active\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("</ul>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"main\">\r\n");
+    html("<form action=\"remote.cgi\" method=\"post\">\r\n");
+    html("<fieldset>\r\n");
+    html("<legend>Transport</legend>\r\n");
 
     if (rec_arm)
     {
@@ -399,9 +419,9 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html("<input class=\"btn\" type=\"submit\" name=\"fwd\" value=\"FWD\">\r\n");
     html("<input class=\"btn\" type=\"submit\" name=\"stop\" value=\"STOP\">\r\n");
 
-    html("        </fieldset>\r\n");
-    html("        <fieldset>\r\n");
-    html("        <legend>Mode</legend>\r\n");
+    html("</fieldset>\r\n");
+    html("<fieldset>\r\n");
+    html("<legend>Mode</legend>\r\n");
 
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"cue\" value=\"CUE\">\r\n", (g_sys.ledMaskRemote & L_CUE) ? '1' : '0');
     html(buf);
@@ -409,9 +429,9 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"store\" value=\"STORE\">\r\n", (g_sys.ledMaskRemote & L_STORE) ? '1' : '0');
     html(buf);
 
-    html("        </fieldset>\r\n");
-    html("        <fieldset>\r\n");
-    html("        <legend>Locate</legend>\r\n");
+    html("</fieldset>\r\n");
+    html("<fieldset>\r\n");
+    html("<legend>Locate</legend>\r\n");
 
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sys.ledMaskRemote & L_LOC1) ? '1' : '0');
     html(buf);
@@ -443,13 +463,13 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sys.ledMaskRemote & L_LOC0) ? '1' : '0');
     html(buf);
 
-    html("        </fieldset>\r\n");
-    html("      </form>\r\n");
-    html("    </div>\r\n");
-    html("  </div>\r\n");
-    html("  <div id=\"bottom\">\r\n");
-    html("    Copyright &copy; 2019, RTZ Professional Audio, LLC\r\n");
-    html("  </div>\r\n");
+    html("</fieldset>\r\n");
+    html("</form>\r\n");
+    html("</div>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"bottom\">\r\n");
+    html(strCopyright);
+    html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
     html("</html>\r\n");

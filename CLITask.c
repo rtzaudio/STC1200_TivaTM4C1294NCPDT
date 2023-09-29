@@ -1067,7 +1067,7 @@ void cmd_date(int argc, char *argv[])
     }
     else
     {
-        CLI_printf("Enter date as: mm/dd/yyyy\n");
+        CLI_printf("Enter date as: mm/dd/yy\n");
     }
 }
 
