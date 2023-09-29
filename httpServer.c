@@ -83,6 +83,7 @@
 /* STC1200 Board Header file */
 #include "STC1200.h"
 #include "STC1200TCP.h"
+#include "SMPTE.h"
 #include "Board.h"
 #include "Utils.h"
 #include "RemoteTask.h"
@@ -206,10 +207,35 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
             html("Slave");
             break;
         default:
+            html("N/A");
             break;
         }
-        System_sprintf(buf, " %d fps</p>\r\n", g_cfg.smpteFPS);
-        html(buf);
+
+        html(" ");
+
+        switch(g_cfg.smpteFPS)
+        {
+        case SMPTE_CTL_FPS24:
+            html("24");
+            break;
+
+        case SMPTE_CTL_FPS25:
+            html("25");
+            break;
+
+        case SMPTE_CTL_FPS30:
+            html("30");
+            break;
+
+        case SMPTE_CTL_FPS30D:
+            html("30D");
+            break;
+
+        default:
+            html("0");
+            break;
+        }
+        html(" fps</p>\r\n");
     }
     else
     {
