@@ -82,6 +82,7 @@
 
 /* STC1200 Board Header file */
 #include "STC1200.h"
+#include "STC1200TCP.h"
 #include "Board.h"
 #include "Utils.h"
 #include "RemoteTask.h"
@@ -131,13 +132,6 @@ static const char strYes[] = "Yes";
 static const char strNo[]  = "No";
 static const char strCopyright[] = "Copyright &copy; 2021-2023, RTZ Professional Audio\r\n";
 
-
-static const char* getStrYesNo(bool flag)
-{
-    return flag ? strYes : strNo;
-}
-
-
 static Int sendIndexHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
@@ -162,7 +156,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("<div class=\"container wrapper\">\r\n");
     html("<div id=\"top\">\r\n");
     html("<h1>STC-1200</h1>\r\n");
-    html("<p>Tape Machine Services</p>\r\n");
+    html("<p>Tape Machine Admin</p>\r\n");
     html("</div>\r\n");
     html("<div class=\"wrapper\">\r\n");
     html("<div id=\"menubar\">\r\n");
@@ -186,17 +180,40 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html(buf);
     System_sprintf(buf, "<p>Roller encoder errors: %d</p>\r\n", g_sys.qei_error_cnt);
     html(buf);
-    System_sprintf(buf, "<p>RTC clock type: %s</p>\r\n", g_sys.rtcFound ? "RTC" : "CPU");
+    System_sprintf(buf, "<p>Time of day clock: %s</p>\r\n", g_sys.rtcFound ? "RTC" : "CPU");
     html(buf);
-    System_sprintf(buf, "<p>DCS track controller found: ");
-    html(buf);
+
+    html("<p>DCS track controller: ");
     if (g_sys.dcsFound)
         System_sprintf(buf, "%d tracks</p>\r\n", g_sys.trackCount);
     else
-        System_sprintf(buf, "%s</p>\r\n", getStrYesNo(false));
+        System_sprintf(buf, "N/A</p>\r\n");
     html(buf);
-    System_sprintf(buf, "<p>SMPTE time code card found: %s</p>\r\n", getStrYesNo(g_sys.smpteFound));
-    html(buf);
+
+    html("<p>SMPTE time code card: ");
+    if (g_sys.smpteFound)
+    {
+        switch(g_sys.smpteMode)
+        {
+        case STC_SMPTE_OFF:         /* smpte module off           */
+            html("Ready");
+            break;
+        case STC_SMPTE_ENCODER:     /* master stripe mode active  */
+            html("Master");
+            break;
+        case STC_SMPTE_SLAVE:       /* slave mode decode active   */
+            html("Slave");
+            break;
+        default:
+            break;
+        }
+        System_sprintf(buf, " %d fps</p>\r\n", g_cfg.smpteFPS);
+        html(buf);
+    }
+    else
+    {
+        html("N/A</p>\r\n");
+    }
 
     html("</div>\r\n");
     html("</div>\r\n");
@@ -226,7 +243,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<div class=\"container wrapper\">\r\n");
     html("<div id=\"top\">\r\n");
     html("<h1>STC-1200</h1>\r\n");
-    html("<p>Tape Machine Services</p>\r\n");
+    html("<p>Tape Machine Admin</p>\r\n");
     html("</div>\r\n");
     html("<div class=\"wrapper\">\r\n");
     html("<div id=\"menubar\">\r\n");
@@ -377,7 +394,7 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
-    html("<title>STC-1200 | home</title>\r\n");
+    html("<title>STC-1200 | remote</title>\r\n");
     html("<meta charset=\"utf-8\">\r\n");
     html("<head>\r\n");
     html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");

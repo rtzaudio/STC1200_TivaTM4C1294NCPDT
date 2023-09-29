@@ -77,6 +77,7 @@
 /* STC1200 Board Header file */
 
 #include "STC1200.h"
+#include "STC1200TCP.h"
 #include "Board.h"
 #include "SMPTE.h"
 
@@ -356,7 +357,7 @@ bool SMPTE_generator_start(bool reset)
     if (reset)
         cmd |=  SMPTE_ENCCTL_RESET;
 
-    g_sys.smpteMode = 1;
+    g_sys.smpteMode = STC_SMPTE_ENCODER;
 
     return SMPTE_Write(cmd);
 }
@@ -368,7 +369,7 @@ bool SMPTE_generator_stop()
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
           SMPTE_ENCCTL_DISABLE;
 
-    g_sys.smpteMode = 0;
+    g_sys.smpteMode = STC_SMPTE_OFF;
 
    return SMPTE_Write(cmd);
 }
