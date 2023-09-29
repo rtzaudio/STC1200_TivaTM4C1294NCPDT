@@ -703,7 +703,7 @@ void cmd_mac(int argc, char *argv[])
 void cmd_stat(int argc, char *argv[])
 {
     /* Show basic system status */
-    CLI_printf("\nSystem Status\n\n");
+    CLI_printf("\nSYSTEM STATUS\n\n");
     CLI_printf("Tape roller tach   : %u\n", (uint32_t)g_sys.tapeTach);
     CLI_printf("Tape roller errors : %u\n", g_sys.qei_error_cnt);
     CLI_printf("Encoder position   : %d\n", g_sys.tapePosition);
@@ -726,17 +726,20 @@ void cmd_stat(int argc, char *argv[])
     else
         CLI_printf("(n/a)\n");
 
+    CLI_printf("Net TCP address    : ");    cmd_ip(argc, argv);
+    CLI_printf("Net MAC address    : ");    cmd_mac(argc, argv);
+
 #if 0
     /* Show IPC Server Status */
-    CLI_printf("\nIPC Server\n");
-    CLI_printf("Rx Errors      : %d\n", g_ipc.rxErrors);
-    CLI_printf("Rx Count       : %d\n", g_ipc.rxCount);
-    CLI_printf("Rx Num Free    : %d\n", g_ipc.rxNumFreeMsgs);
-    CLI_printf("Rx Last Seq    : %d\n", g_ipc.rxLastSeq);
-    CLI_printf("Rx ExpectedSeq : %d\n", g_ipc.rxExpectedSeq);
-    CLI_printf("Tx Count       : %d\n", g_ipc.txCount);
-    CLI_printf("Tx Num Free    : %d\n", g_ipc.txNumFreeMsgs);
-    CLI_printf("Tx Next Seq    : %d\n", g_ipc.txNextSeq);
+    CLI_printf("\nIPC Status\n\n");
+    CLI_printf("Rx Errors          : %d\n", g_ipc.rxErrors);
+    CLI_printf("Rx Count           : %d\n", g_ipc.rxCount);
+    CLI_printf("Rx Num Free        : %d\n", g_ipc.rxNumFreeMsgs);
+    CLI_printf("Rx Last Seq        : %d\n", g_ipc.rxLastSeq);
+    CLI_printf("Rx ExpectedSeq     : %d\n", g_ipc.rxExpectedSeq);
+    CLI_printf("Tx Count           : %d\n", g_ipc.txCount);
+    CLI_printf("Tx Num Free        : %d\n", g_ipc.txNumFreeMsgs);
+    CLI_printf("Tx Next Seq        : %d\n", g_ipc.txNextSeq);
 #endif
 }
 
