@@ -102,7 +102,6 @@ static Int sendConfigHtml(SOCKET htmlSock, int length);
 static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs);
 static Int sendRemoteHtml(SOCKET htmlSock, int length);
 static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs);
-static Void htmlHeader(SOCKET htmlSock, char* title);
 
 #define html(str) httpSendClientStr(htmlSock, (char *)str)
 
@@ -128,37 +127,6 @@ Void RemoveWebFiles(Void)
     efs_destroyfile("index.html");
 }
 
-Void htmlHeader(SOCKET htmlSock, char* title)
-{
-    char buf[64];
-
-    html("<!DOCTYPE html>\r\n");
-    html("<html>\r\n");
-    System_sprintf(buf, "<title>STC-1200 | %s</title>\r\n", title);
-    html(buf);
-    html("<meta charset=\"utf-8\">\r\n");
-    html("<head>\r\n");
-    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
-    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
-    html("</head>\r\n");
-    html("<body>\r\n");
-    html("<div class=\"container wrapper\">\r\n");
-    html("<div id=\"top\">\r\n");
-    html("<h1>STC-1200</h1>\r\n");
-    html("<p>Administration</p>\r\n");
-    html("</div>\r\n");
-    html("<div class=\"wrapper\">\r\n");
-    html("<div id=\"menubar\">\r\n");
-    html("<ul id=\"menulist\">\r\n");
-    html("<li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("</ul>\r\n");
-    html("</div>\r\n");
-    System_sprintf(buf, "<div id=\"%s\">\r\n", title);
-    html(buf);
-}
-
 //*****************************************************************************
 // CGI Index Page Callback Function
 //*****************************************************************************
@@ -174,7 +142,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
 
     /* Format the MAC address as a string */
     GetMACAddrStr(mac, g_sys.ui8MAC);
-#if 0
+
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
     html("<title>STC-1200 | home</title>\r\n");
@@ -198,9 +166,6 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("</ul>\r\n");
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
-#endif
-    /* Send the page header parts */
-    htmlHeader(htmlSock, "home");
 
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">System Summary</legend>\r\n");
@@ -293,7 +258,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
 static Int sendConfigHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
-#if 0
+
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
     html("<title>STC-1200 | config</title>\r\n");
@@ -317,9 +282,6 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</ul>\r\n");
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
-#endif
-    /* Send the page header parts */
-    htmlHeader(htmlSock, "config");
 
     html("<form action=\"config.cgi\" method=\"post\">\r\n");
 
@@ -341,13 +303,13 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html(buf);
     System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_far);
     html(buf);
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* MIDI Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">MIDI Settings</legend>\r\n");
     html("Device ID:<br><input type=\"text\" name=\"devid\" value=\"127\"> <br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* SMPTE Settings */
     html("<fieldset>\r\n");
@@ -356,7 +318,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input type=\"text\" name=\"smpteRef\" value=\"9600\"> <br />\r\n");
     html("<label for \"frameRate\">Default Frame Rate:</label><br>\r\n");
     html("<input type=\"text\" name=\"frameRate\" value=\"30\"> <br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* Play Boost LO-Speed */
     html("<fieldset>\r\n");
@@ -367,7 +329,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input type=\"text\" name=\"playIgainLO\" value=\"0\"> <br />\r\n");
     html("<label for \"playDgainLO\">D-Gain:</label><br>\r\n");
     html("<input type=\"text\" name=\"playDgainLO\" value=\"0\"> <br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* Play Boost HI-Speed */
     html("<fieldset>\r\n");
@@ -378,7 +340,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input type=\"text\" name=\"playIgainHI\" value=\"0\"> <br />\r\n");
     html("<label for \"playDgainHI\">D-Gain:</label><br>\r\n");
     html("<input type=\"text\" name=\"playDgainHI\" value=\"0\"> <br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* Play Mode */
     html("<fieldset>\r\n");
@@ -392,7 +354,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<br />\r\n");
     html("<input type=\"checkbox\" name=\"brakesStopPlay\" value=\"yes\" > Use brakes to stop play mode<br />\r\n");
     html("<input type=\"checkbox\" name=\"pinchEngage\" value=\"yes\" > Engage pinch roller at play<br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* Shuttle Mode */
     html("<fieldset>\r\n");
@@ -415,7 +377,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
     html("<label for \">Lifter settle time after engage:</label><br>\r\n");
     html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* Shuttle Servo PID */
     html("<fieldset>\r\n");
@@ -426,7 +388,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input type=\"text\" name=\"shuttleIgain\" value=\"0\"> <br />\r\n");
     html("<label for \"shuttleDgain\">D-Gain:</label><br>\r\n");
     html("<input type=\"text\" name=\"shuttleDgain\" value=\"0\"> <br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* Stop Mode */
     html("<fieldset>\r\n");
@@ -434,7 +396,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input type=\"checkbox\" name=\"stopLifters\" value=\"yes\" > Leave lifters engaged at stop<br />\r\n");
     html("<input type=\"checkbox\" name=\"stopBrakes\" value=\"yes\" > Leave brakes engaged at stop<br />\r\n");
     html("<input type=\"checkbox\" name=\"stopEOT\" value=\"yes\" > Stop at end-of-tape sense<br />\r\n");
-    html("</fieldset><br /><br />\r\n");
+    html("</fieldset><br />\r\n");
 
     /* End of form Save/Reset buttons */
     html("<input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
