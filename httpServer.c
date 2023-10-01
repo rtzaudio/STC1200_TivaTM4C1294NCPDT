@@ -102,6 +102,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length);
 static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs);
 static Int sendRemoteHtml(SOCKET htmlSock, int length);
 static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs);
+static Void htmlHeader(SOCKET htmlSock, char* title);
 
 #define html(str) httpSendClientStr(htmlSock, (char *)str)
 
@@ -127,8 +128,39 @@ Void RemoveWebFiles(Void)
     efs_destroyfile("index.html");
 }
 
+Void htmlHeader(SOCKET htmlSock, char* title)
+{
+    char buf[64];
+
+    html("<!DOCTYPE html>\r\n");
+    html("<html>\r\n");
+    System_sprintf(buf, "<title>STC-1200 | %s</title>\r\n", title);
+    html(buf);
+    html("<meta charset=\"utf-8\">\r\n");
+    html("<head>\r\n");
+    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
+    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
+    html("</head>\r\n");
+    html("<body>\r\n");
+    html("<div class=\"container wrapper\">\r\n");
+    html("<div id=\"top\">\r\n");
+    html("<h1>STC-1200</h1>\r\n");
+    html("<p>Administration</p>\r\n");
+    html("</div>\r\n");
+    html("<div class=\"wrapper\">\r\n");
+    html("<div id=\"menubar\">\r\n");
+    html("<ul id=\"menulist\">\r\n");
+    html("<li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
+    html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
+    html("</ul>\r\n");
+    html("</div>\r\n");
+    System_sprintf(buf, "<div id=\"%s\">\r\n", title);
+    html(buf);
+}
+
 //*****************************************************************************
-// CGI Callback Functions
+// CGI Index Page Callback Function
 //*****************************************************************************
 
 static Int sendIndexHtml(SOCKET htmlSock, int length)
@@ -142,7 +174,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
 
     /* Format the MAC address as a string */
     GetMACAddrStr(mac, g_sys.ui8MAC);
-
+#if 0
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
     html("<title>STC-1200 | home</title>\r\n");
@@ -166,6 +198,9 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("</ul>\r\n");
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
+#endif
+    /* Send the page header parts */
+    htmlHeader(htmlSock, "home");
 
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">System Summary</legend>\r\n");
@@ -251,10 +286,14 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     return 1;
 }
 
+//*****************************************************************************
+// CGI Config Page Callback Function
+//*****************************************************************************
+
 static Int sendConfigHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
-
+#if 0
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
     html("<title>STC-1200 | config</title>\r\n");
@@ -277,8 +316,11 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
     html("</ul>\r\n");
     html("</div>\r\n");
-
     html("<div id=\"main\">\r\n");
+#endif
+    /* Send the page header parts */
+    htmlHeader(htmlSock, "config");
+
     html("<form action=\"config.cgi\" method=\"post\">\r\n");
 
     /* General Settings */
@@ -498,7 +540,7 @@ ERROR:
 }
 
 //*****************************************************************************
-// Remote Handler Functions
+// CGI Remote Page Callback Function
 //*****************************************************************************
 
 static Int sendRemoteHtml(SOCKET htmlSock, int length)
@@ -527,8 +569,8 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html("</ul>\r\n");
     html("</div>\r\n");
     html("<div id=\"main\">\r\n");
-    html("<form action=\"remote.cgi\" method=\"post\">\r\n");
 
+    html("<form action=\"remote.cgi\" method=\"post\">\r\n");
     html("<fieldset>\r\n");
     html("<legend>Transport</legend>\r\n");
     if (rec_arm)
