@@ -94,6 +94,8 @@
 static bool rec_arm = false;
 static bool rec_active = false;
 
+static const char strCopyright[] = "Copyright &copy; 2021-2023, RTZ Professional Audio\r\n";
+
 /* Static CGI callback functions */
 static Int sendIndexHtml(SOCKET htmlSock, int length);
 static Int sendConfigHtml(SOCKET htmlSock, int length);
@@ -128,8 +130,6 @@ Void RemoveWebFiles(Void)
 //*****************************************************************************
 // CGI Callback Functions
 //*****************************************************************************
-
-static const char strCopyright[] = "Copyright &copy; 2021-2023, RTZ Professional Audio\r\n";
 
 static Int sendIndexHtml(SOCKET htmlSock, int length)
 {
@@ -218,19 +218,15 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
         case SMPTE_CTL_FPS24:
             html("24");
             break;
-
         case SMPTE_CTL_FPS25:
             html("25");
             break;
-
         case SMPTE_CTL_FPS30:
             html("30");
             break;
-
         case SMPTE_CTL_FPS30D:
             html("30D");
             break;
-
         default:
             html("0");
             break;
@@ -286,7 +282,6 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<form action=\"config.cgi\" method=\"post\">\r\n");
 
     /* General Settings */
-
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">General Settings</legend>\r\n");
     System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?<br />\r\n", g_cfg.showLongTime ? "checked" : "");
@@ -296,7 +291,6 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* Locator Settings */
-
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Locator Settings</legend>\r\n");
     System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_near);
@@ -307,13 +301,104 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html(buf);
     html("</fieldset><br /><br />\r\n");
 
-    /* End of form Save/Reset buttons */
+    /* MIDI Settings */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">MIDI Settings</legend>\r\n");
+    html("Device ID:<br><input type=\"text\" name=\"devid\" value=\"127\"> <br />\r\n");
+    html("</fieldset><br /><br />\r\n");
 
+    /* SMPTE Settings */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">SMPTE Settings</legend>\r\n");
+    html("<label for \"smpteRef\">Master Ref Clock Frequency:</label><br>\r\n");
+    html("<input type=\"text\" name=\"smpteRef\" value=\"9600\"> <br />\r\n");
+    html("<label for \"frameRate\">Default Frame Rate:</label><br>\r\n");
+    html("<input type=\"text\" name=\"frameRate\" value=\"30\"> <br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* Play Boost LO-Speed */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Play Boost LO-Speed</legend>\r\n");
+    html("<label for \"playPgainLO\">P-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"playPgainLO\" value=\"0\"> <br />\r\n");
+    html("<label for \"playIgainLO\">I-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"playIgainLO\" value=\"0\"> <br />\r\n");
+    html("<label for \"playDgainLO\">D-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"playDgainLO\" value=\"0\"> <br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* Play Boost HI-Speed */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Play Boost HI-Speed</legend>\r\n");
+    html("<label for \"playPgainHI\">P-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"playPgainHI\" value=\"0\"> <br />\r\n");
+    html("<label for \"playIgainHI\">I-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"playIgainHI\" value=\"0\"> <br />\r\n");
+    html("<label for \"playDgainHI\">D-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"playDgainHI\" value=\"0\"> <br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* Play Mode */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Play Mode</legend>\r\n");
+    html("<label for \"settlePinch\">Pinch roller settle time after engage:</label><br>\r\n");
+    html("<input type=\"text\" name=\"settlePinch\" value=\"0\"> <br />\r\n");
+    html("<label for \"settlePlay\">Delay entering play after shuttle:</label><br>\r\n");
+    html("<input type=\"text\" name=\"settlePlay\" value=\"0\"> <br />\r\n");
+    html("<label for \"settleBrake\">Brake settle time after engage:</label><br>\r\n");
+    html("<input type=\"text\" name=\"settleBrake\" value=\"0\"> <br />\r\n");
+    html("<br />\r\n");
+    html("<input type=\"checkbox\" name=\"brakesStopPlay\" value=\"yes\" > Use brakes to stop play mode<br />\r\n");
+    html("<input type=\"checkbox\" name=\"pinchEngage\" value=\"yes\" > Engage pinch roller at play<br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* Shuttle Mode */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Shuttle Mode</legend>\r\n");
+    html("<label for \"settlePinch\">FWD shuttle back-tension gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \"settlePlay\">REW shuttle back-tension gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \"settleBrake\">Shuttle mode max velocity:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \"settleBrake\">Library wind mode velocity:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \"settleBrake\">Auto-Slow wind velocity:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \"settleBrake\">Auto-slow triggers at offset:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \">Auto-slow triggers at offset:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \">Auto-Slow min velocity to trigger:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("<label for \">Lifter settle time after engage:</label><br>\r\n");
+    html("<input type=\"text\" name=\"\" value=\"0\"> <br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* Shuttle Servo PID */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Shuttle Servo PID</legend>\r\n");
+    html("<label for \"shuttlePgain\">P-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"shuttlePgain\" value=\"0\"> <br />\r\n");
+    html("<label for \"shuttleIgain\">I-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"shuttleIgain\" value=\"0\"> <br />\r\n");
+    html("<label for \"shuttleDgain\">D-Gain:</label><br>\r\n");
+    html("<input type=\"text\" name=\"shuttleDgain\" value=\"0\"> <br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* Stop Mode */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Stop Mode</legend>\r\n");
+    html("<input type=\"checkbox\" name=\"stopLifters\" value=\"yes\" > Leave lifters engaged at stop<br />\r\n");
+    html("<input type=\"checkbox\" name=\"stopBrakes\" value=\"yes\" > Leave brakes engaged at stop<br />\r\n");
+    html("<input type=\"checkbox\" name=\"stopEOT\" value=\"yes\" > Stop at end-of-tape sense<br />\r\n");
+    html("</fieldset><br /><br />\r\n");
+
+    /* End of form Save/Reset buttons */
     html("<input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
     html("<input class=\"btn\" type=\"reset\" name=\"submit\" value=\"Reset\">\r\n");
     html("</form>\r\n");
     html("</div>\r\n");
-
     html("</div>\r\n");
     html("<div id=\"bottom\">\r\n");
     html(strCopyright);
@@ -329,7 +414,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
 // CGI Handler Functions
 //*****************************************************************************
 
-// This function processes the sample CGI from off the config
+// This function processes the CGI from off the config
 // page on the HTTP server.
 //
 // CGI Functions must return 1 if the socket is left open,
