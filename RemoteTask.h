@@ -23,6 +23,7 @@
 #define SCREEN_TIME             0
 #define SCREEN_MENU             1
 #define SCREEN_ABOUT            2
+#define SCREEN_TRACK_ASSIGN     3
 
 #define LAST_SCREEN             1
 
@@ -46,5 +47,6 @@ void DrawScreen(uint32_t uScreenNum);
 void DrawAbout(void);
 void DrawMenu(void);
 void DrawTapeTime(void);
+void DrawTrackAssign(void);
 
 #endif /* _REMOTETASK_H_ */

@@ -94,6 +94,10 @@ static void DrawTimeMiddle(void);
 static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 
+static void GrSetRect(tRectangle* rect,
+                      int16_t XMin, int16_t YMin,
+                      int16_t XMax, int16_t YMax);
+
 /* External Global Data */
 extern tContext g_context;
 extern tFont *g_psFontWDseg7bold24pt;
@@ -126,6 +130,10 @@ void DrawScreen(uint32_t uScreenNum)
         DrawMenu();
         break;
 
+    case SCREEN_TRACK_ASSIGN:
+        DrawTrackAssign();
+        break;
+
     default:
         break;
    }
@@ -134,7 +142,7 @@ void DrawScreen(uint32_t uScreenNum)
 }
 
 //*****************************************************************************
-//
+// Graphics Helpers
 //*****************************************************************************
 
 void ClearDisplay()
@@ -143,6 +151,16 @@ void ClearDisplay()
     GrContextForegroundSetTranslated(&g_context, 0);
     GrContextBackgroundSetTranslated(&g_context, 0);
     GrRectFill(&g_context, &rect);
+}
+
+void GrSetRect(tRectangle* rect,
+               int16_t XMin, int16_t YMin,
+               int16_t XMax, int16_t YMax)
+{
+    rect->i16XMin = XMin;
+    rect->i16YMin = YMin;
+    rect->i16XMax = XMax;
+    rect->i16YMax = YMax;
 }
 
 //*****************************************************************************
@@ -609,6 +627,56 @@ void DrawTimeEdit(void)
 
     len = sprintf(buf, "  H MM SS T");
     GrStringDrawCentered(&g_context, buf, len, x-5, y, FALSE);
+}
+
+//*****************************************************************************
+// Draw the track assignment screen for the current channel.
+//*****************************************************************************
+
+void DrawTrackAssign(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    //int32_t width;
+    //int32_t height;
+    tRectangle rect;
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    /*** DRAW SAFE/READY MODE AREA ***/
+
+    GrSetRect(&rect, 2, 2, 41, 19);
+    GrRectDraw(&g_context, &rect);
+
+
+    /*** REPRO/SYNC/INPUT MODE AREA ***/
+
+    GrSetRect(&rect, 2, 23, 41, 40);
+    GrRectDraw(&g_context, &rect);
+
+    /*** DRAW MONITOR MODE AREA ***/
+
+    GrSetRect(&rect, 2, 44, 41, 61);
+    GrRectDraw(&g_context, &rect);
+
+
+    /*** DRAW LARGE TRACK NUMBER AREA ***/
+
+    GrSetRect(&rect, 45, 2, 125, 61);
+    GrRectDraw(&g_context, &rect);
+    x = 85;
+    /* Draw channel number heading label */
+    y = 10;
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    len = sprintf(buf, "CH-NUM");
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+    /* Draw the current edit channel number */
+    y = 40;
+    GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+    len = sprintf(buf, "%u", 24);
+    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
 }
 
 // End-Of-File
