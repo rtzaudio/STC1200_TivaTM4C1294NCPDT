@@ -346,7 +346,7 @@ Void CLITaskFxn(UArg arg0, UArg arg1)
 void CLI_about(void)
 {
     CLI_printf("STC-1200 [Version %d.%02d.%03d]\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    CLI_puts("(C) 2021 RTZ Professional Audio. All Rights Reserved.\n");
+    CLI_puts("(C) 2021-2023 RTZ Professional Audio. All Rights Reserved.\n");
 }
 
 int CLI_getc(void)

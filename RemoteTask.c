@@ -84,6 +84,7 @@
 #include "Board.h"
 #include "AD9837.h"
 #include "STC1200.h"
+#include "STC1200TCP.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
 #include "CLITask.h"
@@ -488,14 +489,14 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
         }
         else
         {
-            if (s_uScreenNum == SCREEN_MENU)
+            if (s_uScreenNum == SCREEN_TRACK_ASSIGN)
             {
                 s_uScreenNum = SCREEN_TIME;
                 SetButtonLedMask(0, L_MENU);
             }
             else
             {
-                s_uScreenNum = SCREEN_MENU;
+                s_uScreenNum = SCREEN_TRACK_ASSIGN;
                 SetButtonLedMask(L_MENU, 0);
             }
         }

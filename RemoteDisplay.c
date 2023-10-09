@@ -84,6 +84,7 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
+#include "STC1200TCP.h"
 #include "Utils.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
@@ -638,31 +639,87 @@ void DrawTrackAssign(void)
     char buf[64];
     int32_t x, y;
     int32_t len;
-    //int32_t width;
-    //int32_t height;
+    int32_t trackNum = 0;
     tRectangle rect;
 
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+
     /*** DRAW SAFE/READY MODE AREA ***/
 
     GrSetRect(&rect, 2, 2, 41, 19);
     GrRectDraw(&g_context, &rect);
+    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
+    y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
 
+    if (g_sys.trackState[trackNum] & STC_T_RECORD)
+    {
+        GrRectFill(&g_context, &rect);
+
+        strcpy(buf, "REC");
+    }
+    else
+    {
+        strcpy(buf, (g_sys.trackState[trackNum] & STC_T_READY) ? "READY" : "SAFE");
+    }
+
+    GrStringDrawCentered(&g_context, buf, -1, x, y, TRUE);
 
     /*** REPRO/SYNC/INPUT MODE AREA ***/
 
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
     GrSetRect(&rect, 2, 23, 41, 40);
     GrRectDraw(&g_context, &rect);
+    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
+    y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
 
-    /*** DRAW MONITOR MODE AREA ***/
+    switch(g_sys.trackState[trackNum] & STC_TRACK_MASK)
+    {
+    case STC_TRACK_REPRO:       /* track is in repro mode */
+        strcpy(buf, "REPRO");
+        break;
+    case STC_TRACK_SYNC:        /* track is in sync mode  */
+        strcpy(buf, "SYNC");
+        break;
+    case STC_TRACK_INPUT:       /* track is in input mode */
+        strcpy(buf, "INPUT");
+        break;
+    default:
+        buf[0] = '\0';
+        break;
+    }
+
+    GrStringDrawCentered(&g_context, buf, -1, x, y, TRUE);
+
+    /*** DRAW STANDBY MONITOR AREA ***/
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
 
     GrSetRect(&rect, 2, 44, 41, 61);
     GrRectDraw(&g_context, &rect);
+    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
+    y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
 
+    /* Test track standby monitor enable flag */
+    if (g_sys.trackState[trackNum] & STC_T_MONITOR)
+    {
+        GrRectFill(&g_context, &rect);
+
+        GrContextForegroundSetTranslated(&g_context, 0);
+        GrContextBackgroundSetTranslated(&g_context, 1);
+    }
+
+    GrStringDrawCentered(&g_context, "MON", -1, x, y, TRUE);
 
     /*** DRAW LARGE TRACK NUMBER AREA ***/
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
 
     GrSetRect(&rect, 45, 2, 125, 61);
     GrRectDraw(&g_context, &rect);
@@ -670,7 +727,7 @@ void DrawTrackAssign(void)
     /* Draw channel number heading label */
     y = 10;
     GrContextFontSet(&g_context, g_psFontFixed6x8);
-    len = sprintf(buf, "CH-NUM");
+    len = sprintf(buf, "TRACK");
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
     /* Draw the current edit channel number */
     y = 40;

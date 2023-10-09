@@ -15,18 +15,25 @@
 
 /*** CONSTANTS *************************************************************/
 
-#define REMOTE_MODE_UNDEFINED   0
-#define REMOTE_MODE_CUE         1
-#define REMOTE_MODE_STORE       2
-#define REMOTE_MODE_EDIT        3
+/* Remote Modes of Operation */
+typedef enum RemoteModesType {
+    REMOTE_MODE_UNDEFINED,
+    REMOTE_MODE_CUE,
+    REMOTE_MODE_STORE,
+    REMOTE_MODE_EDIT,
+    REMOTE_MODE_LAST
+} RemoteModesType;
 
-#define SCREEN_TIME             0
-#define SCREEN_MENU             1
-#define SCREEN_ABOUT            2
-#define SCREEN_TRACK_ASSIGN     3
+/* Display Screen Types */
+typedef enum ScreenNumberType {
+    SCREEN_TIME,
+    SCREEN_MENU,
+    SCREEN_ABOUT,
+    SCREEN_TRACK_ASSIGN,
+    SCREEN_LAST
+} ScreenNumberType;
 
-#define LAST_SCREEN             1
-
+/* Edit Time States */
 typedef enum EditStateType {
     EDIT_BEGIN,
     EDIT_DIGITS,
