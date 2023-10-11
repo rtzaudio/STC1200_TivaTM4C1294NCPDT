@@ -89,9 +89,6 @@
 #include "RAMPServer.h"
 #include "CLITask.h"
 
-/* Static Module Globals */
-static uint32_t s_uScreenNum = 0;
-
 /* External Global Data */
 extern tContext g_context;
 extern Mailbox_Handle g_mailboxRemote;
@@ -237,8 +234,12 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     uint32_t cue_flags;
 
     g_sys.cueIndex = 0;
-
     g_sys.remoteMode = REMOTE_MODE_UNDEFINED;
+
+    g_sys.remoteView = VIEW_TIME;
+    g_sys.remoteViewSelect = false;
+
+    g_sys.remoteTrackNum = 0;
 
     /* Initialize LOC-1 memory as return to zero at CUE point 1 */
     g_sys.remoteModePrev = REMOTE_MODE_CUE;
@@ -258,7 +259,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
         {
             /* DIP switch #2 must be on to enable tx data to remote */
             if (GPIO_read(Board_DIPSW_CFG2) == 0)
-                DrawScreen(s_uScreenNum);
+                DrawScreen(g_sys.remoteView);
             continue;
         }
 
@@ -439,180 +440,6 @@ void RemoteSetMode(uint32_t mode)
 }
 
 //*****************************************************************************
-// Handle button press events from DRC remote
-//*****************************************************************************
-
-void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
-{
-    /* Handle numeric digit/locate buttons */
-    if (mask & SW_LOC0) {
-        HandleDigitPress(0, cue_flags);
-    } else if (mask & SW_LOC1) {
-        HandleDigitPress(1, cue_flags);
-    } else if (mask & SW_LOC2) {
-        HandleDigitPress(2, cue_flags);
-    } else if (mask & SW_LOC3) {
-        HandleDigitPress(3, cue_flags);
-    } else if (mask & SW_LOC4) {
-        HandleDigitPress(4, cue_flags);
-    } else if (mask & SW_LOC5) {
-        HandleDigitPress(5, cue_flags);
-    } else if (mask & SW_LOC6) {
-        HandleDigitPress(6, cue_flags);
-    } else if (mask & SW_LOC7) {
-        HandleDigitPress(7, cue_flags);
-    } else if (mask & SW_LOC8) {
-        HandleDigitPress(8, cue_flags);
-    } else if (mask & SW_LOC9) {
-        HandleDigitPress(9, cue_flags);
-    } else if (mask & SW_CUE) {
-        /* Switch to CUE mode */
-        RemoteSetMode(REMOTE_MODE_CUE);
-    }
-    else if (mask & SW_STORE)
-    {
-        /* Switch to STORE mode */
-        RemoteSetMode(REMOTE_MODE_STORE);
-    }
-    else if (mask & SW_EDIT)
-    {
-        /* Switch to EDIT mode */
-        RemoteSetMode(REMOTE_MODE_EDIT);
-    }
-    else if (mask & SW_MENU)
-    {
-        /* ALT+MENU to zero reset system position */
-        if (g_sys.shiftAltButton)
-        {
-            /* Reset system position to zero */
-            PositionZeroReset();
-        }
-        else
-        {
-            if (s_uScreenNum == SCREEN_TRACK_ASSIGN)
-            {
-                s_uScreenNum = SCREEN_TIME;
-                SetButtonLedMask(0, L_MENU);
-            }
-            else
-            {
-                s_uScreenNum = SCREEN_TRACK_ASSIGN;
-                SetButtonLedMask(L_MENU, 0);
-            }
-        }
-    }
-    else if (mask & SW_AUTO)
-    {
-        /* toggle auto play mode */
-        if (!g_sys.autoMode)
-        {
-            g_sys.autoMode = TRUE;
-            SetButtonLedMask(L_AUTO, 0);
-        }
-        else
-        {
-            g_sys.autoMode = FALSE;
-            SetButtonLedMask(0, L_AUTO);
-        }
-    }
-    else if (mask & SW_ALT)
-    {
-        if (g_cfg.showLongTime)
-            g_cfg.showLongTime = false;
-        else
-            g_cfg.showLongTime = true;
-    }
-
-    // Notify the software remote of status change
-    Event_post(g_eventTransport, Event_Id_02);
-}
-
-//*****************************************************************************
-// This handler is called for any digit keys (0-9) pressed on the remote.
-//*****************************************************************************
-
-void HandleDigitPress(size_t index, uint32_t cue_flags)
-{
-    int len;
-    char digit;
-     static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
-
-    if (g_sys.remoteMode == REMOTE_MODE_CUE)
-    {
-        /*
-         * Remote is in CUE mode and a LOC-# button was pressed
-         */
-
-        g_sys.cueIndex = index;
-
-        SetLocateButtonLED(index);
-
-        /* Begin locate search */
-        LocateSearch(index, cue_flags);
-    }
-    else if (g_sys.remoteMode == REMOTE_MODE_STORE)
-    {
-        /*
-         * Remote is in STORE mode and a LOC-# button was pressed
-         */
-        g_sys.cueIndex = index;
-
-        SetLocateButtonLED(index);
-
-        /* Store the current locate point */
-        CuePointSet(index, g_sys.tapePosition, CF_ACTIVE);
-
-        /* Return to previous Cue or default mode */
-        RemoteSetMode(g_sys.remoteModePrev);
-
-        SetLocateButtonLED(g_sys.cueIndex);
-    }
-    else if (g_sys.remoteMode == REMOTE_MODE_EDIT)
-    {
-        /*
-         * Remote is in EDIT mode and a digit 0-9 was pressed.
-         */
-
-        if (g_sys.editState == EDIT_BEGIN)
-        {
-            g_sys.editTime.frame = 0;
-            g_sys.editTime.tens  = 0;
-            g_sys.editTime.secs  = 0;
-            g_sys.editTime.mins  = 0;
-            g_sys.editTime.hour  = 0;
-            g_sys.editTime.flags = F_PLUS;
-
-            g_sys.editState = EDIT_DIGITS;
-
-            memset(&g_sys.editTime, 0, sizeof(g_sys.editTime));
-
-            ResetDigitBuf();
-        }
-
-        digit = digits[index];
-
-        if (g_sys.digitCount >= MAX_DIGITS_BUF)
-            g_sys.digitCount = 0;
-
-        g_sys.digitBuf[g_sys.digitCount++] = digit;
-        g_sys.digitBuf[g_sys.digitCount] = 0;
-
-        len = StrToTapeTime(g_sys.digitBuf, &g_sys.editTime);
-
-        if (len >= 6)
-        {
-            CompleteEditTimeState();
-        }
-    }
-    else
-    {
-        g_sys.cueIndex = index;
-
-        SetLocateButtonLED(index);
-    }
-}
-
-//*****************************************************************************
 // Finished the time edit mode and stores the current result in the
 // cue point currently being edited.
 //*****************************************************************************
@@ -758,6 +585,195 @@ int StrToTapeTime(char *digits, TAPETIME* tapetime)
 }
 
 //*****************************************************************************
+// Handle button press events from DRC remote
+//*****************************************************************************
+
+void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
+{
+    /* Handle numeric digit/locate buttons */
+    if (mask & SW_LOC0) {
+        HandleDigitPress(0, cue_flags);
+    } else if (mask & SW_LOC1) {
+        HandleDigitPress(1, cue_flags);
+    } else if (mask & SW_LOC2) {
+        HandleDigitPress(2, cue_flags);
+    } else if (mask & SW_LOC3) {
+        HandleDigitPress(3, cue_flags);
+    } else if (mask & SW_LOC4) {
+        HandleDigitPress(4, cue_flags);
+    } else if (mask & SW_LOC5) {
+        HandleDigitPress(5, cue_flags);
+    } else if (mask & SW_LOC6) {
+        HandleDigitPress(6, cue_flags);
+    } else if (mask & SW_LOC7) {
+        HandleDigitPress(7, cue_flags);
+    } else if (mask & SW_LOC8) {
+        HandleDigitPress(8, cue_flags);
+    } else if (mask & SW_LOC9) {
+        HandleDigitPress(9, cue_flags);
+    } else if (mask & SW_CUE) {
+        /* Switch to CUE mode */
+        RemoteSetMode(REMOTE_MODE_CUE);
+    }
+    else if (mask & SW_STORE)
+    {
+        /* Switch to STORE mode */
+        RemoteSetMode(REMOTE_MODE_STORE);
+    }
+    else if (mask & SW_EDIT)
+    {
+        /* Switch to EDIT mode */
+        RemoteSetMode(REMOTE_MODE_EDIT);
+    }
+    else if (mask & SW_MENU)
+    {
+        /* ALT+MENU to zero reset system position */
+        if (g_sys.shiftAltButton)
+        {
+            /* Reset system position to zero */
+            PositionZeroReset();
+        }
+        else
+        {
+            if (!g_sys.remoteViewSelect)
+            {
+                g_sys.remoteViewSelect = true;
+                /* turn on menu button led */
+                SetButtonLedMask(L_MENU, 0);
+            }
+            else
+            {
+                g_sys.remoteViewSelect = false;
+                /* turn off menu button led */
+                SetButtonLedMask(0, L_MENU);
+            }
+
+#if 0
+            if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
+            {
+                g_sys.remoteView = VIEW_TIME;
+                SetButtonLedMask(0, L_MENU);
+            }
+            else
+            {
+                g_sys.remoteView = VIEW_TRACK_ASSIGN;
+                SetButtonLedMask(L_MENU, 0);
+            }
+#endif
+        }
+    }
+    else if (mask & SW_AUTO)
+    {
+        /* toggle auto play mode */
+        if (!g_sys.autoMode)
+        {
+            g_sys.autoMode = TRUE;
+            SetButtonLedMask(L_AUTO, 0);
+        }
+        else
+        {
+            g_sys.autoMode = FALSE;
+            SetButtonLedMask(0, L_AUTO);
+        }
+    }
+    else if (mask & SW_ALT)
+    {
+        if (g_cfg.showLongTime)
+            g_cfg.showLongTime = false;
+        else
+            g_cfg.showLongTime = true;
+    }
+
+    // Notify the software remote of status change
+    Event_post(g_eventTransport, Event_Id_02);
+}
+
+//*****************************************************************************
+// This handler is called for any digit keys (0-9) pressed on the remote.
+//*****************************************************************************
+
+void HandleDigitPress(size_t index, uint32_t cue_flags)
+{
+    int len;
+    char digit;
+     static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+
+    if (g_sys.remoteMode == REMOTE_MODE_CUE)
+    {
+        /*
+         * Remote is in CUE mode and a LOC-# button was pressed
+         */
+
+        g_sys.cueIndex = index;
+
+        SetLocateButtonLED(index);
+
+        /* Begin locate search */
+        LocateSearch(index, cue_flags);
+    }
+    else if (g_sys.remoteMode == REMOTE_MODE_STORE)
+    {
+        /*
+         * Remote is in STORE mode and a LOC-# button was pressed
+         */
+        g_sys.cueIndex = index;
+
+        SetLocateButtonLED(index);
+
+        /* Store the current locate point */
+        CuePointSet(index, g_sys.tapePosition, CF_ACTIVE);
+
+        /* Return to previous Cue or default mode */
+        RemoteSetMode(g_sys.remoteModePrev);
+
+        SetLocateButtonLED(g_sys.cueIndex);
+    }
+    else if (g_sys.remoteMode == REMOTE_MODE_EDIT)
+    {
+        /*
+         * Remote is in EDIT mode and a digit 0-9 was pressed.
+         */
+
+        if (g_sys.editState == EDIT_BEGIN)
+        {
+            g_sys.editTime.frame = 0;
+            g_sys.editTime.tens  = 0;
+            g_sys.editTime.secs  = 0;
+            g_sys.editTime.mins  = 0;
+            g_sys.editTime.hour  = 0;
+            g_sys.editTime.flags = F_PLUS;
+
+            g_sys.editState = EDIT_DIGITS;
+
+            memset(&g_sys.editTime, 0, sizeof(g_sys.editTime));
+
+            ResetDigitBuf();
+        }
+
+        digit = digits[index];
+
+        if (g_sys.digitCount >= MAX_DIGITS_BUF)
+            g_sys.digitCount = 0;
+
+        g_sys.digitBuf[g_sys.digitCount++] = digit;
+        g_sys.digitBuf[g_sys.digitCount] = 0;
+
+        len = StrToTapeTime(g_sys.digitBuf, &g_sys.editTime);
+
+        if (len >= 6)
+        {
+            CompleteEditTimeState();
+        }
+    }
+    else
+    {
+        g_sys.cueIndex = index;
+
+        SetLocateButtonLED(index);
+    }
+}
+
+//*****************************************************************************
 // This handler is called when the user presses the jog wheel down to close
 // the switch within jog wheel encoder.
 //*****************************************************************************
@@ -772,23 +788,7 @@ void HandleJogwheelPress(uint32_t flags)
     case REMOTE_MODE_EDIT:
         CompleteEditTimeState();
         break;
-#if 0
-    case REMOTE_MODE_CUE:
-        SetLocateButtonLED(index);
 
-        if (g_sys.autoMode)
-            cue_flags |= CF_AUTO_PLAY;
-
-        if (g_sys.shiftRecButton)
-            cue_flags |= CF_AUTO_REC;
-
-        /* Begin locate search */
-        LocateSearch(index, cue_flags);
-        break;
-
-    case REMOTE_MODE_STORE:
-        break;
-#endif
     default:
         if (!g_sys.varispeedMode)
         {
@@ -821,7 +821,26 @@ void HandleJogwheelPress(uint32_t flags)
 
 void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
-    if (g_sys.varispeedMode)
+    if (g_sys.remoteViewSelect)
+    {
+        if (direction > 0)
+        {
+            /* next screen view */
+            ++g_sys.remoteView;
+
+            if (g_sys.remoteView >= VIEW_LAST)
+                g_sys.remoteView = VIEW_TIME;
+        }
+        else
+        {
+            /* previous screen view */
+            if (g_sys.remoteView == 0)
+                g_sys.remoteView = VIEW_LAST - 1;
+            else
+                --g_sys.remoteView;
+        }
+    }
+    else if (g_sys.varispeedMode)
     {
         float freq;
         float step;
@@ -858,6 +877,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 
         /* Calculate the 32-bit frequency divisor */
         uint32_t freqCalc = AD9837_freqCalc(freq);
+
         /* Program the DSS ref clock with new value */
         AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
         AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);

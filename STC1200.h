@@ -116,8 +116,11 @@ typedef struct _SYSDAT
     /* Remote control edit data */
     uint32_t        ledMaskRemote;              /* DRC remote button LED mask */
     int32_t         remoteMode;                 /* current remote mode        */
+    bool            remoteViewSelect;           /* remote select view active  */
+    int32_t         remoteView;                 /* current screen view active */
     int32_t         remoteModeLast;             /* last mode before edit      */
     int32_t         remoteModePrev;             /* previous remote mode       */
+    int32_t         remoteTrackNum;             /* current track number       */
     int32_t         editState;                  /* current edit time state    */
     TAPETIME        editTime;                   /* edit tape time conversion  */
     int32_t         digitCount;

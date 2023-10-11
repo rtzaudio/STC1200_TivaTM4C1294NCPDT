@@ -90,12 +90,21 @@
 #include "RAMPServer.h"
 
 /* Static Function Prototypes */
+static void DrawAbout(void);
+static void DrawInfo(void);
+static void DrawTapeTime(void);
+static void DrawTrackAssign(void);
 static void DrawTimeTop(void);
 static void DrawTimeMiddle(void);
 static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 
+/* Helpers */
 static void GrSetRect(tRectangle* rect,
+                      int16_t XMin, int16_t YMin,
+                      int16_t XMax, int16_t YMax);
+
+static void GrInflateRect(tRectangle* rect,
                       int16_t XMin, int16_t YMin,
                       int16_t XMax, int16_t YMax);
 
@@ -110,6 +119,18 @@ extern tFont *g_psFontWDseg7bold12pt;
 extern tFont *g_psFontWDseg7bold10pt;
 
 //*****************************************************************************
+// Clear the display screen
+//*****************************************************************************
+
+void ClearDisplay()
+{
+    tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
+    GrContextForegroundSetTranslated(&g_context, 0);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+    GrRectFill(&g_context, &rect);
+}
+
+//*****************************************************************************
 // Display the current measurement screen data
 //*****************************************************************************
 
@@ -119,19 +140,19 @@ void DrawScreen(uint32_t uScreenNum)
 
     switch(uScreenNum)
     {
-    case SCREEN_TIME:
+    case VIEW_TIME:
         DrawTapeTime();
         break;
 
-    case SCREEN_ABOUT:
+    case VIEW_ABOUT:
         DrawAbout();
         break;
 
-    case SCREEN_MENU:
-        DrawMenu();
+    case VIEW_INFO:
+        DrawInfo();
         break;
 
-    case SCREEN_TRACK_ASSIGN:
+    case VIEW_TRACK_ASSIGN:
         DrawTrackAssign();
         break;
 
@@ -146,14 +167,6 @@ void DrawScreen(uint32_t uScreenNum)
 // Graphics Helpers
 //*****************************************************************************
 
-void ClearDisplay()
-{
-    tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
-    GrContextForegroundSetTranslated(&g_context, 0);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-    GrRectFill(&g_context, &rect);
-}
-
 void GrSetRect(tRectangle* rect,
                int16_t XMin, int16_t YMin,
                int16_t XMax, int16_t YMax)
@@ -162,6 +175,16 @@ void GrSetRect(tRectangle* rect,
     rect->i16YMin = YMin;
     rect->i16XMax = XMax;
     rect->i16YMax = YMax;
+}
+
+void GrInflateRect(tRectangle* rect,
+               int16_t XMin, int16_t YMin,
+               int16_t XMax, int16_t YMax)
+{
+    rect->i16XMin += XMin;
+    rect->i16YMin += YMin;
+    rect->i16XMax += XMax;
+    rect->i16YMax += YMax;
 }
 
 //*****************************************************************************
@@ -210,7 +233,7 @@ void DrawAbout(void)
 //
 //*****************************************************************************
 
-void DrawMenu(void)
+void DrawInfo(void)
 {
     char buf[64];
     int32_t x, y;

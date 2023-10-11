@@ -24,14 +24,14 @@ typedef enum RemoteModesType {
     REMOTE_MODE_LAST
 } RemoteModesType;
 
-/* Display Screen Types */
-typedef enum ScreenNumberType {
-    SCREEN_TIME,
-    SCREEN_MENU,
-    SCREEN_ABOUT,
-    SCREEN_TRACK_ASSIGN,
-    SCREEN_LAST
-} ScreenNumberType;
+/* Display View Types */
+typedef enum ViewNumberType {
+    VIEW_TIME,
+    VIEW_TRACK_ASSIGN,
+    VIEW_INFO,
+    VIEW_ABOUT,
+    VIEW_LAST
+} ViewNumberType;
 
 /* Edit Time States */
 typedef enum EditStateType {
@@ -51,9 +51,5 @@ void Remote_PostSwitchPress(uint32_t mode, uint32_t flags);
 /* RemoteDisplay.c */
 void ClearDisplay(void);
 void DrawScreen(uint32_t uScreenNum);
-void DrawAbout(void);
-void DrawMenu(void);
-void DrawTapeTime(void);
-void DrawTrackAssign(void);
 
 #endif /* _REMOTETASK_H_ */
