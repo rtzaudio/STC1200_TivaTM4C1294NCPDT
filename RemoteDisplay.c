@@ -90,7 +90,6 @@
 #include "RAMPServer.h"
 
 /* Static Function Prototypes */
-static void DrawAbout(void);
 static void DrawInfo(void);
 static void DrawTapeTime(void);
 static void DrawTrackAssign(void);
@@ -144,16 +143,12 @@ void DrawScreen(uint32_t uScreenNum)
         DrawTapeTime();
         break;
 
-    case VIEW_ABOUT:
-        DrawAbout();
+    case VIEW_TRACK_ASSIGN:
+        DrawTrackAssign();
         break;
 
     case VIEW_INFO:
         DrawInfo();
-        break;
-
-    case VIEW_TRACK_ASSIGN:
-        DrawTrackAssign();
         break;
 
     default:
@@ -194,38 +189,24 @@ void GrInflateRect(tRectangle* rect,
 void DrawAbout(void)
 {
     int len;
+    uint32_t y;
+    uint32_t height;
     char buf[64];
 
     /* Set foreground pixel color on to 0x01 */
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    //tRectangle rect = {0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1};
-    //GrRectDraw(&g_context, &rect);
-
-    /* Setup font */
-    uint32_t y;
-    uint32_t height;
-    uint32_t spacing = 2;
-
-    /* Display the program version/revision */
-    GrContextFontSet(&g_context, g_psFontCm28b);
-    height = GrStringHeightGet(&g_context);
-    y = 12;
-    len = sprintf(buf, "STC-1200");
-    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-    y += (height/2) + 4;
-
-    /* Switch to fixed system font */
+    /* Fixed system font */
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
-    len = sprintf(buf, "Firmware v%d.%02d", FIRMWARE_VER, FIRMWARE_REV);
+    y = 12;
+    len = sprintf(buf, "STC-1200");
     GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-    y += height + spacing + 4;
+    y += (height/2) + 10;
 
-    /* Get the serial number string and display it */
-    GetSerialNumStr(buf, g_sys.ui8SerialNumberSTC);
+    len = sprintf(buf, "STC-1200 v%d.%02d.%d", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
 }
 
@@ -240,6 +221,7 @@ void DrawInfo(void)
     int32_t len;
     //int32_t width;
     int32_t height;
+    uint32_t spacing = 4;
 
     /* Set foreground pixel color on to 0x01 */
     GrContextForegroundSetTranslated(&g_context, 1);
@@ -250,23 +232,24 @@ void DrawInfo(void)
     height = GrStringHeightGet(&g_context);
 
     x = SCREEN_WIDTH/2;
-    y = height;
+    y = 10;
 
-    len = sprintf(buf, "MENU");
-    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+    /* Display firmware version */
+    len = sprintf(buf, "STC-1200 v%d.%02d.%d", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    GrStringDrawCentered(&g_context, buf, len, x, y, false);
 
-    //y += (height * 2);
-    //len = sprintf(buf, "Ref=%.2f", g_sysData.ref_freq);
-    //GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
-
-    y = SCREEN_HEIGHT - height - 1;
+    /* Display the ref clock frequency */
+    y += (height + spacing);
+    len = sprintf(buf, "Ref %.2f Hz", g_sys.ref_freq);
+    GrStringDrawCentered(&g_context, buf, len, x, y, false);
 
     /* Display the IP address */
+    y += (height + spacing);
     if (strlen(g_sys.ipAddr) == 0)
-        len = sprintf(buf, "IP: (none)");
+        len = sprintf(buf, "IP (no network)");
     else
-        len = sprintf(buf, "IP:%s", g_sys.ipAddr);
-    GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+        len = sprintf(buf, "IP %s", g_sys.ipAddr);
+    GrStringDrawCentered(&g_context, buf, len, x, y, false);
 }
 
 //*****************************************************************************

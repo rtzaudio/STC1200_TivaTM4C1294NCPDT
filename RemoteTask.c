@@ -647,19 +647,6 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
                 /* turn off menu button led */
                 SetButtonLedMask(0, L_MENU);
             }
-
-#if 0
-            if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
-            {
-                g_sys.remoteView = VIEW_TIME;
-                SetButtonLedMask(0, L_MENU);
-            }
-            else
-            {
-                g_sys.remoteView = VIEW_TRACK_ASSIGN;
-                SetButtonLedMask(L_MENU, 0);
-            }
-#endif
         }
     }
     else if (mask & SW_AUTO)
