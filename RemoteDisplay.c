@@ -642,11 +642,16 @@ void DrawTimeEdit(void)
 
 void DrawTrackAssign(void)
 {
-    char buf[64];
     int32_t x, y;
     int32_t len;
-    int32_t trackNum = 0;
+    int32_t trackNum;
     tRectangle rect;
+    char buf[64];
+
+    if (!g_sys.trackCount || !g_sys.dcsFound)
+        return;
+
+    trackNum = g_sys.remoteTrackNum;
 
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
@@ -738,7 +743,7 @@ void DrawTrackAssign(void)
     /* Draw the current edit channel number */
     y = 40;
     GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
-    len = sprintf(buf, "%u", 24);
+    len = sprintf(buf, "%u", trackNum + 1);
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
 }
 
