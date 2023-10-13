@@ -648,15 +648,21 @@ void DrawTrackAssign(void)
     tRectangle rect;
     char buf[64];
 
-    if (!g_sys.trackCount || !g_sys.dcsFound)
-        return;
-
-    trackNum = g_sys.remoteTrackNum;
-
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
     GrContextFontSet(&g_context, g_psFontFixed6x8);
+
+    if (!g_sys.trackCount || !g_sys.dcsFound)
+    {
+        x = SCREEN_WIDTH / 2;
+        y = SCREEN_HEIGHT / 2;
+        GrStringDrawCentered(&g_context, "No DCS-1200", -1, x, y, TRUE);
+        GrStringDrawCentered(&g_context, "Track Controller!", -1, x, y+12, TRUE);
+        return;
+    }
+
+    trackNum = g_sys.remoteTrackNum;
 
     /*** DRAW SAFE/READY MODE AREA ***/
 
@@ -668,7 +674,6 @@ void DrawTrackAssign(void)
     if (g_sys.trackState[trackNum] & STC_T_RECORD)
     {
         GrRectFill(&g_context, &rect);
-
         strcpy(buf, "REC");
     }
     else
