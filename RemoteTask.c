@@ -767,37 +767,41 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
 
 void HandleJogwheelPress(uint32_t flags)
 {
-//    uint32_t cue_flags = 0;
-//    size_t index = g_sysData.cueIndex;
-
-    switch (g_sys.remoteMode)
+    if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
-    case REMOTE_MODE_EDIT:
-        CompleteEditTimeState();
-        break;
 
-    default:
-        if (!g_sys.varispeedMode)
+    }
+    else if (g_sys.remoteView == VIEW_TIME)
+    {
+        switch (g_sys.remoteMode)
         {
-            /* Enable vari-speed mode */
-            g_sys.varispeedMode = true;
+        case REMOTE_MODE_EDIT:
+            CompleteEditTimeState();
+            break;
+
+        default:
+            if (!g_sys.varispeedMode)
+            {
+                /* Enable vari-speed mode */
+                g_sys.varispeedMode = true;
+            }
+            else
+            {
+                /* Reset ref frequency to default */
+                g_sys.ref_freq = REF_FREQ;
+
+                /* Calculate the 32-bit frequency divisor */
+                uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
+
+                /* Program the DSS ref clock with new value */
+                AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+                AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+                /* Disable vari-speed mode */
+                g_sys.varispeedMode = false;
+            }
+            break;
         }
-        else
-        {
-            /* Reset ref frequency to default */
-            g_sys.ref_freq = REF_FREQ;
-
-            /* Calculate the 32-bit frequency divisor */
-            uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
-
-            /* Program the DSS ref clock with new value */
-            AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-            AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
-
-            /* Disable vari-speed mode */
-            g_sys.varispeedMode = false;
-        }
-        break;
     }
 }
 
