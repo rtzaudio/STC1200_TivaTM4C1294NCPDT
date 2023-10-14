@@ -871,6 +871,24 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 
         g_sys.ref_freq = freq;
     }
-}
+    else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
+    {
+        if (direction > 0)
+        {
+            /* next track */
+            ++g_sys.remoteTrackNum;
+
+            if (g_sys.remoteTrackNum >= trackCount)
+                g_sys.remoteTrackNum = 0;
+        }
+        else
+        {
+            /* previous track */
+            if (g_sys.remoteTrackNum == 0)
+                g_sys.remoteTrackNum = trackCount - 1;
+            else
+                --g_sys.remoteTrackNum;
+        }
+    }
 
 // End-Of-File
