@@ -948,11 +948,21 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             /* Get the current standby monitor state */
             Track_GetState(trackNum, &trackState);
 
-            /* toggle the standby monitor flag */
-            if (trackState & STC_T_MONITOR)
-                trackState &= ~(STC_T_MONITOR);
+            // Toggle monitor enable flag for the track
+            trackState ^= STC_T_MONITOR;
+
+            // If not in monitor mode, clear standby bit!
+            if (!(trackState & STC_T_MONITOR))
+            {
+                trackState &= ~(STC_T_STANDBY);
+            }
             else
-                trackState |= STC_T_MONITOR;
+            {
+                // If master monitor enabled, enable standby mode for
+                // the track so it will switch to standby input mode.
+                if (g_sys.standbyMonitor)
+                    trackState |= STC_T_STANDBY;
+            }
 
             /* update the new track state */
             Track_SetState(trackNum, trackState);
