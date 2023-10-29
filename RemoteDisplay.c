@@ -240,7 +240,7 @@ void DrawInfo(void)
 
     /* Display the ref clock frequency */
     y += (height + spacing);
-    len = sprintf(buf, "Ref %.2f Hz", g_sys.ref_freq);
+    len = sprintf(buf, "REF %.2f Hz", g_sys.ref_freq);
     GrStringDrawCentered(&g_context, buf, len, x, y, false);
 
     /* Display the IP address */
@@ -645,7 +645,8 @@ void DrawTrackAssign(void)
     int32_t x, y;
     int32_t len;
     int32_t trackNum;
-    tRectangle rect;
+    int32_t height;
+    tRectangle rect, rect2;
     char buf[64];
 
     GrContextForegroundSetTranslated(&g_context, 1);
@@ -668,6 +669,15 @@ void DrawTrackAssign(void)
 
     GrSetRect(&rect, 2, 2, 41, 19);
     GrRectDraw(&g_context, &rect);
+
+    /* Draw inner hi-light rect if active edit field */
+    if (g_sys.remoteField == FIELD_TRACK_ARM)
+    {
+        rect2 = rect;
+        GrInflateRect(&rect2, 1, 1, -1, -1);
+        GrRectDraw(&g_context, &rect2);
+    }
+
     x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
     y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
 
@@ -688,28 +698,53 @@ void DrawTrackAssign(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    GrSetRect(&rect, 2, 23, 41, 40);
-    GrRectDraw(&g_context, &rect);
-    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
-    y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
-
     switch(g_sys.trackState[trackNum] & STC_TRACK_MASK)
     {
     case STC_TRACK_REPRO:       /* track is in repro mode */
-        strcpy(buf, "REPRO");
+        strcpy(buf, "REPR");
         break;
     case STC_TRACK_SYNC:        /* track is in sync mode  */
         strcpy(buf, "SYNC");
         break;
     case STC_TRACK_INPUT:       /* track is in input mode */
-        strcpy(buf, "INPUT");
+        strcpy(buf, "INP");
         break;
     default:
         buf[0] = '\0';
         break;
     }
 
-    GrStringDrawCentered(&g_context, buf, -1, x, y, TRUE);
+    GrSetRect(&rect, 2, 23, 41, 40);
+
+    if (g_sys.trackState[trackNum] & STC_T_STANDBY)
+    {
+        GrContextForegroundSetTranslated(&g_context, 1);
+        GrContextBackgroundSetTranslated(&g_context, 0);
+
+        GrRectFill(&g_context, &rect);
+
+        GrContextForegroundSetTranslated(&g_context, 0);
+        GrContextBackgroundSetTranslated(&g_context, 1);
+
+        strcpy(buf, "INP");
+    }
+    else
+    {
+        GrRectDraw(&g_context, &rect);
+    }
+
+    /* Draw inner hi-light rect if active edit field */
+    if (g_sys.remoteField == FIELD_TRACK_MODE)
+    {
+        rect2 = rect;
+        GrInflateRect(&rect2, 1, 1, -1, -1);
+        GrRectDraw(&g_context, &rect2);
+    }
+
+    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
+    y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
+
+    GrStringDrawCentered(&g_context, buf, -1, x, y, FALSE);
 
     /*** DRAW STANDBY MONITOR AREA ***/
 
@@ -718,11 +753,12 @@ void DrawTrackAssign(void)
 
     GrSetRect(&rect, 2, 44, 41, 61);
     GrRectDraw(&g_context, &rect);
+
     x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2) + 2;
     y = rect.i16YMin + ((rect.i16YMax - rect.i16YMin) / 2) + 1;
 
     /* Test track standby monitor enable flag */
-    if (g_sys.trackState[trackNum] & STC_T_MONITOR)
+    if (g_sys.trackState[trackNum] & STC_T_STANDBY)
     {
         GrRectFill(&g_context, &rect);
 
@@ -730,7 +766,29 @@ void DrawTrackAssign(void)
         GrContextBackgroundSetTranslated(&g_context, 1);
     }
 
-    GrStringDrawCentered(&g_context, "MON", -1, x, y, TRUE);
+    /* Draw inner hi-light rect if active edit field */
+    if (g_sys.remoteField == FIELD_TRACK_MONITOR)
+    {
+        rect2 = rect;
+        GrInflateRect(&rect2, 1, 1, -1, -1);
+        GrRectDraw(&g_context, &rect2);
+
+        if (g_sys.trackState[trackNum] & STC_T_STANDBY)
+        {
+            GrContextForegroundSetTranslated(&g_context, 0);
+            GrContextBackgroundSetTranslated(&g_context, 1);
+        }
+        else
+        {
+            GrContextForegroundSetTranslated(&g_context, 1);
+            GrContextBackgroundSetTranslated(&g_context, 0);
+        }
+    }
+
+    if (g_sys.trackState[trackNum] & STC_T_MONITOR)
+        GrStringDrawCentered(&g_context, "MON", -1, x, y, FALSE);
+    else
+        GrStringDrawCentered(&g_context, "---", -1, x, y, TRUE);
 
     /*** DRAW LARGE TRACK NUMBER AREA ***/
 
@@ -739,17 +797,46 @@ void DrawTrackAssign(void)
 
     GrSetRect(&rect, 45, 2, 125, 61);
     GrRectDraw(&g_context, &rect);
+
+    /* Draw inner hi-light rect if active edit field */
+    if (g_sys.remoteField == FIELD_TRACK_NUM)
+    {
+        rect2 = rect;
+        GrInflateRect(&rect2, 1, 1, -1, -1);
+        GrRectDraw(&g_context, &rect2);
+    }
+
     x = 85;
     /* Draw channel number heading label */
-    y = 10;
+    y = 12;
     GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
     len = sprintf(buf, "TRACK");
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
     /* Draw the current edit channel number */
-    y = 40;
+    y = 33;
     GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+    height = GrStringHeightGet(&g_context);
     len = sprintf(buf, "%u", trackNum + 1);
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
+    y += height;
+
+    /*** Draw Tape Time ***/
+
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+
+    int ch = (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-';
+
+    len = snprintf(buf, sizeof(buf)-1, "%c%1u:%02u:%02u:%1u",
+             ch,
+             g_sys.tapeTime.hour,
+             g_sys.tapeTime.mins,
+             g_sys.tapeTime.secs,
+             g_sys.tapeTime.tens);
+
+    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
+    GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 }
 
 // End-Of-File

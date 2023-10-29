@@ -32,6 +32,15 @@ typedef enum ViewNumberType {
     VIEW_LAST
 } ViewNumberType;
 
+/* Display View Types */
+typedef enum FieldNumberType {
+    FIELD_TRACK_NUM,
+    FIELD_TRACK_ARM,
+    FIELD_TRACK_MODE,
+    FIELD_TRACK_MONITOR,
+    FIELD_LAST
+} FieldNumberType;
+
 /* Edit Time States */
 typedef enum EditStateType {
     EDIT_BEGIN,
