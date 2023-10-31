@@ -255,7 +255,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     while (TRUE)
     {
         /* Wait for a message up to 1 second */
-        if (!Mailbox_pend(g_mailboxRemote, &msg, 100))
+        if (!Mailbox_pend(g_mailboxRemote, &msg, 50))
         {
             /* DIP switch #2 must be on to enable tx data to remote */
             if (GPIO_read(Board_DIPSW_CFG2) == 0)

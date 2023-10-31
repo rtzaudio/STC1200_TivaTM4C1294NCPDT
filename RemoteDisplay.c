@@ -788,7 +788,7 @@ void DrawTrackAssign(void)
     if (g_sys.trackState[trackNum] & STC_T_MONITOR)
         GrStringDrawCentered(&g_context, "MON", -1, x, y, FALSE);
     else
-        GrStringDrawCentered(&g_context, "---", -1, x, y, TRUE);
+        GrStringDrawCentered(&g_context, "TAPE", -1, x, y, TRUE);
 
     /*** DRAW LARGE TRACK NUMBER AREA ***/
 
