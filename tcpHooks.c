@@ -529,6 +529,14 @@ Void tcpStateWorker(UArg arg0, UArg arg1)
         stateMsg.hardwareFlags      = hardwareFlags;
         stateMsg.smpteMode          = (uint8_t)g_sys.smpteMode;
 
+        stateMsg.dateTime.date      = g_sys.timeDate.date;
+        stateMsg.dateTime.hour      = g_sys.timeDate.hour;
+        stateMsg.dateTime.min       = g_sys.timeDate.min;
+        stateMsg.dateTime.month     = g_sys.timeDate.month;
+        stateMsg.dateTime.sec       = g_sys.timeDate.sec;
+        stateMsg.dateTime.weekday   = g_sys.timeDate.weekday;
+        stateMsg.dateTime.year      = g_sys.timeDate.year;
+
         /* Zero out the reserved space bytes */
         memset(stateMsg.reserved, 0, sizeof(stateMsg.reserved));
 

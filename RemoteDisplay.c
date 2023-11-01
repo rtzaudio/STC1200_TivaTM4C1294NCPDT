@@ -139,7 +139,7 @@ void DrawScreen(uint32_t uScreenNum)
 
     switch(uScreenNum)
     {
-    case VIEW_TIME:
+    case VIEW_TAPE_TIME:
         DrawTapeTime();
         break;
 
@@ -522,18 +522,17 @@ void DrawTimeMiddle(void)
 
     if (g_cfg.showLongTime)
     {
-        GrContextFontSet(&g_context, g_psFontWDseg7bold16pt);
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
         height = GrStringHeightGet(&g_context);
 
-        len = sprintf(buf, "%1u:%02u:%02u:%1u:",
+        len = sprintf(buf, "%1u:%02u:%02u:",
                  g_sys.tapeTime.hour,
                  g_sys.tapeTime.mins,
-                 g_sys.tapeTime.secs,
-                 g_sys.tapeTime.tens);
+                 g_sys.tapeTime.secs);
 
         width = GrStringWidthGet(&g_context, buf, len);
 
-        x = 11;
+        x = 12;
         y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
         GrStringDraw(&g_context, buf, len, x, y, 0);
 
@@ -542,16 +541,17 @@ void DrawTimeMiddle(void)
         GrStringDraw(&g_context, buf, len, x+width, y, 0);
 
         /* Draw the sign in a different font as 7-seg does not have these chars */
-        GrContextFontSet(&g_context, g_psFontCm12); //g_psFontCmss12);
+        GrContextFontSet(&g_context, g_psFontCm14); //g_psFontCmss12);
         len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
         GrStringDrawCentered(&g_context, buf, len, 6, y+6, 1);
 
-        y += height + 5;
+        y += height + 4;
+        x = 13;
         GrContextFontSet(&g_context, g_psFontFixed6x8);
-        GrStringDraw(&g_context, "HR", -1, 12, y, 0);
-        GrStringDraw(&g_context, "MIN", -1, 33, y, 0);
-        GrStringDraw(&g_context, "SEC", -1, 63, y, 0);
-        GrStringDraw(&g_context, "TEN", -1, 88, y, 0);
+        GrStringDraw(&g_context, "HR", -1, x, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
+        GrStringDraw(&g_context, "FRM", -1, x + 85, y, 0);
     }
     else
     {
@@ -688,7 +688,7 @@ void DrawTrackAssign(void)
     }
     else
     {
-        strcpy(buf, (g_sys.trackState[trackNum] & STC_T_READY) ? "READY" : "SAFE");
+        strcpy(buf, (g_sys.trackState[trackNum] & STC_T_READY) ? "RDY" : "SAFE");
     }
 
     GrStringDrawCentered(&g_context, buf, -1, x, y, TRUE);

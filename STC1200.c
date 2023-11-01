@@ -354,6 +354,9 @@ void Init_Peripherals(void)
         HibernateCounterMode(HIBERNATE_COUNTER_24HR);
     }
 
+    /* read the initial time and date */
+    RTC_GetDateTime(&g_sys.timeDate);
+
     /*
      * Initialize the SD drive for operation
      */
@@ -582,6 +585,9 @@ Void MainTaskFxn(UArg arg0, UArg arg1)
     	/* Wait for a message up to 1 second */
         if (!Mailbox_pend(g_mailboxCommand, &msgCmd, timeout))
         {
+            /* read the time and date */
+            RTC_GetDateTime(&g_sys.timeDate);
+
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED);
     		continue;

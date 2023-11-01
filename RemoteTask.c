@@ -236,7 +236,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     g_sys.cueIndex = 0;
     g_sys.remoteMode = REMOTE_MODE_UNDEFINED;
 
-    g_sys.remoteView = VIEW_TIME;
+    g_sys.remoteView = VIEW_TAPE_TIME;
     g_sys.remoteField = FIELD_TRACK_NUM;
     g_sys.remoteViewSelect = false;
     g_sys.remoteTrackNum = 0;
@@ -623,7 +623,7 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
     else if (mask & SW_EDIT)
     {
         /* Switch to EDIT mode */
-        if (g_sys.remoteView == VIEW_TIME)
+        if (g_sys.remoteView == VIEW_TAPE_TIME)
         {
             RemoteSetMode(REMOTE_MODE_EDIT);
         }
@@ -665,13 +665,6 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
             g_sys.autoMode = FALSE;
             SetButtonLedMask(0, L_AUTO);
         }
-    }
-    else if (mask & SW_ALT)
-    {
-        if (g_cfg.showLongTime)
-            g_cfg.showLongTime = false;
-        else
-            g_cfg.showLongTime = true;
     }
 
     // Notify the software remote of status change
@@ -777,7 +770,7 @@ void HandleJogwheelPress(uint32_t flags)
         if (g_sys.remoteField >= FIELD_LAST)
             g_sys.remoteField = 0;
     }
-    else if (g_sys.remoteView == VIEW_TIME)
+    else if (g_sys.remoteView == VIEW_TAPE_TIME)
     {
         switch (g_sys.remoteMode)
         {
@@ -829,13 +822,19 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             /* next screen view */
             ++g_sys.remoteView;
 
+            if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TRACK_ASSIGN))
+                ++g_sys.remoteView;
+
             if (g_sys.remoteView >= VIEW_LAST)
-                g_sys.remoteView = VIEW_TIME;
+                g_sys.remoteView = VIEW_TAPE_TIME;
         }
         else
         {
+            if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TRACK_ASSIGN))
+                --g_sys.remoteView;
+
             /* previous screen view */
-            if (g_sys.remoteView == 0)
+            if (g_sys.remoteView <= 0)
                 g_sys.remoteView = VIEW_LAST - 1;
             else
                 --g_sys.remoteView;

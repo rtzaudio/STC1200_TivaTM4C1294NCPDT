@@ -142,6 +142,7 @@ typedef struct _SYSDAT
     SDSPI_Handle    handleSD;
     I2C_Handle      handleI2C0;
     MCP79410_Handle handleRTC;
+    RTCC_Struct     timeDate;
     bool            rtcFound;                   /* true if MCP79410 RTC found */
     UART_Handle     handleUartDCS;
     TRACK_Handle    handleDCS;
