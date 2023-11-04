@@ -127,8 +127,6 @@ typedef struct _SYSDAT
     int32_t         digitCount;
     char            digitBuf[MAX_DIGITS_BUF+1]; /* input digits buffer        */
     bool            autoMode;                   /* auto mode active flag      */
-    bool            shiftRecButton;             /* true if shifted REC button */
-    bool            shiftAltButton;             /* true if shifted ALT button */
     /* Locate and Position data */
     bool            varispeedMode;              /* jog wheel varispeed active */
     float           ref_freq;                   /* master ref freq 9600 Hz    */

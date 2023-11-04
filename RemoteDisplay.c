@@ -823,6 +823,7 @@ void DrawTrackAssign(void)
 
     /*** Draw Tape Time ***/
 
+#if 0
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
 
@@ -835,6 +836,13 @@ void DrawTrackAssign(void)
              g_sys.tapeTime.secs,
              g_sys.tapeTime.tens);
 
+    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
+    GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+#endif
+
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    height = GrStringHeightGet(&g_context);
+    len = snprintf(buf, sizeof(buf)-1, (g_sys.standbyMonitor) ? "STANDBY" : "TAPE");
     x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
     GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
 }

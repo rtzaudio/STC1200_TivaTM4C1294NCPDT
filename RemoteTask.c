@@ -96,7 +96,7 @@ extern Mailbox_Handle g_mailboxRemote;
 /* Static Function Prototypes */
 static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
 static void HandleDigitPress(size_t index, uint32_t cue_flags);
-static void HandleJogwheelPress(uint32_t flags);
+static void HandleJogwheelPress(uint32_t switch_mask);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void RemoteSetMode(uint32_t mode);
@@ -299,15 +299,13 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             else if (msg.opcode == OP_SWITCH_REMOTE)
             {
                 /* A locate or other mode button was pressed */
-                g_sys.shiftAltButton = (msg.param1.U & SW_ALT) ? true : false;
-                g_sys.shiftRecButton = (msg.param2.U & SW_REC) ? true : false;
 
                 cue_flags = 0;
 
                 if (g_sys.autoMode)
                     cue_flags |= CF_AUTO_PLAY;
 
-                if (g_sys.shiftRecButton)
+                if (msg.param2.U & SW_REC)
                     cue_flags |= CF_AUTO_REC;
 
                 HandleButtonPress(msg.param1.U, cue_flags);
@@ -631,10 +629,13 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
     else if (mask & SW_MENU)
     {
         /* ALT+MENU to zero reset system position */
-        if (g_sys.shiftAltButton)
+        if (mask & SW_ALT)
         {
-            /* Reset system position to zero */
-            PositionZeroReset();
+            if (g_sys.remoteView == VIEW_TAPE_TIME)
+            {
+                /* Reset system position to zero */
+                PositionZeroReset();
+            }
         }
         else
         {
@@ -761,14 +762,34 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
 // the switch within jog wheel encoder.
 //*****************************************************************************
 
-void HandleJogwheelPress(uint32_t flags)
+void HandleJogwheelPress(uint32_t switch_mask)
 {
     if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
-        ++g_sys.remoteField;
+        /* Check for ALT/Shift button modifier */
+        if ((switch_mask & SW_ALT) && (g_sys.remoteField == FIELD_TRACK_MONITOR))
+        {
+            if (g_sys.standbyMonitor)
+            {
+                /* disable global standby monitor */
+                g_sys.standbyMonitor = false;
+                Track_StandbyTransferAll(false);
+            }
+            else
+            {
+                /* enable global standby monitor */
+                g_sys.standbyMonitor = true;
+                Track_StandbyTransferAll(true);
+            }
+        }
+        else
+        {
+            /* Otherwise, move to next edit field */
+            ++g_sys.remoteField;
 
-        if (g_sys.remoteField >= FIELD_LAST)
-            g_sys.remoteField = 0;
+            if (g_sys.remoteField >= FIELD_LAST)
+                g_sys.remoteField = 0;
+        }
     }
     else if (g_sys.remoteView == VIEW_TAPE_TIME)
     {
