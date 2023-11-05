@@ -851,14 +851,19 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         }
         else
         {
+            /* previous screen view */
+            --g_sys.remoteView;
+
+            if (g_sys.remoteView < 0)
+                g_sys.remoteView = VIEW_LAST - 1;
+
             if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TRACK_ASSIGN))
+            {
                 --g_sys.remoteView;
 
-            /* previous screen view */
-            if (g_sys.remoteView <= 0)
-                g_sys.remoteView = VIEW_LAST - 1;
-            else
-                --g_sys.remoteView;
+                if (g_sys.remoteView < 0)
+                    g_sys.remoteView = 0;
+            }
         }
     }
     else if (g_sys.varispeedMode)
