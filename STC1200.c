@@ -568,6 +568,7 @@ Void MainTaskFxn(UArg arg0, UArg arg1)
     UInt32 timeout;
     uint32_t btn;
     CommandMessage msgCmd;
+    RTCC_Struct timeDate;
 
     /* Allocate and initialize global peripherals used */
     Init_Peripherals();
@@ -586,7 +587,9 @@ Void MainTaskFxn(UArg arg0, UArg arg1)
         if (!Mailbox_pend(g_mailboxCommand, &msgCmd, timeout))
         {
             /* read the time and date */
-            RTC_GetDateTime(&g_sys.timeDate);
+            RTC_GetDateTime(&timeDate);
+
+            g_sys.timeDate = timeDate;
 
         	/* No message, blink the LED */
     		GPIO_toggle(Board_STAT_LED);
