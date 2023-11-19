@@ -371,7 +371,7 @@ bool SMPTE_generator_stop()
 
     g_sys.smpteMode = STC_SMPTE_OFF;
 
-   return SMPTE_Write(cmd);
+    return SMPTE_Write(cmd);
 }
 
 /* End-Of-File */
