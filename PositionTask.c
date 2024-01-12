@@ -425,7 +425,7 @@ Void PositionTaskFxn(UArg arg0, UArg arg1)
     		rcount = 0;
 
 			/* Blink 7-seg display during searches */
-			if (g_cfg.searchBlink)
+			if (g_sys.cfgSTC.searchBlink)
 			{
                 if (g_sys.searching)
                     g_sys.tapeTime.flags |= F_BLINK;

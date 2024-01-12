@@ -84,7 +84,6 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "Utils.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
@@ -520,7 +519,7 @@ void DrawTimeMiddle(void)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    if (g_cfg.showLongTime)
+    if (g_sys.cfgSTC.showLongTime)
     {
         GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
         height = GrStringHeightGet(&g_context);

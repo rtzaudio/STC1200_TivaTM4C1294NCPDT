@@ -34,9 +34,9 @@ bool RTC_IsValidDate(RTCC_Struct* ts);
 
 bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]);
 
-void InitSysDefaults(SYSCFG* p);
-int SysParamsRead(SYSCFG* sp);
-int SysParamsWrite(SYSCFG* sp);
+void InitSysDefaults(STC_CONFIG_DATA* p);
+int SysParamsRead(STC_CONFIG_DATA* sp);
+int SysParamsWrite(STC_CONFIG_DATA* sp);
 
 int GetMACAddrStr(char* buf, uint8_t* mac);
 int GetSerialNumStr(char* buf, uint8_t* mac);

@@ -87,7 +87,6 @@
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "IPCToDTC.h"
 #include "IPCCommands.h"
 #include "IPCMessage.h"
@@ -754,7 +753,6 @@ Void tcpCommandWorker(UArg arg0, UArg arg1)
 
         switch(hdr->command)
         {
-
         case STC_CMD_VERSION_GET:
             status = HandleVersionGet(clientfd, (STC_COMMAND_VERSION_GET*)buf);
             break;
@@ -1716,14 +1714,11 @@ uint16_t HandleMachineConfigGet(int fd, STC_COMMAND_MACHINE_CONFIG_GET* cmd)
     memset(&(cmd->stc), 0, sizeof(STC_CONFIG_DATA));
     memset(&(cmd->dtc), 0, sizeof(DTC_CONFIG_DATA));
 
-    if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
-    {
-        /* Return global STC system config data in the message buffer */
-        memcpy(&(cmd->stc), &g_cfg, sizeof(STC_CONFIG_DATA));
+    /* Return global STC system config data in the message buffer */
+    memcpy(&(cmd->stc), &g_sys.cfgSTC, sizeof(STC_CONFIG_DATA));
 
-        /* Get the DTC config data via IPC from DTC */
-        rc = IPCToDTC_ConfigGet(g_sys.ipcToDTC, &cmd->dtc);
-    }
+    /* Get the DTC config data via IPC from DTC */
+    rc = IPCToDTC_ConfigGet(g_sys.ipcToDTC, &cmd->dtc);
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_MACHINE_CONFIG_GET);
@@ -1743,16 +1738,11 @@ uint16_t HandleMachineConfigSet(int fd, STC_COMMAND_MACHINE_CONFIG_SET* cmd)
 {
     int rc = IPC_ERR_SUCCESS;
 
-    /* Sets the STC and DTC configuration parameters in memory */
+    /* Copy STC config data into the STC config buffer */
+    memcpy(&g_sys.cfgSTC, &(cmd->stc), sizeof(STC_CONFIG_DATA));
 
-    if (sizeof(STC_CONFIG_DATA) == sizeof(SYSCFG))
-    {
-        /* Copy STC config data into the STC config buffer */
-        memcpy(&g_cfg, &(cmd->stc), sizeof(STC_CONFIG_DATA));
-
-        /* Send the DTC new config data via IPC */
-        rc = IPCToDTC_ConfigSet(g_sys.ipcToDTC, &cmd->dtc);
-    }
+    /* Send the DTC new config data via IPC */
+    rc = IPCToDTC_ConfigSet(g_sys.ipcToDTC, &cmd->dtc);
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_HDR) + sizeof(STC_COMMAND_ARG);

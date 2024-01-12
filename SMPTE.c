@@ -77,7 +77,6 @@
 /* STC1200 Board Header file */
 
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "Board.h"
 #include "SMPTE.h"
 
@@ -348,7 +347,7 @@ bool SMPTE_generator_start(bool reset)
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
-          SMPTE_ENCCTL_FPS(g_cfg.smpteFPS) |
+          SMPTE_ENCCTL_FPS(g_sys.cfgSTC.smpteFPS) |
           SMPTE_ENCCTL_ENABLE;
 
     /* Reset start time to zero if reset flag specified,

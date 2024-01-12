@@ -98,7 +98,6 @@
 /* STC1200 Board Header file */
 #include "Board.h"
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "IPCCommands.h"
 #include "IPCMessage.h"
 #include "Utils.h"
@@ -455,12 +454,12 @@ bool ReadGUIDS(I2C_Handle handle, uint8_t ui8SerialNumber[16], uint8_t ui8MAC[6]
 // Set default runtime values
 //*****************************************************************************
 
-void InitSysDefaults(SYSCFG* p)
+void InitSysDefaults(STC_CONFIG_DATA* p)
 {
     /** Default servo parameters **/
     p->version      = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     p->build        = FIRMWARE_BUILD;
-    p->length       = sizeof(SYSCFG);
+    p->length       = sizeof(STC_CONFIG_DATA);
     /** Remote Parameters **/
     p->searchBlink  = TRUE;
     p->showLongTime = FALSE;
@@ -486,7 +485,7 @@ void InitSysDefaults(SYSCFG* p)
 //          -1 = Error writing EEPROM data
 //*****************************************************************************
 
-int SysParamsWrite(SYSCFG* sp)
+int SysParamsWrite(STC_CONFIG_DATA* sp)
 {
     int32_t rc = 0;
 
@@ -494,10 +493,10 @@ int SysParamsWrite(SYSCFG* sp)
     sp->version = MAKEREV(FIRMWARE_VER, FIRMWARE_REV);
     sp->build   = FIRMWARE_BUILD;
     sp->magic   = MAGIC;
-    sp->length  = sizeof(SYSCFG);
+    sp->length  = sizeof(STC_CONFIG_DATA);
 
     /* Store the configuration parameters to EPROM */
-    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(SYSCFG));
+    rc = EEPROMProgram((uint32_t *)sp, 0, sizeof(STC_CONFIG_DATA));
 
     System_printf("Writing System Parameters %d\n", rc);
     System_flush();
@@ -513,12 +512,12 @@ int SysParamsWrite(SYSCFG* sp)
 //
 //*****************************************************************************
 
-int SysParamsRead(SYSCFG* sp)
+int SysParamsRead(STC_CONFIG_DATA* sp)
 {
     InitSysDefaults(sp);
 
     /* Read the configuration parameters from EPROM */
-    EEPROMRead((uint32_t *)sp, 0, sizeof(SYSCFG));
+    EEPROMRead((uint32_t *)sp, 0, sizeof(STC_CONFIG_DATA));
 
     /* Does the magic number match? If not, set defaults and
      * store to initialize the system default parameters.
@@ -548,7 +547,7 @@ int SysParamsRead(SYSCFG* sp)
      * then reset and store system defaults. This is to avoid loading old
      * configuration parameters store from an earlier build version.
      */
-    if ((sp->build < FIRMWARE_MIN_BUILD) || (sp->length != sizeof(SYSCFG)))
+    if ((sp->build < FIRMWARE_MIN_BUILD) || (sp->length != sizeof(STC_CONFIG_DATA)))
     {
         System_printf("WARNING New Firmware BUILD - Resetting Defaults...\n");
         System_flush();

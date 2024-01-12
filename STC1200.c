@@ -116,7 +116,6 @@
 
 /* Global STC-1200 System data */
 SYSDAT g_sys;
-SYSCFG g_cfg;
 
 /* SPI interface to AD9837 NCO master reference oscillator on daughter card */
 AD9837_DEVICE g_ad9837;
@@ -375,6 +374,7 @@ void Init_Peripherals(void)
 
 void Init_Application(void)
 {
+    int rc;
     size_t i;
     Task_Params taskParams;
     Error_Block eb;
@@ -386,13 +386,13 @@ void Init_Application(void)
     Semaphore_post(g_semaNDKStartup);
 
     /* Set default system parameters */
-    InitSysDefaults(&g_cfg);
+    InitSysDefaults(&g_sys.cfgSTC);
 
     /* Load system configuration from EPROM */
-    SysParamsRead(&g_cfg);
+    SysParamsRead(&g_sys.cfgSTC);
 
     /* Set default reference frequency */
-    g_sys.ref_freq = g_cfg.ref_freq;
+    g_sys.ref_freq = g_sys.cfgSTC.ref_freq;
 
     /* Reset the capstan reference clock and set the default
      * output frequency to 9600Hz to the capstan board. The
@@ -429,10 +429,10 @@ void Init_Application(void)
         else
         {
             /* Set transport tape speed */
-            Track_SetTapeSpeed(g_cfg.tapeSpeed);
+            Track_SetTapeSpeed(g_sys.cfgSTC.tapeSpeed);
 
             /* Set all track states from EEPROM config */
-            memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+            memcpy(g_sys.trackState, g_sys.cfgSTC.trackState, DCS_NUM_TRACKS);
 
             /* Make sure record active bit is clear! */
             for (i=0; i < DCS_NUM_TRACKS; i++)
@@ -454,11 +454,30 @@ void Init_Application(void)
     /* Open the IPC channel on UART-B to the DTC */
     g_sys.ipcToDTC = IPCToDTC_Open();
 
-    /* Read the DTC firmware version and serial number */
-    IPCToDTC_VersionGet(g_sys.ipcToDTC,
-                        &g_sys.dtcVersion,
-                        &g_sys.dtcBuild,
-                        &g_sys.ui8SerialNumberDTC[0]);
+    if (g_sys.ipcToDTC != NULL)
+    {
+        /* Read the DTC firmware version and serial number */
+        rc = IPCToDTC_VersionGet(g_sys.ipcToDTC,
+                                 &g_sys.dtcVersion,
+                                 &g_sys.dtcBuild,
+                                 &g_sys.ui8SerialNumberDTC[0]);
+
+        if (rc == IPC_ERR_SUCCESS)
+        {
+            /* Read the DTC configuration data structure */
+            rc = IPCToDTC_ConfigGet(g_sys.ipcToDTC, &g_sys.cfgDTC);
+
+            if (rc != IPC_ERR_SUCCESS)
+            {
+                System_printf("Error Reading DTC Config!\n");
+                System_flush();
+            }
+        }
+        else
+        {
+            memset(&g_sys.cfgDTC, 0, sizeof(DTC_CONFIG_DATA));
+        }
+    }
 
     /*
      * Create the various system tasks
@@ -509,14 +528,14 @@ int ConfigSave(int level)
     if (level > 0)
     {
         /* Set current track states the defaults */
-        memcpy(g_cfg.trackState, g_sys.trackState, DCS_NUM_TRACKS);
+        memcpy(g_sys.cfgSTC.trackState, g_sys.trackState, DCS_NUM_TRACKS);
 
         /* Set current tape speed as the default */
-        g_cfg.tapeSpeed = (uint8_t)g_sys.tapeSpeed;
+        g_sys.cfgSTC.tapeSpeed = (uint8_t)g_sys.tapeSpeed;
     }
 
     /* Write the parameters to EEPROM */
-    return SysParamsWrite(&g_cfg);
+    return SysParamsWrite(&g_sys.cfgSTC);
 }
 
 /* Load system configuration from EPROM */
@@ -525,15 +544,15 @@ int ConfigLoad(int level)
 {
     int rc;
 
-    if ((rc = SysParamsRead(&g_cfg)) == 0)
+    if ((rc = SysParamsRead(&g_sys.cfgSTC)) == 0)
     {
         if (level > 0)
         {
             /* Set current track states the defaults */
-            memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+            memcpy(g_sys.trackState, g_sys.cfgSTC.trackState, DCS_NUM_TRACKS);
 
             /* Set current tape speed as the default */
-            g_sys.tapeSpeed = g_cfg.tapeSpeed;
+            g_sys.tapeSpeed = g_sys.cfgSTC.tapeSpeed;
         }
     }
 
@@ -544,15 +563,15 @@ int ConfigLoad(int level)
 
 int ConfigReset(int level)
 {
-    InitSysDefaults(&g_cfg);
+    InitSysDefaults(&g_sys.cfgSTC);
 
     if (level > 0)
     {
         /* Set current track states the defaults */
-        memcpy(g_sys.trackState, g_cfg.trackState, DCS_NUM_TRACKS);
+        memcpy(g_sys.trackState, g_sys.cfgSTC.trackState, DCS_NUM_TRACKS);
 
         /* Set current tape speed as the default */
-        g_sys.tapeSpeed = g_cfg.tapeSpeed;
+        g_sys.tapeSpeed = g_sys.cfgSTC.tapeSpeed;
     }
 
     return 0;

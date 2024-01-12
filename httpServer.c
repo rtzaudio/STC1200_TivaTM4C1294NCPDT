@@ -82,7 +82,6 @@
 
 /* STC1200 Board Header file */
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "SMPTE.h"
 #include "Board.h"
 #include "Utils.h"
@@ -213,7 +212,7 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
 
         html(" ");
 
-        switch(g_cfg.smpteFPS)
+        switch(g_sys.cfgSTC.smpteFPS)
         {
         case SMPTE_CTL_FPS24:
             html("24");
@@ -288,36 +287,39 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     /* General Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">General Settings</legend>\r\n");
-    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?<br />\r\n", g_cfg.showLongTime ? "checked" : "");
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?<br />\r\n", g_sys.cfgSTC.showLongTime ? "checked" : "");
     html(buf);
-    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?<br />\r\n", g_cfg.searchBlink ? "checked" : "");
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?<br />\r\n", g_sys.cfgSTC.searchBlink ? "checked" : "");
     html(buf);
     html("</fieldset><br />\r\n");
 
     /* Locator Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Locator Settings</legend>\r\n");
-    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_near);
+    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_near);
     html(buf);
-    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_mid);
+    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_mid);
     html(buf);
-    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"><br />\r\n", g_cfg.jog_vel_far);
+    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_far);
     html(buf);
     html("</fieldset><br />\r\n");
 
     /* MIDI Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">MIDI Settings</legend>\r\n");
-    html("Device ID:<br><input type=\"text\" name=\"devid\" value=\"127\"> <br />\r\n");
+    System_sprintf(buf, "Device ID:<br><input type=\"text\" name=\"devid\" value=\"%u\"> <br />\r\n", g_sys.cfgSTC.midiDevID);
+    html(buf);
     html("</fieldset><br />\r\n");
 
     /* SMPTE Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">SMPTE Settings</legend>\r\n");
     html("<label for \"smpteRef\">Master Ref Clock Frequency:</label><br>\r\n");
-    html("<input type=\"text\" name=\"smpteRef\" value=\"9600\"> <br />\r\n");
+    System_printf(buf, "<input type=\"text\" name=\"smpteRef\" value=\"%s\"> <br />\r\n", g_sys.cfgSTC.ref_freq);
+    html(buf);
     html("<label for \"frameRate\">Default Frame Rate:</label><br>\r\n");
-    html("<input type=\"text\" name=\"frameRate\" value=\"30\"> <br />\r\n");
+    System_printf(buf, "<input type=\"text\" name=\"frameRate\" value=\"%u\"> <br />\r\n", g_sys.cfgSTC.smpteFPS);
+    html(buf);
     html("</fieldset><br />\r\n");
 
     /* Play Boost LO-Speed */
@@ -450,8 +452,8 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
     parseIndex = 0;
     buffer[ContentLength] = '\0';
 
-    g_cfg.showLongTime = false;
-    g_cfg.searchBlink  = false;
+    g_sys.cfgSTC.showLongTime = false;
+    g_sys.cfgSTC.searchBlink  = false;
 
     // Process request variables until there are none left
     do
@@ -460,26 +462,26 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs )
         value = cgiParseVars(buffer, &parseIndex);
 
         if (!strcmp("longtime", key))
-            g_cfg.showLongTime = (strcmp(value, "yes") == 0) ? true : false;
+            g_sys.cfgSTC.showLongTime = (strcmp(value, "yes") == 0) ? true : false;
         else if (!strcmp("blink", key))
-            g_cfg.searchBlink = (strcmp(value, "yes") == 0) ? true : false;
+            g_sys.cfgSTC.searchBlink = (strcmp(value, "yes") == 0) ? true : false;
         else if (!strcmp("jognear", key))
         {
             val = atoi(value);
             if ((val >= 0) && (val <= 300))
-                g_cfg.jog_vel_near = (uint32_t)val;
+                g_sys.cfgSTC.jog_vel_near = (uint32_t)val;
         }
         else if (!strcmp("jogmid", key))
         {
             val = atoi(value);
             if ((val >= 0) && (val <= 500))
-                g_cfg.jog_vel_mid = (uint32_t)val;
+                g_sys.cfgSTC.jog_vel_mid = (uint32_t)val;
         }
         else if (!strcmp("jogfar", key))
         {
             val = atoi(value);
             if ((val >= 0) && (val <= 1100))
-                g_cfg.jog_vel_far = (uint32_t)val;
+                g_sys.cfgSTC.jog_vel_far = (uint32_t)val;
         }
     } while(parseIndex != -1);
 

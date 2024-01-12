@@ -84,7 +84,6 @@
 #include "Board.h"
 #include "AD9837.h"
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
 #include "CLITask.h"

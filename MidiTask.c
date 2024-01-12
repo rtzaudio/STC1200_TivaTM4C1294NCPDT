@@ -221,7 +221,7 @@ Bool MIDI_Server_startup(void)
     MIDI_Params_init(&midiParams);
 
     midiParams.uartHandle  = UART_open(Board_UART_MIDI, &uartParams);
-    midiParams.deviceID    = g_cfg.midiDevID;
+    midiParams.deviceID    = g_sys.cfgSTC.midiDevID;
 
     g_midiHandle = MIDI_create(&midiParams);
 

@@ -24,6 +24,7 @@
 #include "..\DTC1200_TivaTM4C123AE6PM\IPCCMD_DTC1200.h"
 #include "IPCToDTC.h"
 #include "TrackCtrl.h"
+#include "STC1200TCP.h"
 
 //*****************************************************************************
 // CONSTANTS AND CONFIGURATION
@@ -38,7 +39,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        3           /* firmware version */
-#define FIRMWARE_REV        2           /* firmware revision */
+#define FIRMWARE_REV        3           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -56,32 +57,6 @@
 #define REF_FREQ            9600.0f
 #define REF_FREQ_MIN        1000.0f
 #define REF_FREQ_MAX        18000.0f
-
-typedef struct _SYSCFG
-{
-    uint32_t    magic;
-    uint32_t    version;
-    uint32_t    build;
-    uint32_t    length;
-    /** Remote Parameters **/
-    bool        showLongTime;
-    /** Locator Parameters **/
-    bool        searchBlink;        /* blink 7-seg during search */
-    /** Locator velocities for various distances from the locate point **/
-    uint32_t    jog_vel_far;        /* 0 = use DTC default shuttle velocity */
-    uint32_t    jog_vel_mid;        /* vel for mid distance from locate point */
-    uint32_t    jog_vel_near;       /* vel for near distance from locate point */
-    /* NCO reference freq */
-    float       ref_freq;           /* default reference freq */
-    /* shadow copy of track config */
-    uint8_t     trackState[MAX_TRACKS];
-    uint8_t     tapeSpeed;          /* 15=low speed, 30=high speed */
-    /* SMPTE board config */
-    uint16_t    smpteFPS;           /* frames per sec config */
-    /* MIDI config */
-    uint8_t     midiDevID;          /* midi device ID */
-    uint8_t     reserved;
-} SYSCFG;
 
 //*****************************************************************************
 // GLOBAL SHARED MEMORY & REAL-TIME DATA
@@ -150,6 +125,9 @@ typedef struct _SYSDAT
     bool            standbyMonitor;             /* standby monitor enable     */
     bool            standbyActive;              /* true if standby mode active*/
     uint32_t        smpteMode;
+
+    STC_CONFIG_DATA cfgSTC;
+    DTC_CONFIG_DATA cfgDTC;
 } SYSDAT;
 
 //*****************************************************************************
@@ -171,7 +149,7 @@ typedef struct CommandMessage {
 
 /* Global STC-1200 System data */
 extern SYSDAT g_sys;
-extern SYSCFG g_cfg;
+//extern SYSCFG g_cfg;
 
 /* Function Prototypes */
 int main(void);

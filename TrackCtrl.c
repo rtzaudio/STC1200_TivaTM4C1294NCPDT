@@ -76,7 +76,6 @@
 
 /* STC1200 Board Header file */
 #include "STC1200.h"
-#include "STC1200TCP.h"
 #include "Board.h"
 
 /* Default AT45DB parameters structure */
