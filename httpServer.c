@@ -326,9 +326,11 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Play Boost LO-Speed</legend>\r\n");
     html("<label for \"playPgainLO\">P-Gain:</label><br>\r\n");
-    html("<input type=\"text\" name=\"playPgainLO\" value=\"0\"> <br />\r\n");
+    System_printf(buf, "<input type=\"text\" name=\"playPgainLO\" value=\"%f\"> <br />\r\n", g_sys.cfgDTC.play_lo_boost_pgain);
+    html(buf);
     html("<label for \"playIgainLO\">I-Gain:</label><br>\r\n");
-    html("<input type=\"text\" name=\"playIgainLO\" value=\"0\"> <br />\r\n");
+    System_printf(buf, "<input type=\"text\" name=\"playIgainLO\" value=\"%f\"> <br />\r\n", g_sys.cfgDTC.play_lo_boost_igain);
+    html(buf);
     html("<label for \"playDgainLO\">D-Gain:</label><br>\r\n");
     html("<input type=\"text\" name=\"playDgainLO\" value=\"0\"> <br />\r\n");
     html("</fieldset><br />\r\n");
