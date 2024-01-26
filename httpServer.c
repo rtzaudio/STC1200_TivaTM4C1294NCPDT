@@ -93,7 +93,7 @@
 static bool rec_arm = false;
 static bool rec_active = false;
 
-static const char strCopyright[] = "Copyright &copy; 2021-2023, RTZ Professional Audio\r\n";
+static const char strCopyright[] = "Copyright &copy; 2021-2024, RTZ Professional Audio\r\n";
 
 /* Static CGI callback functions */
 static Int sendIndexHtml(SOCKET htmlSock, int length);
@@ -127,24 +127,75 @@ Void RemoveWebFiles(Void)
 }
 
 //*****************************************************************************
-// CGI Index Page Callback Function
+//
 //*****************************************************************************
 
-static Int sendIndexHtml(SOCKET htmlSock, int length)
+static char *getstrFPS(void)
 {
-    Char buf[MAX_RESPONSE_SIZE];
-    Char serialnum[64];
-    Char mac[32];
+    char *p;
 
-    /* Format the 128-bit serial number as a string */
-    GetSerialNumStr(serialnum, g_sys.ui8SerialNumberSTC);
+    switch(g_sys.cfgSTC.smpteFPS)
+    {
+    case SMPTE_CTL_FPS24:
+        p = "24";
+        break;
+    case SMPTE_CTL_FPS25:
+        p = "25";
+        break;
+    case SMPTE_CTL_FPS30:
+        p = "30";
+        break;
+    case SMPTE_CTL_FPS30D:
+        p = "30D";
+        break;
+    default:
+        p = "0";
+        break;
+    }
 
-    /* Format the MAC address as a string */
-    GetMACAddrStr(mac, g_sys.ui8MAC);
+    return p;
+}
+
+static char *getstrSMPTEMode(void)
+{
+    char *p;
+
+    switch(g_sys.smpteMode)
+    {
+    case STC_SMPTE_OFF:         /* smpte module off           */
+        p = "Ready";
+        break;
+    case STC_SMPTE_ENCODER:     /* master stripe mode active  */
+        p = "Master";
+        break;
+    case STC_SMPTE_SLAVE:       /* slave mode decode active   */
+        p = "Slave";
+        break;
+    default:
+        p = "N/A";
+        break;
+    }
+
+    return p;
+}
+
+static char *getstrYesNo(int f)
+{
+    return f ? "\"yes\"" : "\"no\"";
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void emitHeader(SOCKET htmlSock, int menu_active, char* page_title)
+{
+    char buf[128];
 
     html("<!DOCTYPE html>\r\n");
     html("<html>\r\n");
-    html("<title>STC-1200 | home</title>\r\n");
+    System_sprintf(buf, "<title>STC-1200 | %s</title>\r\n", page_title);
+    html(buf);
     html("<meta charset=\"utf-8\">\r\n");
     html("<head>\r\n");
     html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
@@ -154,23 +205,64 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("<div class=\"container wrapper\">\r\n");
     html("<div id=\"top\">\r\n");
     html("<h1>STC-1200</h1>\r\n");
-    html("<p>Tape Machine Admin</p>\r\n");
+    html("<p>tape-op / admin server</p>\r\n");
     html("</div>\r\n");
-    html("<div class=\"wrapper\">\r\n");
-    html("<div id=\"menubar\">\r\n");
-    html("<ul id=\"menulist\">\r\n");
-    html("<li class=\"menuitem active\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("</ul>\r\n");
-    html("</div>\r\n");
-    html("<div id=\"main\">\r\n");
 
+    if (menu_active >= 0)
+    {
+        html("<div class=\"wrapper\">\r\n");
+        html("<div id=\"menubar\">\r\n");
+        html("<ul id=\"menulist\">\r\n");
+        if (menu_active >= 0)
+        System_sprintf(buf, "<li class=\"menuitem %s\" onclick=\"window.location.href='index.html'\">Home\r\n",
+             (menu_active == 0) ? "active" : "");
+        html(buf);
+        System_sprintf(buf, "<li class=\"menuitem %s\" onclick=\"window.location.href='config.html'\">Configure\r\n",
+             (menu_active == 1) ? "active" : "");
+        html(buf);
+        System_sprintf(buf, "<li class=\"menuitem %s\" onclick=\"window.location.href='remote.html'\">Remote\r\n",
+             (menu_active == 2) ? "active" : "");
+        html(buf);
+        html("</ul>\r\n");
+        html("</div>\r\n");
+    }
+}
+
+//*****************************************************************************
+// CGI Index Page Callback Function
+//*****************************************************************************
+
+static Int sendIndexHtml(SOCKET htmlSock, int length)
+{
+    Char buf[MAX_RESPONSE_SIZE];
+    Char serialnum[64];
+    Char mac[32];
+    Char timestr[16];
+    Char datestr[16];
+
+    /* Format the 128-bit serial number as a string */
+    GetSerialNumStr(serialnum, g_sys.ui8SerialNumberSTC);
+    /* Format the MAC address as a string */
+    GetMACAddrStr(mac, g_sys.ui8MAC);
+    /* get current date & time */
+    RTC_GetTimeStr(&g_sys.timeDate, timestr);
+    RTC_GetDateStr(&g_sys.timeDate, datestr);
+
+    /* Send header portion of the html */
+    emitHeader(htmlSock, 0, "home");
+
+    html("<div id=\"main\">\r\n");
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">System Summary</legend>\r\n");
 
-    System_sprintf(buf, "<p>Firmware: v%d.%02d.%03d</p>\r\n", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    System_sprintf(buf, "<p>STC Firmware: v%d.%02d.%03d</p>\r\n",
+                   FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     html(buf);
+
+    System_sprintf(buf, "<p>DTC Firmware: v%d.%02d.%03d</p>\r\n",
+                   g_sys.dtcVersion >> 16, g_sys.dtcVersion & 0xFFFF, g_sys.dtcBuild);
+    html(buf);
+
     System_sprintf(buf, "<p>PCB serial#: %s</p>\r\n", serialnum);
     html(buf);
     System_sprintf(buf, "<p>MAC address: %s</p>\r\n", mac);
@@ -181,9 +273,6 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html(buf);
     System_sprintf(buf, "<p>Roller encoder errors: %d</p>\r\n", g_sys.qei_error_cnt);
     html(buf);
-    System_sprintf(buf, "<p>Time of day clock: %s</p>\r\n", g_sys.rtcFound ? "RTC" : "CPU");
-    html(buf);
-
     html("<p>DCS track controller: ");
     if (g_sys.dcsFound)
         System_sprintf(buf, "%d tracks</p>\r\n", g_sys.trackCount);
@@ -194,48 +283,19 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     html("<p>SMPTE time code card: ");
     if (g_sys.smpteFound)
     {
-        switch(g_sys.smpteMode)
-        {
-        case STC_SMPTE_OFF:         /* smpte module off           */
-            html("Ready");
-            break;
-        case STC_SMPTE_ENCODER:     /* master stripe mode active  */
-            html("Master");
-            break;
-        case STC_SMPTE_SLAVE:       /* slave mode decode active   */
-            html("Slave");
-            break;
-        default:
-            html("N/A");
-            break;
-        }
-
-        html(" ");
-
-        switch(g_sys.cfgSTC.smpteFPS)
-        {
-        case SMPTE_CTL_FPS24:
-            html("24");
-            break;
-        case SMPTE_CTL_FPS25:
-            html("25");
-            break;
-        case SMPTE_CTL_FPS30:
-            html("30");
-            break;
-        case SMPTE_CTL_FPS30D:
-            html("30D");
-            break;
-        default:
-            html("0");
-            break;
-        }
-        html(" fps</p>\r\n");
+        System_sprintf(buf, "%s %s fps</p>\r\n", getstrSMPTEMode(), getstrFPS());
+        html(buf);
     }
     else
     {
         html("N/A</p>\r\n");
     }
+
+    System_sprintf(buf, "<p>System date: %s</p>\r\n", datestr);
+    html(buf);
+    System_sprintf(buf, "<p>System time: %s</p>\r\n", timestr);
+    html(buf);
+
     html("</fieldset><br /><br />\r\n");
 
     html("</div>\r\n");
@@ -258,49 +318,18 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
 
-    html("<!DOCTYPE html>\r\n");
-    html("<html>\r\n");
-    html("<title>STC-1200 | config</title>\r\n");
-    html("<meta charset=\"utf-8\">\r\n");
-    html("<head>\r\n");
-    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
-    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
-    html("</head>\r\n");
-    html("<body>\r\n");
-    html("<div class=\"container wrapper\">\r\n");
-    html("<div id=\"top\">\r\n");
-    html("<h1>STC-1200</h1>\r\n");
-    html("<p>Tape Machine Admin</p>\r\n");
-    html("</div>\r\n");
-    html("<div class=\"wrapper\">\r\n");
-    html("<div id=\"menubar\">\r\n");
-    html("<ul id=\"menulist\">\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("<li class=\"menuitem active\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("</ul>\r\n");
-    html("</div>\r\n");
-    html("<div id=\"main\">\r\n");
+    /* Send header portion of the html */
+    emitHeader(htmlSock, 1, "config");
 
+    html("<div id=\"main\">\r\n");
     html("<form action=\"config.cgi\" method=\"post\">\r\n");
 
-    /* General Settings */
+    /* GENERAL Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">General Settings</legend>\r\n");
-    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Remote displays long tape time format?<br />\r\n", g_sys.cfgSTC.showLongTime ? "checked" : "");
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Wired remote displays time in timecode form<br />\r\n", g_sys.cfgSTC.showLongTime ? "checked" : "");
     html(buf);
-    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink machines 7-seg display during locates?<br />\r\n", g_sys.cfgSTC.searchBlink ? "checked" : "");
-    html(buf);
-    html("</fieldset><br />\r\n");
-
-    /* Locator Settings */
-    html("<fieldset>\r\n");
-    html("<legend class=\"bold\">Locator Settings</legend>\r\n");
-    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_near);
-    html(buf);
-    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_mid);
-    html(buf);
-    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_far);
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"blink\" value=\"yes\" %s> Blink transport 7-seg display during locate<br />\r\n", g_sys.cfgSTC.searchBlink ? "checked" : "");
     html(buf);
     html("</fieldset><br />\r\n");
 
@@ -314,14 +343,83 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     /* SMPTE Settings */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">SMPTE Settings</legend>\r\n");
-    html("<label for \"smpteRef\">Master Ref Clock Frequency:</label><br>\r\n");
-    System_printf(buf, "<input type=\"text\" name=\"smpteRef\" value=\"%s\"> <br />\r\n", g_sys.cfgSTC.ref_freq);
+    html("<label for=\"smpteRef\">Master ref clock frequency:</label><br>\r\n");
+    System_sprintf(buf, "<input type=\"text\" name=\"refClock\" value=\"%u\"> <br />\r\n", (uint32_t)g_sys.cfgSTC.ref_freq);
     html(buf);
-    html("<label for \"frameRate\">Default Frame Rate:</label><br>\r\n");
-    System_printf(buf, "<input type=\"text\" name=\"frameRate\" value=\"%u\"> <br />\r\n", g_sys.cfgSTC.smpteFPS);
+    html("<label for=\"frameRate\">Default frame rate:</label><br>\r\n");
+    System_sprintf(buf, "<input type=\"text\" name=\"frameRate\" value=\"%s\"> <br />\r\n", getstrFPS());
     html(buf);
     html("</fieldset><br />\r\n");
 
+    /* LOCATOR Settings */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Locator Settings</legend>\r\n");
+    System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_near);
+    html(buf);
+    System_sprintf(buf, "Jog mid velocity:<br><input type=\"text\" name=\"jogmid\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_mid);
+    html(buf);
+    System_sprintf(buf, "Jog far velocity:<br><input type=\"text\" name=\"jogfar\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_far);
+    html(buf);
+    html("</fieldset><br />\r\n");
+
+    /* TRANSPORT Settings */
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Transport Settings</legend>\r\n");
+    System_sprintf(buf, "Velocity detect threshold:<br><input type=\"text\" name=\"velDet\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.vel_detect_threshold);
+    html(buf);
+    System_sprintf(buf, "Record pulse strobe time:<br><input type=\"text\" name=\"strobeTime\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.record_pulse_time);
+    html(buf);
+    System_sprintf(buf, "Record hold settle time:<br><input type=\"text\" name=\"settleTime\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.rechold_settle_time);
+    html(buf);
+    System_sprintf(buf, "Transport button debounce time:<br><input type=\"text\" name=\"debounce\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.debounce);
+    html(buf);
+    html("</fieldset><br />\r\n");
+
+    /* TENSION Settings */
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Tension Settings</legend>\r\n");
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Supply</legend>\r\n");
+    html("</fieldset><br />\r\n");
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Takeup</legend>\r\n");
+    html("</fieldset><br />\r\n");
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Tension Sensor</legend>\r\n");
+    html("</fieldset><br />\r\n");
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Reeling Radius</legend>\r\n");
+    html("</fieldset><br />\r\n");
+
+    html("</fieldset><br />\r\n");
+
+    /* STOP Mode */
+
+    html("<fieldset>\r\n");
+    html("<legend class=\"bold\">Stop Mode</legend>\r\n");
+    html("<label for \"stopTorque\">Dynamic stop brake torque:</label>\r\n");
+    System_sprintf(buf, "<input type=\"text\" name=\"stopTorque\" value=\"%d\"> <br />\r\n",
+                   g_sys.cfgDTC.stop_brake_torque);
+    html(buf);
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"stopLifters\" value=\"yes\"> Leave lifters engaged at stop<br />\r\n",
+                   getstrYesNo(g_sys.cfgDTC.sysflags & DTC_SF_LIFTER_AT_STOP));
+    html(buf);
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"stopBrakes\" value=%s> Leave brakes engaged at stop<br />\r\n",
+                   getstrYesNo(g_sys.cfgDTC.sysflags & DTC_SF_BRAKES_AT_STOP));
+    html(buf);
+    System_sprintf(buf, "<input type=\"checkbox\" name=\"stopEOT\" value=%s> Stop at end-of-tape sense<br />\r\n",
+                   getstrYesNo(g_sys.cfgDTC.sysflags & DTC_SF_STOP_AT_TAPE_END));
+    html(buf);
+    html("</fieldset><br />\r\n");
+
+    /* PLAY Mode */
+
+#if 0
     /* Play Boost LO-Speed */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Play Boost LO-Speed</legend>\r\n");
@@ -393,14 +491,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<label for \"shuttleDgain\">D-Gain:</label><br>\r\n");
     html("<input type=\"text\" name=\"shuttleDgain\" value=\"0\"> <br />\r\n");
     html("</fieldset><br />\r\n");
-
-    /* Stop Mode */
-    html("<fieldset>\r\n");
-    html("<legend class=\"bold\">Stop Mode</legend>\r\n");
-    html("<input type=\"checkbox\" name=\"stopLifters\" value=\"yes\" > Leave lifters engaged at stop<br />\r\n");
-    html("<input type=\"checkbox\" name=\"stopBrakes\" value=\"yes\" > Leave brakes engaged at stop<br />\r\n");
-    html("<input type=\"checkbox\" name=\"stopEOT\" value=\"yes\" > Stop at end-of-tape sense<br />\r\n");
-    html("</fieldset><br />\r\n");
+#endif
 
     /* End of form Save/Reset buttons */
     html("<input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
@@ -513,28 +604,7 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 {
     Char buf[MAX_RESPONSE_SIZE];
 
-    html("<!DOCTYPE html>\r\n");
-    html("<html>\r\n");
-    html("<title>STC-1200 | remote</title>\r\n");
-    html("<meta charset=\"utf-8\">\r\n");
-    html("<head>\r\n");
-    html("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\r\n");
-    html("<link rel=\"stylesheet\" type=\"text/css\" href=\"css/style.css\">\r\n");
-    html("</head>\r\n");
-    html("<body>\r\n");
-    html("<div class=\"container wrapper\">\r\n");
-//    html("  <div id=\"top\">\r\n");
-//    html("    <p>REMOTE</p>\r\n");
-//    html("  </div>\r\n");
-    html("<div class=\"wrapper\">\r\n");
-    html("<div id=\"menubar\">\r\n");
-    html("<ul id=\"menulist\">\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='index.html'\">Home\r\n");
-    html("<li class=\"menuitem\" onclick=\"window.location.href='config.html'\">Configure\r\n");
-    html("<li class=\"menuitem active\" onclick=\"window.location.href='remote.html'\">Remote\r\n");
-    html("</ul>\r\n");
-    html("</div>\r\n");
-    html("<div id=\"main\">\r\n");
+    emitHeader(htmlSock, -1, "remote");
 
     html("<form action=\"remote.cgi\" method=\"post\">\r\n");
     html("<fieldset>\r\n");
@@ -588,12 +658,8 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sys.ledMaskRemote & L_LOC0) ? '1' : '0');
     html(buf);
     html("</fieldset>\r\n");
-
     html("</form>\r\n");
-    html("</div>\r\n");
-    html("</div>\r\n");
-    //html("<div id=\"bottom\">\r\n");
-    //html(strCopyright);
+    //html("</div>\r\n");
     //html("</div>\r\n");
     html("</div>\r\n");
     html("</body>\r\n");
@@ -601,6 +667,7 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 
     return 1;
 }
+
 
 static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
 {
