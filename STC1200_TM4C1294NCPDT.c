@@ -328,7 +328,7 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
 	GPIOTiva_PM_0 | GPIO_CFG_INPUT | GPIO_CFG_IN_INT_FALLING,
 	/* STC1200_PLAY_DETECT_N */
 	GPIOTiva_PM_1 | GPIO_CFG_INPUT | GPIO_CFG_IN_INT_FALLING,
-    /* STC1200_SMPTE_INT_N */
+    /* STC1200_EXPIO_PK3 */
     GPIOTiva_PK_3 | GPIO_CFG_INPUT | GPIO_CFG_IN_INT_FALLING,
 	/* STC1200_DIPSW_CFG1 */
 	GPIOTiva_PL_4 | GPIO_CFG_INPUT | GPIO_CFG_IN_PU,
@@ -338,29 +338,21 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
 	GPIOTiva_PQ_0 | GPIO_CFG_INPUT,
     /*** OUTPUTS PINS ***/
     /* STC1200_EXPIO_PD4 */
-    GPIOTiva_PD_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PD_4 | GPIO_CFG_INPUT,
     /* STC1200_EXPIO_PD5 */
-    GPIOTiva_PD_5 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PD_5 | GPIO_CFG_INPUT,
     /* STC1200_EXPIO_PP2 */
-    GPIOTiva_PP_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PP_2 | GPIO_CFG_INPUT,
     /* STC1200_EXPIO_PP3 */
-    GPIOTiva_PP_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PP_3 | GPIO_CFG_INPUT,
     /* STC1200_EXPIO_PP4 */
-    GPIOTiva_PP_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PP_4 | GPIO_CFG_INPUT,
     /* STC1200_EXPIO_PP5 */
-    GPIOTiva_PP_5 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
+    GPIOTiva_PP_5 | GPIO_CFG_INPUT,
     /* STC1200_EXPIO_PK2 */
     GPIOTiva_PK_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
-    /* STC1200_EXPIO_PK3 */
-    GPIOTiva_PK_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
     /* STC1200_RESET_AVR_N */
     GPIOTiva_PE_0 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
-	/* STC1200_RESET_BL652 */
-    GPIOTiva_PE_1 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
-	/* STC1200_AIRLOAD*/
-    GPIOTiva_PE_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
-	/* STC1200_AUTORUN_N */
-    GPIOTiva_PE_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
     /* STC1200_RS422_RE_N */
     GPIOTiva_PK_5 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
     /* STC1200_RS422_DE */
@@ -426,19 +418,13 @@ void STC1200_initGPIO(void)
     // Enable pin PA3 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_3);
 
-    // Enable pin PD4 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_4);	
-    // Enable pin PD5 for GPIOOutput
+    // Enable pin PD4 for GPIOInput
+    GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_4);
+    // Enable pin PD5 for GPIOInput
     GPIOPinTypeGPIOOutput(GPIO_PORTD_BASE, GPIO_PIN_5);
 
     // Enable pin PE0 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_0);
-    // Enable pin PE1 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_1);
-    // Enable pin PE2 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_2);    
-    // Enable pin PE3 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTE_BASE, GPIO_PIN_3);
 
     // Enable pin PF2 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, GPIO_PIN_2);
@@ -486,14 +472,14 @@ void STC1200_initGPIO(void)
     // Enable pin PM7 for GPIOOutput
     GPIOPinTypeGPIOOutput(GPIO_PORTM_BASE, GPIO_PIN_7);
     
-    // Enable pin PP2 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTP_BASE, GPIO_PIN_2);
-    // Enable pin PP3 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTP_BASE, GPIO_PIN_3);
+    // Enable pin PP2 for GPIOInput
+    GPIOPinTypeGPIOInput(GPIO_PORTP_BASE, GPIO_PIN_2);
+    // Enable pin PP3 for GPIOInput
+    GPIOPinTypeGPIOInput(GPIO_PORTP_BASE, GPIO_PIN_3);
     // Enable pin PP4 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTP_BASE, GPIO_PIN_4);
-    // Enable pin PP5 for GPIOOutput
-    GPIOPinTypeGPIOOutput(GPIO_PORTP_BASE, GPIO_PIN_5);
+    GPIOPinTypeGPIOInput(GPIO_PORTP_BASE, GPIO_PIN_4);
+    // Enable pin PP5 for GPIOInput
+    GPIOPinTypeGPIOInput(GPIO_PORTP_BASE, GPIO_PIN_5);
     
     // Enable pin PQ0 for GPIOInput
     GPIOPinTypeGPIOInput(GPIO_PORTQ_BASE, GPIO_PIN_0);

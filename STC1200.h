@@ -125,7 +125,7 @@ typedef struct _SYSDAT
     bool            standbyMonitor;             /* standby monitor enable     */
     bool            standbyActive;              /* true if standby mode active*/
     uint32_t        smpteMode;
-
+    /* STC and DTC Configuration Data */
     STC_CONFIG_DATA cfgSTC;
     DTC_CONFIG_DATA cfgDTC;
 } SYSDAT;

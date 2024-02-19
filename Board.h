@@ -96,9 +96,6 @@ extern "C" {
 /* GPIO Pin Definitions */
 
 #define Board_RESET_AVR_N			STC1200_RESET_AVR_N
-#define Board_RESET_BL652			STC1200_RESET_BL652
-#define Board_AIRLOAD				STC1200_AIRLOAD
-#define Board_AUTORUN_N				STC1200_AUTORUN_N
 #define Board_STAT_LED				STC1200_STAT_LED
 #define Board_LAMP_PLAY				STC1200_LAMP_PLAY
 #define Board_LAMP_FWDREW			STC1200_LAMP_FWDREW
@@ -109,13 +106,12 @@ extern "C" {
 #define Board_SMPTE_CHANGE          STC1200_EXPIO_PP5
 #define Board_SMPTE_FRAMESYNC       STC1200_EXPIO_PP3
 #define Board_SMPTE_DIRECTION       STC1200_EXPIO_PP2
-#define Board_SMPTE_BOOTLOAD        STC1200_EXPIO_PD4
-#define Board_SMPTE_RESET_N         STC1200_EXPIO_PD5
 #define Board_SMPTE_INT_N           STC1200_EXPIO_PK3
 /* Not used on SMPTE expansion connector */
-#define Board_EXPIO_PP4             STC1200_EXPIO_PP4
-#define Board_EXPIO_PK2             STC1200_EXPIO_PK2
+#define Board_EXPIO_PD4             STC1200_EXPIO_PD4
 #define Board_EXPIO_PD5             STC1200_EXPIO_PD5
+#define Board_EXPIO_PK2             STC1200_EXPIO_PK2
+#define Board_EXPIO_PP4             STC1200_EXPIO_PP4
 
 #define Board_RS422_RE_N			STC1200_RS422_RE_N
 #define Board_RS422_DE				STC1200_RS422_DE
