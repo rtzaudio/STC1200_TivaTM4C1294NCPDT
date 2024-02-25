@@ -579,7 +579,7 @@ void DrawTimeMiddle(void)
 
         y += height - 5;
         x = 13;
-        GrContextFontSet(&g_context, g_psFontWMonospace10pt);    //g_psFontFixed6x8);
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
         GrStringDraw(&g_context, "HR", -1, x, y, 0);
         GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
         GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
