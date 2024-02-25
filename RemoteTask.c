@@ -587,6 +587,10 @@ int StrToTapeTime(char *digits, TAPETIME* tapetime)
 
 void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
 {
+    /* Ignore all other buttons, except MENU if, in view select mode */
+    if (g_sys.remoteViewSelect && ((mask & SW_MENU) == 0))
+            return;
+
     /* Handle numeric digit/locate buttons */
     if (mask & SW_LOC0) {
         HandleDigitPress(0, cue_flags);
