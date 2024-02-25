@@ -763,6 +763,15 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
 
 void HandleJogwheelPress(uint32_t switch_mask)
 {
+    if (g_sys.remoteViewSelect)
+    {
+        /* exit view select mode */
+        g_sys.remoteViewSelect = false;
+        /* turn off menu button led */
+        SetButtonLedMask(0, L_MENU);
+        return;
+    }
+
     if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
         /* Check for ALT/Shift button modifier */
