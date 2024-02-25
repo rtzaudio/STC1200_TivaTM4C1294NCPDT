@@ -116,6 +116,7 @@ extern tFont *g_psFontWDseg7bold14pt;
 extern tFont *g_psFontWDseg7bold12pt;
 extern tFont *g_psFontWDseg7bold10pt;
 extern tFont *g_psFontWMonospace6pt;
+extern tFont *g_psFontWMonospace8pt;
 
 //*****************************************************************************
 // Clear the display screen
@@ -579,7 +580,7 @@ void DrawTimeMiddle(void)
 
         y += height - 5;
         x = 13;
-        GrContextFontSet(&g_context, g_psFontWMonospace6pt);    //g_psFontFixed6x8);
+        GrContextFontSet(&g_context, g_psFontWMonospace8pt);    //g_psFontFixed6x8);
         GrStringDraw(&g_context, "HR", -1, x, y, 0);
         GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
         GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
