@@ -538,7 +538,7 @@ void DrawTimeMiddle(void)
 
         GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
         len = sprintf(buf, "%02u", g_sys.tapeTime.frame);
-        GrStringDraw(&g_context, buf, len, x+width, y, 0);
+        GrStringDraw(&g_context, buf, len, x+width, y+1, 0);
 
         /* Draw the sign in a different font as 7-seg does not have these chars */
         GrContextFontSet(&g_context, g_psFontCm14); //g_psFontCmss12);
