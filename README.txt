@@ -29,6 +29,13 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 3.03(03/26/2024) ==============================================
+
+Additions to support DCS track assignment setting via the DRC wired remote.
+Support for new SMPTE/NCO card for SMPTE generation and improved
+vari-speed functionality with jog wheel. DRC remotes in the field will
+need firmware updates for improved jog wheel response.   
+       
 === VERSION 3.01(09/15/2023) ==============================================
 
 Added support for multiple TCP clients. The STC server now supports up to 
