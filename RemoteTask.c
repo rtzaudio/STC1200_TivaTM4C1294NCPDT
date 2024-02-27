@@ -807,13 +807,24 @@ void HandleJogwheelPress(uint32_t switch_mask)
         switch (g_sys.remoteFieldIndex)
         {
         case 0:
+            /* Set all tracks to input */
             Track_SetModeAll(STC_TRACK_INPUT);
             break;
         case 1:
+            /* Set all tracks to sync */
             Track_SetModeAll(STC_TRACK_SYNC);
             break;
         case 2:
+            /* Set all tracks to repro */
             Track_SetModeAll(STC_TRACK_REPRO);
+            break;
+        case 3:
+            /* Set all tracks to safe */
+            Track_MaskAll(0, STC_T_READY);
+            break;
+        case 4:
+            /* Set all tracks to ready */
+            Track_MaskAll(STC_T_READY, 0);
             break;
         }
     }
@@ -1033,13 +1044,13 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         {
             ++g_sys.remoteFieldIndex;
 
-            if (g_sys.remoteFieldIndex >= 3)
+            if (g_sys.remoteFieldIndex >= 5)
                 g_sys.remoteFieldIndex = 0;
         }
         else
         {
             if (g_sys.remoteFieldIndex == 0)
-                g_sys.remoteFieldIndex = 2;
+                g_sys.remoteFieldIndex = 4;
             else
                 --g_sys.remoteFieldIndex;
         }

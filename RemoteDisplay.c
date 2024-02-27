@@ -675,7 +675,7 @@ void DrawTrackAssign(void)
     GrRectDraw(&g_context, &rect);
 
     /* Draw inner hi-light rect if active edit field */
-    if (g_sys.remoteField == FIELD_TRACK_ARM)
+    if ((g_sys.remoteField == FIELD_TRACK_ARM) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -738,7 +738,7 @@ void DrawTrackAssign(void)
     }
 
     /* Draw inner hi-light rect if active edit field */
-    if (g_sys.remoteField == FIELD_TRACK_MODE)
+    if ((g_sys.remoteField == FIELD_TRACK_MODE) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -771,7 +771,7 @@ void DrawTrackAssign(void)
     }
 
     /* Draw inner hi-light rect if active edit field */
-    if (g_sys.remoteField == FIELD_TRACK_MONITOR)
+    if ((g_sys.remoteField == FIELD_TRACK_MONITOR) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -803,7 +803,7 @@ void DrawTrackAssign(void)
     GrRectDraw(&g_context, &rect);
 
     /* Draw inner hi-light rect if active edit field */
-    if (g_sys.remoteField == FIELD_TRACK_NUM)
+    if ((g_sys.remoteField == FIELD_TRACK_NUM) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -855,7 +855,7 @@ void DrawTrackAssign(void)
 //
 //*****************************************************************************
 
-void DrawTrackSetAll(void)
+void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
 {
     int32_t i, w;
     int32_t len;
@@ -863,15 +863,7 @@ void DrawTrackSetAll(void)
     tRectangle rect;
     int32_t maxwidth = 0;
 
-    static MenuOption menuOptions[] = {
-        CENTER_X, 25, "INPUT",
-        CENTER_X, 35, "SYNC",
-        CENTER_X, 45, "REPRO"
-    };
-
-    MenuOption* menu = menuOptions;
-
-    size_t count = sizeof(menuOptions)/sizeof(MenuOption);
+    MenuOption* mp = menu;
 
     /* Normal Mono */
     GrContextForegroundSetTranslated(&g_context, 1);
@@ -879,26 +871,48 @@ void DrawTrackSetAll(void)
 
     GrContextFontSet(&g_context, g_psFontFixed6x8);
 
-    GrStringDrawCentered(&g_context, "SET ALL TRACKS TO", -1, CENTER_X, 6, TRUE);
+    GrStringDrawCentered(&g_context, heading, -1, CENTER_X, 5, TRUE);
 
-    for (i=0; i < count; i++)
+    for (i=0, mp=menu; i < count; i++, mp++)
     {
-        len = sprintf(buf, "%s", menu->text);
+        len = sprintf(buf, "%s", mp->text);
 
         if ((w = GrStringWidthGet(&g_context, buf, len)) > maxwidth)
             maxwidth = w;
 
-        GrStringDrawCentered(&g_context, buf, len, menu->x, menu->y, TRUE);
-
-        ++menu;
+        GrStringDrawCentered(&g_context, buf, len, mp->x, mp->y, TRUE);
     }
 
+    /* Show the item hi-light box around current menu item */
     if (g_sys.remoteFieldIndex < count)
     {
-        menu = &menuOptions[g_sys.remoteFieldIndex];
-        GrSetRect(&rect, 28, menu->y-5, 100, menu->y+5);
-        GrRectDraw(&g_context, &rect);
+        /* Don't show menu item highlight box if view
+         * select is currently active.
+         */
+        if (!g_sys.remoteViewSelect)
+        {
+            w = (maxwidth >> 1) + 10;
+            mp = menu + index;
+            GrSetRect(&rect, mp->x-w, mp->y-5, mp->x+w, mp->y+5);
+            GrRectDraw(&g_context, &rect);
+        }
     }
+}
+
+void DrawTrackSetAll(void)
+{
+    static MenuOption menuOptions[] = {
+        30, 25, "INPUT",
+        30, 35, "SYNC",
+        30, 45, "REPRO",
+        98, 25, "SAFE",
+        98, 45, "READY",
+    };
+
+    MenuDraw("SET ALL TRACKS TO",
+             menuOptions,
+             sizeof(menuOptions)/sizeof(MenuOption),
+             g_sys.remoteFieldIndex);
 }
 
 // End-Of-File
