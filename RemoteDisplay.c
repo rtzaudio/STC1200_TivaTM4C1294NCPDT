@@ -77,8 +77,6 @@
 
 /* Graphiclib Header file */
 #include <grlib/grlib.h>
-#include <RemoteTask.h>
-#include <RemoteTask.h>
 #include "drivers/offscrmono.h"
 
 /* PMX42 Board Header file */
@@ -87,6 +85,7 @@
 #include "Utils.h"
 #include "IPCServer.h"
 #include "RAMPServer.h"
+#include "RemoteTask.h"
 
 /* Static Function Prototypes */
 static void DrawInfo(void);
@@ -96,6 +95,7 @@ static void DrawTimeTop(void);
 static void DrawTimeMiddle(void);
 static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
+static void DrawTrackSetAll(void);
 
 /* Helpers */
 static void GrSetRect(tRectangle* rect,
@@ -145,6 +145,10 @@ void DrawScreen(uint32_t uScreenNum)
 
     case VIEW_TRACK_ASSIGN:
         DrawTrackAssign();
+        break;
+
+    case VIEW_TRACK_SET_ALL:
+        DrawTrackSetAll();
         break;
 
     case VIEW_INFO:
@@ -845,6 +849,49 @@ void DrawTrackAssign(void)
     len = snprintf(buf, sizeof(buf)-1, (g_sys.standbyMonitor) ? "STANDBY" : "TAPE");
     x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
     GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+#define CENTER_X    (SCREEN_WIDTH / 2)
+
+typedef struct _MenuOption {
+    uint8_t x;
+    uint8_t y;
+    char*   text;
+} MenuOption;
+
+void DrawTrackSetAll(void)
+{
+    int32_t i;
+    int32_t len;
+    char buf[32];
+
+    static MenuOption menuOptions[] = {
+        20, CENTER_X,   "Input",
+        30, CENTER_X,   "Sync",
+        40, CENTER_X,   "Repro"
+    };
+
+    MenuOption* menu = menuOptions;
+    size_t count = sizeof(menuOptions)/sizeof(MenuOption);
+
+    /* Normal Mono */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
+
+    GrStringDrawCentered(&g_context, "Set All Tracks To", -1, CENTER_X, 6, TRUE);
+
+    for (i=0; i < count; i++)
+    {
+        len = sprintf(buf, "%s", menu->text);
+        GrStringDrawCentered(&g_context, buf, len, menu->x, menu->y, TRUE);
+        ++menu;
+    }
 }
 
 // End-Of-File

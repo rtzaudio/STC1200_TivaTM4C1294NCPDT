@@ -76,10 +76,7 @@
 
 /* Graphiclib Header file */
 #include <grlib/grlib.h>
-#include <RemoteTask.h>
-#include <RemoteTask.h>
 #include "drivers/offscrmono.h"
-
 /* PMX42 Board Header file */
 #include "Board.h"
 #include "AD9837.h"
@@ -87,6 +84,7 @@
 #include "IPCServer.h"
 #include "RAMPServer.h"
 #include "CLITask.h"
+#include "RemoteTask.h"
 
 /* External Global Data */
 extern tContext g_context;
@@ -852,6 +850,9 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     {
         if (direction > 0)
         {
+            /* Reset field being edited since the screen changed */
+            g_sys.remoteField = 0;
+
             /* next screen view */
             ++g_sys.remoteView;
 
@@ -863,6 +864,9 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         }
         else
         {
+            /* Reset field being edited since the screen changed */
+            g_sys.remoteField = 0;
+
             /* previous screen view */
             --g_sys.remoteView;
 

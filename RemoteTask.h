@@ -28,6 +28,7 @@ typedef enum RemoteModesType {
 typedef enum ViewNumberType {
     VIEW_TAPE_TIME,
     VIEW_TRACK_ASSIGN,
+    VIEW_TRACK_SET_ALL,
     VIEW_INFO,
     VIEW_LAST
 } ViewNumberType;
