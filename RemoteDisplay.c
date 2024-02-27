@@ -858,8 +858,8 @@ void DrawTrackAssign(void)
 #define CENTER_X    (SCREEN_WIDTH / 2)
 
 typedef struct _MenuOption {
-    uint8_t x;
-    uint8_t y;
+    uint16_t x;
+    uint16_t y;
     char*   text;
 } MenuOption;
 
@@ -867,12 +867,14 @@ void DrawTrackSetAll(void)
 {
     int32_t i;
     int32_t len;
+    int32_t width;
     char buf[32];
+    tRectangle rect;
 
     static MenuOption menuOptions[] = {
-        20, CENTER_X,   "Input",
-        30, CENTER_X,   "Sync",
-        40, CENTER_X,   "Repro"
+        CENTER_X, 25, "INPUT",
+        CENTER_X, 35, "SYNC",
+        CENTER_X, 45, "REPRO"
     };
 
     MenuOption* menu = menuOptions;
@@ -884,7 +886,7 @@ void DrawTrackSetAll(void)
 
     GrContextFontSet(&g_context, g_psFontFixed6x8);
 
-    GrStringDrawCentered(&g_context, "Set All Tracks To", -1, CENTER_X, 6, TRUE);
+    GrStringDrawCentered(&g_context, "SET ALL TRACKS TO", -1, CENTER_X, 6, TRUE);
 
     for (i=0; i < count; i++)
     {
@@ -892,6 +894,11 @@ void DrawTrackSetAll(void)
         GrStringDrawCentered(&g_context, buf, len, menu->x, menu->y, TRUE);
         ++menu;
     }
+
+    menu = menuOptions;
+
+    GrSetRect(&rect, 28, menu->y-5, 100, menu->y+5);
+    GrRectDraw(&g_context, &rect);
 }
 
 // End-Of-File
