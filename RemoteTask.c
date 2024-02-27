@@ -235,6 +235,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
 
     g_sys.remoteView = VIEW_TAPE_TIME;
     g_sys.remoteField = FIELD_TRACK_NUM;
+    g_sys.remoteFieldIndex = 0;
     g_sys.remoteViewSelect = false;
     g_sys.remoteTrackNum = 0;
 
@@ -801,6 +802,21 @@ void HandleJogwheelPress(uint32_t switch_mask)
                 g_sys.remoteField = 0;
         }
     }
+    else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
+    {
+        switch (g_sys.remoteFieldIndex)
+        {
+        case 0:
+            Track_SetModeAll(STC_TRACK_INPUT);
+            break;
+        case 1:
+            Track_SetModeAll(STC_TRACK_SYNC);
+            break;
+        case 2:
+            Track_SetModeAll(STC_TRACK_REPRO);
+            break;
+        }
+    }
     else if (g_sys.remoteView == VIEW_TAPE_TIME)
     {
         switch (g_sys.remoteMode)
@@ -848,11 +864,11 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 
     if (g_sys.remoteViewSelect)
     {
+        /* Reset field being edited since the screen changed */
+        g_sys.remoteField = g_sys.remoteFieldIndex = 0;
+
         if (direction > 0)
         {
-            /* Reset field being edited since the screen changed */
-            g_sys.remoteField = 0;
-
             /* next screen view */
             ++g_sys.remoteView;
 
@@ -864,9 +880,6 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         }
         else
         {
-            /* Reset field being edited since the screen changed */
-            g_sys.remoteField = 0;
-
             /* previous screen view */
             --g_sys.remoteView;
 
@@ -1012,6 +1025,23 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         default:
             g_sys.remoteField = 0;
             break;
+        }
+    }
+    else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
+    {
+        if (direction > 0)
+        {
+            ++g_sys.remoteFieldIndex;
+
+            if (g_sys.remoteFieldIndex >= 3)
+                g_sys.remoteFieldIndex = 0;
+        }
+        else
+        {
+            if (g_sys.remoteFieldIndex == 0)
+                g_sys.remoteFieldIndex = 2;
+            else
+                --g_sys.remoteFieldIndex;
         }
     }
 }

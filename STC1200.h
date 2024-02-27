@@ -94,6 +94,7 @@ typedef struct _SYSDAT
     bool            remoteViewSelect;           /* remote select view active  */
     int32_t         remoteView;                 /* current screen view active */
     int32_t         remoteField;                /* current edit field number  */
+    int32_t         remoteFieldIndex;           /* current edit field index   */
     int32_t         remoteModeLast;             /* last mode before edit      */
     int32_t         remoteModePrev;             /* previous remote mode       */
     int32_t         remoteTrackNum;             /* current track number       */

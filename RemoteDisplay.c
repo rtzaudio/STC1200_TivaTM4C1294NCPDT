@@ -855,21 +855,13 @@ void DrawTrackAssign(void)
 //
 //*****************************************************************************
 
-#define CENTER_X    (SCREEN_WIDTH / 2)
-
-typedef struct _MenuOption {
-    uint16_t x;
-    uint16_t y;
-    char*   text;
-} MenuOption;
-
 void DrawTrackSetAll(void)
 {
-    int32_t i;
+    int32_t i, w;
     int32_t len;
-    int32_t width;
     char buf[32];
     tRectangle rect;
+    int32_t maxwidth = 0;
 
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "INPUT",
@@ -878,6 +870,7 @@ void DrawTrackSetAll(void)
     };
 
     MenuOption* menu = menuOptions;
+
     size_t count = sizeof(menuOptions)/sizeof(MenuOption);
 
     /* Normal Mono */
@@ -891,14 +884,21 @@ void DrawTrackSetAll(void)
     for (i=0; i < count; i++)
     {
         len = sprintf(buf, "%s", menu->text);
+
+        if ((w = GrStringWidthGet(&g_context, buf, len)) > maxwidth)
+            maxwidth = w;
+
         GrStringDrawCentered(&g_context, buf, len, menu->x, menu->y, TRUE);
+
         ++menu;
     }
 
-    menu = menuOptions;
-
-    GrSetRect(&rect, 28, menu->y-5, 100, menu->y+5);
-    GrRectDraw(&g_context, &rect);
+    if (g_sys.remoteFieldIndex < count)
+    {
+        menu = &menuOptions[g_sys.remoteFieldIndex];
+        GrSetRect(&rect, 28, menu->y-5, 100, menu->y+5);
+        GrRectDraw(&g_context, &rect);
+    }
 }
 
 // End-Of-File

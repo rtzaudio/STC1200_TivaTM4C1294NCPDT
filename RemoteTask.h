@@ -13,6 +13,14 @@
 #ifndef _REMOTETASK_H_
 #define _REMOTETASK_H_
 
+#define CENTER_X    (SCREEN_WIDTH / 2)
+
+typedef struct _MenuOption {
+    uint16_t x;
+    uint16_t y;
+    char*   text;
+} MenuOption;
+
 /*** CONSTANTS *************************************************************/
 
 /* Remote Modes of Operation */
