@@ -95,6 +95,7 @@ static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
 static void HandleDigitPress(size_t index, uint32_t cue_flags);
 static void HandleJogwheelPress(uint32_t switch_mask);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
+static void HandleViewChange(int32_t view, bool select);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void RemoteSetMode(uint32_t mode);
 static void ResetDigitBuf(void);
@@ -653,6 +654,8 @@ void HandleButtonPress(uint32_t mask, uint32_t cue_flags)
                 /* turn off menu button led */
                 SetButtonLedMask(0, L_MENU);
             }
+            /* call the view change handler */
+            HandleViewChange(g_sys.remoteView, g_sys.remoteViewSelect);
         }
     }
     else if (mask & SW_AUTO)
@@ -772,6 +775,8 @@ void HandleJogwheelPress(uint32_t switch_mask)
         g_sys.remoteViewSelect = false;
         /* turn off menu button led */
         SetButtonLedMask(0, L_MENU);
+        /* notify view change */
+        HandleViewChange(g_sys.remoteView, g_sys.remoteViewSelect);
         return;
     }
 
@@ -912,6 +917,9 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
                     g_sys.remoteView = 0;
             }
         }
+
+        /* notify view change */
+        HandleViewChange(g_sys.remoteView, g_sys.remoteViewSelect);
     }
     else if (g_sys.varispeedMode)
     {
@@ -1051,7 +1059,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         {
             ++g_sys.remoteFieldIndex;
 
-            if (g_sys.remoteFieldIndex >= 5)
+            if (g_sys.remoteFieldIndex > 4)
                 g_sys.remoteFieldIndex = 0;
         }
         else
@@ -1065,9 +1073,41 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {
         if (direction > 0)
-            g_sys.remoteFieldIndex = 1;
+        {
+            ++g_sys.remoteFieldIndex;
+
+            if (g_sys.remoteFieldIndex > 1)
+                g_sys.remoteFieldIndex = 0;
+
+        }
         else
-            g_sys.remoteFieldIndex = 0;
+        {
+            if (g_sys.remoteFieldIndex == 0)
+                g_sys.remoteFieldIndex = 1;
+            else
+                --g_sys.remoteFieldIndex;
+        }
+    }
+}
+
+//*****************************************************************************
+// This handler is called whenever a new view is selected or exiting.
+//*****************************************************************************
+
+void HandleViewChange(int32_t view, bool select)
+{
+    switch(view)
+    {
+    case VIEW_TAPE_SPEED_SET:
+        if (select)
+        {
+            /* Highlight the speed currently selected */
+            g_sys.remoteFieldIndex = (g_sys.tapeSpeed == 30) ? 1 : 0;
+        }
+        break;
+
+    default:
+        break;
     }
 }
 

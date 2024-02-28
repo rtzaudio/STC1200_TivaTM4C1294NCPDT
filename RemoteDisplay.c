@@ -923,16 +923,14 @@ void DrawTrackSetAll(void)
 void DrawTapeSpeedSet(void)
 {
     static MenuOption menuOptions[] = {
-        CENTER_X, 25, "LOW SPEED",
-        CENTER_X, 35, "HIGH SPEED",
+        CENTER_X, 25, "LO-SPEED",
+        CENTER_X, 35, "HI-SPEED",
     };
-
-    size_t index = (g_sys.tapeSpeed == 30) ? 1 : 0;
 
     MenuDraw("TAPE SPEED SELECT",
              menuOptions,
              sizeof(menuOptions)/sizeof(MenuOption),
-             index);
+             g_sys.remoteFieldIndex);
 }
 
 // End-Of-File
