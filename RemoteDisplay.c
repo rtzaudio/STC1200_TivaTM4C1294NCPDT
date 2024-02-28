@@ -96,6 +96,7 @@ static void DrawTimeMiddle(void);
 static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 static void DrawTrackSetAll(void);
+static void DrawTapeSpeedSet(void);
 
 /* Helpers */
 static void GrSetRect(tRectangle* rect,
@@ -149,6 +150,10 @@ void DrawScreen(uint32_t uScreenNum)
 
     case VIEW_TRACK_SET_ALL:
         DrawTrackSetAll();
+        break;
+
+    case VIEW_TAPE_SPEED_SET:
+        DrawTapeSpeedSet();
         break;
 
     case VIEW_INFO:
@@ -913,6 +918,21 @@ void DrawTrackSetAll(void)
              menuOptions,
              sizeof(menuOptions)/sizeof(MenuOption),
              g_sys.remoteFieldIndex);
+}
+
+void DrawTapeSpeedSet(void)
+{
+    static MenuOption menuOptions[] = {
+        CENTER_X, 25, "LOW SPEED",
+        CENTER_X, 35, "HIGH SPEED",
+    };
+
+    size_t index = (g_sys.tapeSpeed == 30) ? 1 : 0;
+
+    MenuDraw("TAPE SPEED SELECT",
+             menuOptions,
+             sizeof(menuOptions)/sizeof(MenuOption),
+             index);
 }
 
 // End-Of-File

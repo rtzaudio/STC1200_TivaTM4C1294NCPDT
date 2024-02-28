@@ -357,8 +357,9 @@ bool Track_SetTapeSpeed(int speed)
 
     msg.tapeSpeed =  (speed >= 30) ? 1 : 0;
 
-    /* mirror this here for debug */
+    /* mirror this in the global config */
     g_sys.tapeSpeed = speed;
+    g_sys.cfgSTC.tapeSpeed = speed;
 
     rc = TRACK_Command(g_sys.handleDCS,
                        (DCS_IPCMSG_HDR*)&msg,
@@ -368,6 +369,8 @@ bool Track_SetTapeSpeed(int speed)
     {
         success = true;
     }
+
+    Event_post(g_eventTransport, Event_Id_03);
 
     return success;
 }

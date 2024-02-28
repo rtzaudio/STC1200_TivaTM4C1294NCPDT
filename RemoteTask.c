@@ -775,7 +775,39 @@ void HandleJogwheelPress(uint32_t switch_mask)
         return;
     }
 
-    if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
+    if (g_sys.remoteView == VIEW_TAPE_TIME)
+    {
+        switch (g_sys.remoteMode)
+        {
+        case REMOTE_MODE_EDIT:
+            CompleteEditTimeState();
+            break;
+
+        default:
+            if (!g_sys.varispeedMode)
+            {
+                /* Enable vari-speed mode */
+                g_sys.varispeedMode = true;
+            }
+            else
+            {
+                /* Reset ref frequency to default */
+                g_sys.ref_freq = REF_FREQ;
+
+                /* Calculate the 32-bit frequency divisor */
+                uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
+
+                /* Program the DSS ref clock with new value */
+                AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+                AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+                /* Disable vari-speed mode */
+                g_sys.varispeedMode = false;
+            }
+            break;
+        }
+    }
+    else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
         /* Check for ALT/Shift button modifier */
         if ((switch_mask & SW_ALT) && (g_sys.remoteField == FIELD_TRACK_MONITOR))
@@ -828,37 +860,12 @@ void HandleJogwheelPress(uint32_t switch_mask)
             break;
         }
     }
-    else if (g_sys.remoteView == VIEW_TAPE_TIME)
+    else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {
-        switch (g_sys.remoteMode)
-        {
-        case REMOTE_MODE_EDIT:
-            CompleteEditTimeState();
-            break;
-
-        default:
-            if (!g_sys.varispeedMode)
-            {
-                /* Enable vari-speed mode */
-                g_sys.varispeedMode = true;
-            }
-            else
-            {
-                /* Reset ref frequency to default */
-                g_sys.ref_freq = REF_FREQ;
-
-                /* Calculate the 32-bit frequency divisor */
-                uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
-
-                /* Program the DSS ref clock with new value */
-                AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-                AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
-
-                /* Disable vari-speed mode */
-                g_sys.varispeedMode = false;
-            }
-            break;
-        }
+        if (g_sys.remoteFieldIndex == 0)
+            Track_SetTapeSpeed(15);
+        else
+            Track_SetTapeSpeed(30);
     }
 }
 
@@ -1054,6 +1061,13 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             else
                 --g_sys.remoteFieldIndex;
         }
+    }
+    else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
+    {
+        if (direction > 0)
+            g_sys.remoteFieldIndex = 1;
+        else
+            g_sys.remoteFieldIndex = 0;
     }
 }
 
