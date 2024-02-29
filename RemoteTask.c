@@ -592,13 +592,13 @@ void AdvanceFieldIndex(int direction, int min, int max)
         ++g_sys.remoteFieldIndex;
 
         if (g_sys.remoteFieldIndex > max)
-            g_sys.remoteFieldIndex = 0;
+            g_sys.remoteFieldIndex = min;
 
     }
     else
     {
         if (g_sys.remoteFieldIndex == 0)
-            g_sys.remoteFieldIndex = min;
+            g_sys.remoteFieldIndex = max;
         else
             --g_sys.remoteFieldIndex;
     }

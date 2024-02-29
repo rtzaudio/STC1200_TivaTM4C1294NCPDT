@@ -97,6 +97,7 @@ static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 static void DrawTrackSetAll(void);
 static void DrawTapeSpeedSet(void);
+static void DrawStandbyMonSet(void);
 
 /* Helpers */
 static void GrSetRect(tRectangle* rect,
@@ -150,6 +151,10 @@ void DrawScreen(uint32_t uScreenNum)
 
     case VIEW_TRACK_SET_ALL:
         DrawTrackSetAll();
+        break;
+
+    case VIEW_STANDBY_SET_ALL:
+        DrawStandbyMonSet();
         break;
 
     case VIEW_TAPE_SPEED_SET:
@@ -898,7 +903,7 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
         {
             w = (maxwidth >> 1) + 10;
             mp = menu + index;
-            GrSetRect(&rect, mp->x-w, mp->y-5, mp->x+w, mp->y+5);
+            GrSetRect(&rect, mp->x-w, mp->y-5, mp->x+w-1, mp->y+5);
             GrRectDraw(&g_context, &rect);
         }
     }
