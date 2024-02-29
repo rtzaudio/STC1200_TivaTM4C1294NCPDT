@@ -904,6 +904,10 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
     }
 }
 
+//*****************************************************************************
+//
+//*****************************************************************************
+
 void DrawTrackSetAll(void)
 {
     static MenuOption menuOptions[] = {
@@ -919,6 +923,27 @@ void DrawTrackSetAll(void)
              sizeof(menuOptions)/sizeof(MenuOption),
              g_sys.remoteFieldIndex);
 }
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawStandbyMonSet(void)
+{
+    static MenuOption menuOptions[] = {
+        CENTER_X, 25, "SET ALL",
+        CENTER_X, 35, "CLEAR ALL",
+    };
+
+    MenuDraw("TRACK STANDBY MONITOR",
+             menuOptions,
+             sizeof(menuOptions)/sizeof(MenuOption),
+             g_sys.remoteFieldIndex);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
 
 void DrawTapeSpeedSet(void)
 {

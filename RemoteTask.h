@@ -37,6 +37,7 @@ typedef enum ViewNumberType {
     VIEW_TAPE_TIME,
     VIEW_TRACK_ASSIGN,
     VIEW_TRACK_SET_ALL,
+    VIEW_STANDBY_SET_ALL,
     VIEW_TAPE_SPEED_SET,
     VIEW_INFO,
     VIEW_LAST

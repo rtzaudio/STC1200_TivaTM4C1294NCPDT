@@ -582,6 +582,29 @@ int StrToTapeTime(char *digits, TAPETIME* tapetime)
 }
 
 //*****************************************************************************
+// Helper Functions
+//*****************************************************************************
+
+void AdvanceFieldIndex(int direction, int min, int max)
+{
+    if (direction > 0)
+    {
+        ++g_sys.remoteFieldIndex;
+
+        if (g_sys.remoteFieldIndex > max)
+            g_sys.remoteFieldIndex = 0;
+
+    }
+    else
+    {
+        if (g_sys.remoteFieldIndex == 0)
+            g_sys.remoteFieldIndex = min;
+        else
+            --g_sys.remoteFieldIndex;
+    }
+}
+
+//*****************************************************************************
 // Handle button press events from DRC remote
 //*****************************************************************************
 
@@ -865,6 +888,13 @@ void HandleJogwheelPress(uint32_t switch_mask)
             break;
         }
     }
+    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    {
+        if (g_sys.remoteFieldIndex == 0)
+            Track_MaskAll(STC_T_MONITOR, 0);
+        else
+            Track_MaskAll(0, STC_T_MONITOR);
+    }
     else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {
         if (g_sys.remoteFieldIndex == 0)
@@ -1055,38 +1085,15 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     }
     else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
     {
-        if (direction > 0)
-        {
-            ++g_sys.remoteFieldIndex;
-
-            if (g_sys.remoteFieldIndex > 4)
-                g_sys.remoteFieldIndex = 0;
-        }
-        else
-        {
-            if (g_sys.remoteFieldIndex == 0)
-                g_sys.remoteFieldIndex = 4;
-            else
-                --g_sys.remoteFieldIndex;
-        }
+        AdvanceFieldIndex(direction, 0, 4);
+    }
+    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    {
+        AdvanceFieldIndex(direction, 0, 1);
     }
     else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {
-        if (direction > 0)
-        {
-            ++g_sys.remoteFieldIndex;
-
-            if (g_sys.remoteFieldIndex > 1)
-                g_sys.remoteFieldIndex = 0;
-
-        }
-        else
-        {
-            if (g_sys.remoteFieldIndex == 0)
-                g_sys.remoteFieldIndex = 1;
-            else
-                --g_sys.remoteFieldIndex;
-        }
+        AdvanceFieldIndex(direction, 0, 1);
     }
 }
 
