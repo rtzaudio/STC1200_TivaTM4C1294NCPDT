@@ -685,7 +685,7 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
 {
     int len;
     char digit;
-     static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
+    static char digits[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
 
     if (g_sys.remoteMode == REMOTE_MODE_CUE)
     {
@@ -786,7 +786,8 @@ void AdvanceFieldIndex(int direction, int min, int max)
 }
 
 //*****************************************************************************
-// This handler is called whenever a new view is selected or exiting.
+// This handler is called whenever entering or exiting a view. This can
+// be used to set the default field index to something other than zero.
 //*****************************************************************************
 
 void HandleViewChange(int32_t view, bool select)
@@ -813,10 +814,6 @@ void HandleViewChange(int32_t view, bool select)
 
 void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
-    uint8_t mode;
-    uint8_t trackState;
-    int32_t trackNum;
-
     if (g_sys.remoteViewSelect)
     {
         /* Reset field being edited since the screen changed */
@@ -899,90 +896,20 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     }
     else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
-        trackNum = g_sys.remoteTrackNum;
-
-        switch(g_sys.remoteField)
+        if (direction > 0)
         {
-        case FIELD_TRACK_NUM:
-            if (direction > 0)
-            {
-                /* next track */
-                ++g_sys.remoteTrackNum;
+            ++g_sys.remoteField;
 
-                if (g_sys.remoteTrackNum >= g_sys.trackCount)
-                    g_sys.remoteTrackNum = 0;
-            }
+            if (g_sys.remoteField >= FIELD_LAST)
+                g_sys.remoteField = 0;
+
+        }
+        else
+        {
+            if (g_sys.remoteField == 0)
+                g_sys.remoteField = FIELD_LAST-1;
             else
-            {
-                /* previous track */
-                if (g_sys.remoteTrackNum == 0)
-                    g_sys.remoteTrackNum = g_sys.trackCount - 1;
-                else
-                    --g_sys.remoteTrackNum;
-            }
-            break;
-
-        case FIELD_TRACK_ARM:
-            /* Toggle track ready(armed) state */
-            Track_GetState(trackNum, &trackState);
-
-            /* toggle the ready flag */
-            if (trackState & STC_T_READY)
-                trackState &= ~STC_T_READY;
-            else
-                trackState |= STC_T_READY;
-
-            /* update the new track state */
-            Track_SetState(trackNum, trackState);
-            break;
-
-        case FIELD_TRACK_MODE:
-            /* Get current track mode */
-            Track_GetState(trackNum, &trackState);
-
-            mode = STC_TRACK_MASK & trackState;
-
-            ++mode;
-
-            if (mode > STC_TRACK_INPUT)
-                mode = STC_TRACK_REPRO;
-
-            trackState &= ~(STC_TRACK_MASK);
-
-            trackState |= mode;
-
-            /* update the new track state */
-            Track_SetState(trackNum, trackState);
-
-            break;
-
-        case FIELD_TRACK_MONITOR:
-            /* Get the current standby monitor state */
-            Track_GetState(trackNum, &trackState);
-
-            // Toggle monitor enable flag for the track
-            trackState ^= STC_T_MONITOR;
-
-            // If not in monitor mode, clear standby bit!
-            if (!(trackState & STC_T_MONITOR))
-            {
-                trackState &= ~(STC_T_STANDBY);
-            }
-            else
-            {
-                // If master monitor enabled, enable standby mode for
-                // the track so it will switch to standby input mode.
-                if (g_sys.standbyMonitor)
-                    trackState |= STC_T_STANDBY;
-            }
-
-            /* update the new track state */
-            Track_SetState(trackNum, trackState);
-            break;
-
-        default:
-            g_sys.remoteField = 0;
-            break;
+                --g_sys.remoteField;
         }
     }
     else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
@@ -1006,6 +933,10 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 
 void HandleJogwheelPress(uint32_t switch_mask)
 {
+    uint8_t mode;
+    uint8_t trackState;
+    int32_t trackNum;
+
     if (g_sys.remoteViewSelect)
     {
         /* exit view select mode */
@@ -1071,11 +1002,80 @@ void HandleJogwheelPress(uint32_t switch_mask)
         }
         else
         {
-            /* Otherwise, move to next edit field */
-            ++g_sys.remoteField;
+            trackNum = g_sys.remoteTrackNum;
 
-            if (g_sys.remoteField >= FIELD_LAST)
+            switch(g_sys.remoteField)
+            {
+            case FIELD_TRACK_NUM:
+                /* next track */
+                ++g_sys.remoteTrackNum;
+
+                if (g_sys.remoteTrackNum >= g_sys.trackCount)
+                    g_sys.remoteTrackNum = 0;
+                break;
+
+            case FIELD_TRACK_ARM:
+                /* Toggle track ready(armed) state */
+                Track_GetState(trackNum, &trackState);
+
+                /* toggle the ready flag */
+                if (trackState & STC_T_READY)
+                    trackState &= ~STC_T_READY;
+                else
+                    trackState |= STC_T_READY;
+
+                /* update the new track state */
+                Track_SetState(trackNum, trackState);
+                break;
+
+            case FIELD_TRACK_MODE:
+                /* Get current track mode */
+                Track_GetState(trackNum, &trackState);
+
+                mode = STC_TRACK_MASK & trackState;
+
+                ++mode;
+
+                if (mode > STC_TRACK_INPUT)
+                    mode = STC_TRACK_REPRO;
+
+                trackState &= ~(STC_TRACK_MASK);
+
+                trackState |= mode;
+
+                /* update the new track state */
+                Track_SetState(trackNum, trackState);
+
+                break;
+
+            case FIELD_TRACK_MONITOR:
+                /* Get the current standby monitor state */
+                Track_GetState(trackNum, &trackState);
+
+                // Toggle monitor enable flag for the track
+                trackState ^= STC_T_MONITOR;
+
+                // If not in monitor mode, clear standby bit!
+                if (!(trackState & STC_T_MONITOR))
+                {
+                    trackState &= ~(STC_T_STANDBY);
+                }
+                else
+                {
+                    // If master monitor enabled, enable standby mode for
+                    // the track so it will switch to standby input mode.
+                    if (g_sys.standbyMonitor)
+                        trackState |= STC_T_STANDBY;
+                }
+
+                /* update the new track state */
+                Track_SetState(trackNum, trackState);
+                break;
+
+            default:
                 g_sys.remoteField = 0;
+                break;
+            }
         }
     }
     else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)

@@ -893,7 +893,7 @@ void DrawTrackSetAll(void)
         30, 35, "SYNC",
         30, 45, "REPRO",
         98, 25, "SAFE",
-        98, 45, "READY",
+        98, 35, "READY",
     };
 
     MenuDraw("SET ALL TRACKS TO",
