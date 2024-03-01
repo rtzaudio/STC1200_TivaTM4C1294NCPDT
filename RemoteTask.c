@@ -582,29 +582,6 @@ int StrToTapeTime(char *digits, TAPETIME* tapetime)
 }
 
 //*****************************************************************************
-// Helper Functions
-//*****************************************************************************
-
-void AdvanceFieldIndex(int direction, int min, int max)
-{
-    if (direction > 0)
-    {
-        ++g_sys.remoteFieldIndex;
-
-        if (g_sys.remoteFieldIndex > max)
-            g_sys.remoteFieldIndex = min;
-
-    }
-    else
-    {
-        if (g_sys.remoteFieldIndex == 0)
-            g_sys.remoteFieldIndex = max;
-        else
-            --g_sys.remoteFieldIndex;
-    }
-}
-
-//*****************************************************************************
 // Handle button press events from DRC remote
 //*****************************************************************************
 
@@ -786,121 +763,46 @@ void HandleDigitPress(size_t index, uint32_t cue_flags)
 }
 
 //*****************************************************************************
-// This handler is called when the user presses the jog wheel down to close
-// the switch within jog wheel encoder.
+// Helper Functions
 //*****************************************************************************
 
-void HandleJogwheelPress(uint32_t switch_mask)
+void AdvanceFieldIndex(int direction, int min, int max)
 {
-    if (g_sys.remoteViewSelect)
+    if (direction > 0)
     {
-        /* exit view select mode */
-        g_sys.remoteViewSelect = false;
-        /* turn off menu button led */
-        SetButtonLedMask(0, L_MENU);
-        /* notify view change */
-        HandleViewChange(g_sys.remoteView, g_sys.remoteViewSelect);
-        return;
+        ++g_sys.remoteFieldIndex;
+
+        if (g_sys.remoteFieldIndex > max)
+            g_sys.remoteFieldIndex = min;
+
     }
-
-    if (g_sys.remoteView == VIEW_TAPE_TIME)
-    {
-        switch (g_sys.remoteMode)
-        {
-        case REMOTE_MODE_EDIT:
-            CompleteEditTimeState();
-            break;
-
-        default:
-            if (!g_sys.varispeedMode)
-            {
-                /* Enable vari-speed mode */
-                g_sys.varispeedMode = true;
-            }
-            else
-            {
-                /* Reset ref frequency to default */
-                g_sys.ref_freq = REF_FREQ;
-
-                /* Calculate the 32-bit frequency divisor */
-                uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
-
-                /* Program the DSS ref clock with new value */
-                AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-                AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
-
-                /* Disable vari-speed mode */
-                g_sys.varispeedMode = false;
-            }
-            break;
-        }
-    }
-    else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
-    {
-        /* Check for ALT/Shift button modifier */
-        if ((switch_mask & SW_ALT) && (g_sys.remoteField == FIELD_TRACK_MONITOR))
-        {
-            if (g_sys.standbyMonitor)
-            {
-                /* disable global standby monitor */
-                g_sys.standbyMonitor = false;
-                Track_StandbyTransferAll(false);
-            }
-            else
-            {
-                /* enable global standby monitor */
-                g_sys.standbyMonitor = true;
-                Track_StandbyTransferAll(true);
-            }
-        }
-        else
-        {
-            /* Otherwise, move to next edit field */
-            ++g_sys.remoteField;
-
-            if (g_sys.remoteField >= FIELD_LAST)
-                g_sys.remoteField = 0;
-        }
-    }
-    else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
-    {
-        switch (g_sys.remoteFieldIndex)
-        {
-        case 0:
-            /* Set all tracks to input */
-            Track_SetModeAll(STC_TRACK_INPUT);
-            break;
-        case 1:
-            /* Set all tracks to sync */
-            Track_SetModeAll(STC_TRACK_SYNC);
-            break;
-        case 2:
-            /* Set all tracks to repro */
-            Track_SetModeAll(STC_TRACK_REPRO);
-            break;
-        case 3:
-            /* Set all tracks to safe */
-            Track_MaskAll(0, STC_T_READY);
-            break;
-        case 4:
-            /* Set all tracks to ready */
-            Track_MaskAll(STC_T_READY, 0);
-            break;
-        }
-    }
-    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    else
     {
         if (g_sys.remoteFieldIndex == 0)
-            Track_MaskAll(STC_T_MONITOR, 0);
+            g_sys.remoteFieldIndex = max;
         else
-            Track_MaskAll(0, STC_T_MONITOR);
+            --g_sys.remoteFieldIndex;
     }
-    else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
+}
+
+//*****************************************************************************
+// This handler is called whenever a new view is selected or exiting.
+//*****************************************************************************
+
+void HandleViewChange(int32_t view, bool select)
+{
+    switch(view)
     {
-        if (g_sys.remoteFieldIndex == 0)
-            Track_SetTapeSpeed(15);
-        else
-            Track_SetTapeSpeed(30);
+    case VIEW_TAPE_SPEED_SET:
+        if (select)
+        {
+            /* Highlight the speed currently selected */
+            g_sys.remoteFieldIndex = (g_sys.tapeSpeed == 30) ? 1 : 0;
+        }
+        break;
+
+    default:
+        break;
     }
 }
 
@@ -949,7 +851,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         }
 
         /* notify view change */
-        HandleViewChange(g_sys.remoteView, g_sys.remoteViewSelect);
+        HandleViewChange(g_sys.remoteView, 1);
     }
     else if (g_sys.varispeedMode)
     {
@@ -1098,23 +1000,123 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 }
 
 //*****************************************************************************
-// This handler is called whenever a new view is selected or exiting.
+// This handler is called when the user presses the jog wheel down to close
+// the switch within jog wheel encoder.
 //*****************************************************************************
 
-void HandleViewChange(int32_t view, bool select)
+void HandleJogwheelPress(uint32_t switch_mask)
 {
-    switch(view)
+    if (g_sys.remoteViewSelect)
     {
-    case VIEW_TAPE_SPEED_SET:
-        if (select)
-        {
-            /* Highlight the speed currently selected */
-            g_sys.remoteFieldIndex = (g_sys.tapeSpeed == 30) ? 1 : 0;
-        }
-        break;
+        /* exit view select mode */
+        g_sys.remoteViewSelect = false;
 
-    default:
-        break;
+        /* turn off menu button led */
+        SetButtonLedMask(0, L_MENU);
+
+        /* notify view change */
+        HandleViewChange(g_sys.remoteView, 0);
+        return;
+    }
+
+    if (g_sys.remoteView == VIEW_TAPE_TIME)
+    {
+        switch (g_sys.remoteMode)
+        {
+        case REMOTE_MODE_EDIT:
+            CompleteEditTimeState();
+            break;
+
+        default:
+            if (!g_sys.varispeedMode)
+            {
+                /* Enable vari-speed mode */
+                g_sys.varispeedMode = true;
+            }
+            else
+            {
+                /* Reset ref frequency to default */
+                g_sys.ref_freq = REF_FREQ;
+
+                /* Calculate the 32-bit frequency divisor */
+                uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
+
+                /* Program the DSS ref clock with new value */
+                AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+                AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+                /* Disable vari-speed mode */
+                g_sys.varispeedMode = false;
+            }
+            break;
+        }
+    }
+    else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
+    {
+        /* Check for ALT/Shift button modifier */
+        if ((switch_mask & SW_ALT) && (g_sys.remoteField == FIELD_TRACK_MONITOR))
+        {
+            if (g_sys.standbyMonitor)
+            {
+                /* disable global standby monitor */
+                g_sys.standbyMonitor = false;
+                Track_StandbyTransferAll(false);
+            }
+            else
+            {
+                /* enable global standby monitor */
+                g_sys.standbyMonitor = true;
+                Track_StandbyTransferAll(true);
+            }
+        }
+        else
+        {
+            /* Otherwise, move to next edit field */
+            ++g_sys.remoteField;
+
+            if (g_sys.remoteField >= FIELD_LAST)
+                g_sys.remoteField = 0;
+        }
+    }
+    else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
+    {
+        switch (g_sys.remoteFieldIndex)
+        {
+        case 0:
+            /* Set all tracks to input */
+            Track_SetModeAll(STC_TRACK_INPUT);
+            break;
+        case 1:
+            /* Set all tracks to sync */
+            Track_SetModeAll(STC_TRACK_SYNC);
+            break;
+        case 2:
+            /* Set all tracks to repro */
+            Track_SetModeAll(STC_TRACK_REPRO);
+            break;
+        case 3:
+            /* Set all tracks to safe */
+            Track_MaskAll(0, STC_T_READY);
+            break;
+        case 4:
+            /* Set all tracks to ready */
+            Track_MaskAll(STC_T_READY, 0);
+            break;
+        }
+    }
+    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    {
+        if (g_sys.remoteFieldIndex == 0)
+            Track_MaskAll(STC_T_MONITOR, 0);
+        else
+            Track_MaskAll(0, STC_T_MONITOR);
+    }
+    else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
+    {
+        if (g_sys.remoteFieldIndex == 0)
+            Track_SetTapeSpeed(15);
+        else
+            Track_SetTapeSpeed(30);
     }
 }
 
