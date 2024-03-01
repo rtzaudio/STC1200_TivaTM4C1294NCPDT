@@ -197,34 +197,6 @@ void GrInflateRect(tRectangle* rect,
 }
 
 //*****************************************************************************
-// Draw the welcome screen with version info
-//*****************************************************************************
-
-void DrawAbout(void)
-{
-    int len;
-    uint32_t y;
-    uint32_t height;
-    char buf[64];
-
-    /* Set foreground pixel color on to 0x01 */
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-
-    /* Fixed system font */
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
-    height = GrStringHeightGet(&g_context);
-
-    y = 12;
-    len = sprintf(buf, "STC-1200");
-    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-    y += (height/2) + 10;
-
-    len = sprintf(buf, "STC-1200 v%d.%02d.%d", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
-    GrStringDrawCentered(&g_context, buf, len, SCREEN_WIDTH/2, y, FALSE);
-}
-
-//*****************************************************************************
 //
 //*****************************************************************************
 
@@ -249,7 +221,8 @@ void DrawInfo(void)
     y = 10;
 
     /* Display firmware version */
-    len = sprintf(buf, "STC-1200 v%d.%02d.%d", FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
+    len = sprintf(buf, "STC-1200 v%d.%02d.%d",
+                  FIRMWARE_VER, FIRMWARE_REV, FIRMWARE_BUILD);
     GrStringDrawCentered(&g_context, buf, len, x, y, false);
 
     /* Display the ref clock frequency */
