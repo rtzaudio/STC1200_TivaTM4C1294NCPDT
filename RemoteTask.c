@@ -91,16 +91,16 @@ extern tContext g_context;
 extern Mailbox_Handle g_mailboxRemote;
 
 /* Static Function Prototypes */
-static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
-static void HandleDigitPress(size_t index, uint32_t cue_flags);
-static void HandleJogwheelPress(uint32_t switch_mask);
-static void HandleJogwheelMotion(uint32_t velocity, int direction);
-static void HandleViewChange(int32_t view, bool select);
 static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void RemoteSetMode(uint32_t mode);
 static void ResetDigitBuf(void);
 static int StrToTapeTime(char *digits, TAPETIME* tapetime);
 static void CompleteEditTimeState();
+static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
+static void HandleDigitPress(size_t index, uint32_t cue_flags);
+static void HandleJogwheelClick(uint32_t switch_mask);
+static void HandleJogwheelMotion(uint32_t velocity, int direction);
+static void HandleViewChange(int32_t view, bool select);
 
 //*****************************************************************************
 // Initialize the remote display task
@@ -129,9 +129,8 @@ void Remote_PostSwitchPress(uint32_t mode, uint32_t flags)
 {
     RAMP_MSG msg;
 
-    msg.type   = MSG_TYPE_SWITCH;
-    msg.opcode = OP_SWITCH_REMOTE;
-
+    msg.type     = MSG_TYPE_SWITCH;
+    msg.opcode   = OP_SWITCH_REMOTE;
     msg.param1.U = mode;
     msg.param2.U = flags;
 
@@ -231,14 +230,13 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
     RAMP_MSG msg;
     uint32_t cue_flags;
 
-    g_sys.cueIndex = 0;
     g_sys.remoteMode = REMOTE_MODE_UNDEFINED;
-
+    g_sys.cueIndex = 0;
+    g_sys.remoteFieldIndex = FIELD_TRACK_NUM;
     g_sys.remoteView = VIEW_TAPE_TIME;
-    g_sys.remoteField = FIELD_TRACK_NUM;
-    g_sys.remoteFieldIndex = 0;
     g_sys.remoteViewSelect = false;
     g_sys.remoteTrackNum = 0;
+    g_sys.remoteTrackNumSelect = false;
 
     /* Initialize LOC-1 memory as return to zero at CUE point 1 */
     g_sys.remoteModePrev = REMOTE_MODE_CUE;
@@ -315,7 +313,7 @@ Void RemoteTaskFxn(UArg arg0, UArg arg1)
             else if (msg.opcode == OP_SWITCH_JOGWHEEL)
             {
                 /* Jog wheel switch button was pressed */
-                HandleJogwheelPress(msg.param1.U);
+                HandleJogwheelClick(msg.param1.U);
             }
             break;
 
@@ -817,7 +815,9 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     if (g_sys.remoteViewSelect)
     {
         /* Reset field being edited since the screen changed */
-        g_sys.remoteField = g_sys.remoteFieldIndex = 0;
+        g_sys.remoteFieldIndex = 0;
+
+        g_sys.remoteTrackNumSelect = false;
 
         if (direction > 0)
         {
@@ -896,21 +896,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     }
     else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
-        if (direction > 0)
-        {
-            ++g_sys.remoteField;
-
-            if (g_sys.remoteField >= FIELD_LAST)
-                g_sys.remoteField = 0;
-
-        }
-        else
-        {
-            if (g_sys.remoteField == 0)
-                g_sys.remoteField = FIELD_LAST-1;
-            else
-                --g_sys.remoteField;
-        }
+        AdvanceFieldIndex(direction, 0, FIELD_LAST-1);
     }
     else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
     {
@@ -931,7 +917,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 // the switch within jog wheel encoder.
 //*****************************************************************************
 
-void HandleJogwheelPress(uint32_t switch_mask)
+void HandleJogwheelClick(uint32_t switch_mask)
 {
     uint8_t mode;
     uint8_t trackState;
@@ -985,7 +971,7 @@ void HandleJogwheelPress(uint32_t switch_mask)
     else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
         /* Check for ALT/Shift button modifier */
-        if ((switch_mask & SW_ALT) && (g_sys.remoteField == FIELD_TRACK_MONITOR))
+        if ((switch_mask & SW_ALT) && (g_sys.remoteFieldIndex == FIELD_TRACK_MONITOR))
         {
             if (g_sys.standbyMonitor)
             {
@@ -1004,7 +990,7 @@ void HandleJogwheelPress(uint32_t switch_mask)
         {
             trackNum = g_sys.remoteTrackNum;
 
-            switch(g_sys.remoteField)
+            switch(g_sys.remoteFieldIndex)
             {
             case FIELD_TRACK_NUM:
                 /* next track */
@@ -1012,6 +998,8 @@ void HandleJogwheelPress(uint32_t switch_mask)
 
                 if (g_sys.remoteTrackNum >= g_sys.trackCount)
                     g_sys.remoteTrackNum = 0;
+
+                g_sys.remoteTrackNumSelect = true;
                 break;
 
             case FIELD_TRACK_ARM:
@@ -1073,7 +1061,7 @@ void HandleJogwheelPress(uint32_t switch_mask)
                 break;
 
             default:
-                g_sys.remoteField = 0;
+                g_sys.remoteFieldIndex = 0;
                 break;
             }
         }

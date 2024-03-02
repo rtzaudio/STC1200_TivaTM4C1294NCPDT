@@ -120,6 +120,30 @@ extern tFont *g_psFontWDseg7bold10pt;
 extern tFont *g_psFontWMonospace10pt;
 
 //*****************************************************************************
+// Graphics Helpers
+//*****************************************************************************
+
+void GrSetRect(tRectangle* rect,
+               int16_t XMin, int16_t YMin,
+               int16_t XMax, int16_t YMax)
+{
+    rect->i16XMin = XMin;
+    rect->i16YMin = YMin;
+    rect->i16XMax = XMax;
+    rect->i16YMax = YMax;
+}
+
+void GrInflateRect(tRectangle* rect,
+               int16_t XMin, int16_t YMin,
+               int16_t XMax, int16_t YMax)
+{
+    rect->i16XMin += XMin;
+    rect->i16YMin += YMin;
+    rect->i16XMax += XMax;
+    rect->i16YMax += YMax;
+}
+
+//*****************************************************************************
 // Clear the display screen
 //*****************************************************************************
 
@@ -170,30 +194,6 @@ void DrawScreen(uint32_t uScreenNum)
    }
 
     GrFlush(&g_context);
-}
-
-//*****************************************************************************
-// Graphics Helpers
-//*****************************************************************************
-
-void GrSetRect(tRectangle* rect,
-               int16_t XMin, int16_t YMin,
-               int16_t XMax, int16_t YMax)
-{
-    rect->i16XMin = XMin;
-    rect->i16YMin = YMin;
-    rect->i16XMax = XMax;
-    rect->i16YMax = YMax;
-}
-
-void GrInflateRect(tRectangle* rect,
-               int16_t XMin, int16_t YMin,
-               int16_t XMax, int16_t YMax)
-{
-    rect->i16XMin += XMin;
-    rect->i16YMin += YMin;
-    rect->i16XMax += XMax;
-    rect->i16YMax += YMax;
 }
 
 //*****************************************************************************
@@ -658,7 +658,7 @@ void DrawTrackAssign(void)
     GrRectDraw(&g_context, &rect);
 
     /* Draw inner hi-light rect if active edit field */
-    if ((g_sys.remoteField == FIELD_TRACK_ARM) && (!g_sys.remoteViewSelect))
+    if ((g_sys.remoteFieldIndex == FIELD_TRACK_ARM) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -721,7 +721,7 @@ void DrawTrackAssign(void)
     }
 
     /* Draw inner hi-light rect if active edit field */
-    if ((g_sys.remoteField == FIELD_TRACK_MODE) && (!g_sys.remoteViewSelect))
+    if ((g_sys.remoteFieldIndex == FIELD_TRACK_MODE) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -754,7 +754,7 @@ void DrawTrackAssign(void)
     }
 
     /* Draw inner hi-light rect if active edit field */
-    if ((g_sys.remoteField == FIELD_TRACK_MONITOR) && (!g_sys.remoteViewSelect))
+    if ((g_sys.remoteFieldIndex == FIELD_TRACK_MONITOR) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -786,7 +786,7 @@ void DrawTrackAssign(void)
     GrRectDraw(&g_context, &rect);
 
     /* Draw inner hi-light rect if active edit field */
-    if ((g_sys.remoteField == FIELD_TRACK_NUM) && (!g_sys.remoteViewSelect))
+    if ((g_sys.remoteFieldIndex == FIELD_TRACK_NUM) && (!g_sys.remoteViewSelect))
     {
         rect2 = rect;
         GrInflateRect(&rect2, 1, 1, -1, -1);
@@ -807,6 +807,9 @@ void DrawTrackAssign(void)
     len = sprintf(buf, "%u", trackNum + 1);
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
     y += height;
+
+    //g_sys.remoteTrackNumSelect
+
 
     /*** Draw Tape Time ***/
 
