@@ -1110,10 +1110,31 @@ void HandleJogwheelClick(uint32_t switch_mask)
     }
     else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
     {
-        if (g_sys.remoteFieldIndex == 0)
+        switch (g_sys.remoteFieldIndex)
+        {
+        case 0:
             Track_MaskAll(STC_T_MONITOR, 0);
-        else
+            break;
+        case 1:
             Track_MaskAll(0, STC_T_MONITOR);
+            break;
+        case 2:
+            /* disable global standby monitor */
+            if (g_sys.standbyMonitor)
+            {
+                g_sys.standbyMonitor = false;
+                Track_StandbyTransferAll(false);
+            }
+            break;
+        case 3:
+            /* enable global standby monitor */
+            if (!g_sys.standbyMonitor)
+            {
+                g_sys.standbyMonitor = true;
+                Track_StandbyTransferAll(true);
+            }
+            break;
+        }
     }
     else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {

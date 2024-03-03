@@ -938,6 +938,8 @@ void DrawStandbyMonSet(void)
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "SET ALL",
         CENTER_X, 35, "CLEAR ALL",
+        CENTER_X, 25, "STANDBY OFF",
+        CENTER_X, 35, "STANDBY OFF",
     };
 
     MenuDraw("TRACK STANDBY MONITOR",
