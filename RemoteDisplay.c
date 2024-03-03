@@ -808,9 +808,6 @@ void DrawTrackAssign(void)
     GrStringDrawCentered(&g_context, buf, len, x, y, TRUE);
     y += height;
 
-    //g_sys.remoteTrackNumSelect
-
-
     /*** Draw Tape Time ***/
 
 #if 0
@@ -832,9 +829,25 @@ void DrawTrackAssign(void)
 
     GrContextFontSet(&g_context, g_psFontFixed6x8);
     height = GrStringHeightGet(&g_context);
-    len = snprintf(buf, sizeof(buf)-1, (g_sys.standbyMonitor) ? "STANDBY" : "TAPE");
-    x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
-    GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+
+    if (g_sys.remoteTrackNumSelect)
+    {
+        GrSetRect(&rect2, rect.i16XMin, rect.i16YMax-12, rect.i16XMax, rect.i16YMax);
+        GrRectFill(&g_context, &rect2);
+
+        GrContextForegroundSetTranslated(&g_context, 0);
+        GrContextBackgroundSetTranslated(&g_context, 1);
+
+        len = snprintf(buf, sizeof(buf)-1, "JOG+CLICK");
+        x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
+        GrStringDrawCentered(&g_context, buf, len, x, y+3, FALSE);
+    }
+    else
+    {
+        len = snprintf(buf, sizeof(buf)-1, (g_sys.standbyMonitor) ? "STANDBY" : "TAPE");
+        x = rect.i16XMin + ((rect.i16XMax - rect.i16XMin) / 2);
+        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+    }
 }
 
 //*****************************************************************************
@@ -851,13 +864,24 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
 
     MenuOption* mp = menu;
 
-    /* Normal Mono */
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
-    GrContextFontSet(&g_context, g_psFontFixed6x8);
+    if (g_sys.remoteViewSelect)
+    {
+        GrSetRect(&rect, 0, 0, SCREEN_WIDTH, 10);
+        GrRectFill(&g_context, &rect);
 
+        /* Normal Mono */
+        GrContextForegroundSetTranslated(&g_context, 0);
+        GrContextBackgroundSetTranslated(&g_context, 1);
+    }
+
+    GrContextFontSet(&g_context, g_psFontFixed6x8);
     GrStringDrawCentered(&g_context, heading, -1, CENTER_X, 5, TRUE);
+
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
 
     for (i=0, mp=menu; i < count; i++, mp++)
     {

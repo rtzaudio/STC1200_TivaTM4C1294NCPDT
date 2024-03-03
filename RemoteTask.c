@@ -816,7 +816,6 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     {
         /* Reset field being edited since the screen changed */
         g_sys.remoteFieldIndex = 0;
-
         g_sys.remoteTrackNumSelect = false;
 
         if (direction > 0)
@@ -896,7 +895,27 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     }
     else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
-        AdvanceFieldIndex(direction, 0, FIELD_LAST-1);
+        if (g_sys.remoteTrackNumSelect)
+        {
+            if (direction > 0)
+            {
+                ++g_sys.remoteTrackNum;
+
+                if (g_sys.remoteTrackNum >= g_sys.trackCount)
+                    g_sys.remoteTrackNum = 0;
+            }
+            else
+            {
+                if (g_sys.remoteTrackNum == 0)
+                    g_sys.remoteTrackNum =  g_sys.trackCount - 1;
+                else
+                    --g_sys.remoteTrackNum;
+            }
+        }
+        else
+        {
+            AdvanceFieldIndex(-direction, 0, FIELD_LAST-1);
+        }
     }
     else if (g_sys.remoteView == VIEW_TRACK_SET_ALL)
     {
@@ -993,13 +1012,10 @@ void HandleJogwheelClick(uint32_t switch_mask)
             switch(g_sys.remoteFieldIndex)
             {
             case FIELD_TRACK_NUM:
-                /* next track */
-                ++g_sys.remoteTrackNum;
-
-                if (g_sys.remoteTrackNum >= g_sys.trackCount)
-                    g_sys.remoteTrackNum = 0;
-
-                g_sys.remoteTrackNumSelect = true;
+                if (!g_sys.remoteTrackNumSelect)
+                    g_sys.remoteTrackNumSelect = true;
+                else
+                    g_sys.remoteTrackNumSelect = false;
                 break;
 
             case FIELD_TRACK_ARM:
