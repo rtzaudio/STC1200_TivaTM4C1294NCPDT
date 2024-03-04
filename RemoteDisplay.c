@@ -97,6 +97,7 @@ static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 static void DrawTrackSetAll(void);
 static void DrawTapeSpeedSet(void);
+static void DrawStandbyTracksSet(void);
 static void DrawStandbyMonSet(void);
 
 /* Helpers */
@@ -178,6 +179,10 @@ void DrawScreen(uint32_t uScreenNum)
         break;
 
     case VIEW_STANDBY_SET_ALL:
+        DrawStandbyTracksSet();
+        break;
+
+    case VIEW_STANDBY_MON_SET:
         DrawStandbyMonSet();
         break;
 
@@ -933,16 +938,31 @@ void DrawTrackSetAll(void)
 //
 //*****************************************************************************
 
-void DrawStandbyMonSet(void)
+void DrawStandbyTracksSet(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "SET ALL",
         CENTER_X, 35, "CLEAR ALL",
-        CENTER_X, 25, "STANDBY OFF",
-        CENTER_X, 35, "STANDBY OFF",
     };
 
     MenuDraw("TRACK STANDBY MONITOR",
+             menuOptions,
+             sizeof(menuOptions)/sizeof(MenuOption),
+             g_sys.remoteFieldIndex);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawStandbyMonSet(void)
+{
+    static MenuOption menuOptions[] = {
+        CENTER_X, 25, "ENABLE",
+        CENTER_X, 35, "DISABLE",
+    };
+
+    MenuDraw("STANDBY MONITOR",
              menuOptions,
              sizeof(menuOptions)/sizeof(MenuOption),
              g_sys.remoteFieldIndex);
