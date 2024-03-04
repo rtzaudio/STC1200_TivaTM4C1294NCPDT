@@ -794,10 +794,12 @@ void HandleViewChange(int32_t view, bool select)
     {
     case VIEW_TAPE_SPEED_SET:
         if (select)
-        {
-            /* Highlight the speed currently selected */
             g_sys.remoteFieldIndex = (g_sys.tapeSpeed == 30) ? 1 : 0;
-        }
+        break;
+
+    case VIEW_STANDBY_MON_SET:
+        if (select)
+            g_sys.remoteFieldIndex = (g_sys.standbyMonitor) ? 1 : 0;
         break;
 
     default:
@@ -922,6 +924,10 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         AdvanceFieldIndex(direction, 0, 4);
     }
     else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    {
+        AdvanceFieldIndex(direction, 0, 1);
+    }
+    else if (g_sys.remoteView == VIEW_STANDBY_MON_SET)
     {
         AdvanceFieldIndex(direction, 0, 1);
     }
@@ -1110,31 +1116,31 @@ void HandleJogwheelClick(uint32_t switch_mask)
     }
     else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
     {
-        switch (g_sys.remoteFieldIndex)
+        if (g_sys.remoteFieldIndex == 0)
         {
-        case 0:
-            Track_MaskAll(STC_T_MONITOR, 0);
-            break;
-        case 1:
-            Track_MaskAll(0, STC_T_MONITOR);
-            break;
-        case 2:
             /* disable global standby monitor */
             if (g_sys.standbyMonitor)
             {
                 g_sys.standbyMonitor = false;
                 Track_StandbyTransferAll(false);
             }
-            break;
-        case 3:
+        }
+        else
+        {
             /* enable global standby monitor */
             if (!g_sys.standbyMonitor)
             {
                 g_sys.standbyMonitor = true;
                 Track_StandbyTransferAll(true);
             }
-            break;
         }
+    }
+    else if (g_sys.remoteView == VIEW_STANDBY_MON_SET)
+    {
+        if (g_sys.remoteFieldIndex == 0)
+            Track_MaskAll(STC_T_MONITOR, 0);
+        else
+            Track_MaskAll(0, STC_T_MONITOR);
     }
     else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {

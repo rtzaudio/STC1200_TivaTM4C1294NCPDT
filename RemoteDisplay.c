@@ -928,7 +928,7 @@ void DrawTrackSetAll(void)
         98, 35, "READY",
     };
 
-    MenuDraw("SET ALL TRACKS TO",
+    MenuDraw("SET ALL TRACKS",
              menuOptions,
              sizeof(menuOptions)/sizeof(MenuOption),
              g_sys.remoteFieldIndex);
@@ -945,7 +945,7 @@ void DrawStandbyTracksSet(void)
         CENTER_X, 35, "CLEAR ALL",
     };
 
-    MenuDraw("TRACK STANDBY MONITOR",
+    MenuDraw("TRACK MONITOR",
              menuOptions,
              sizeof(menuOptions)/sizeof(MenuOption),
              g_sys.remoteFieldIndex);
