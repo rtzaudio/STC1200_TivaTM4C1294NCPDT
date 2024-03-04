@@ -797,7 +797,7 @@ void HandleViewChange(int32_t view, bool select)
             g_sys.remoteFieldIndex = (g_sys.tapeSpeed == 30) ? 1 : 0;
         break;
 
-    case VIEW_STANDBY_MON_SET:
+    case VIEW_MASTER_MON_SET:
         if (select)
             g_sys.remoteFieldIndex = (g_sys.standbyMonitor) ? 1 : 0;
         break;
@@ -927,7 +927,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     {
         AdvanceFieldIndex(direction, 0, 1);
     }
-    else if (g_sys.remoteView == VIEW_STANDBY_MON_SET)
+    else if (g_sys.remoteView == VIEW_MASTER_MON_SET)
     {
         AdvanceFieldIndex(direction, 0, 1);
     }
@@ -1114,18 +1114,9 @@ void HandleJogwheelClick(uint32_t switch_mask)
             break;
         }
     }
-    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    else if (g_sys.remoteView == VIEW_MASTER_MON_SET)
     {
         if (g_sys.remoteFieldIndex == 0)
-        {
-            /* disable global standby monitor */
-            if (g_sys.standbyMonitor)
-            {
-                g_sys.standbyMonitor = false;
-                Track_StandbyTransferAll(false);
-            }
-        }
-        else
         {
             /* enable global standby monitor */
             if (!g_sys.standbyMonitor)
@@ -1134,8 +1125,17 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 Track_StandbyTransferAll(true);
             }
         }
+        else
+        {
+            /* disable global standby monitor */
+            if (g_sys.standbyMonitor)
+            {
+                g_sys.standbyMonitor = false;
+                Track_StandbyTransferAll(false);
+            }
+        }
     }
-    else if (g_sys.remoteView == VIEW_STANDBY_MON_SET)
+    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
     {
         if (g_sys.remoteFieldIndex == 0)
             Track_MaskAll(STC_T_MONITOR, 0);
