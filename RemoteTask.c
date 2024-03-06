@@ -825,8 +825,8 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             /* next screen view */
             ++g_sys.remoteView;
 
-            if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TRACK_ASSIGN))
-                ++g_sys.remoteView;
+            if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TAPE_TIME))
+                g_sys.remoteView = VIEW_LAST - 1;
 
             if (g_sys.remoteView >= VIEW_LAST)
                 g_sys.remoteView = VIEW_TAPE_TIME;
