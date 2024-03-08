@@ -353,6 +353,90 @@ void DrawTimeTop(void)
 }
 
 
+void DrawTimeMiddle(void)
+{
+    char buf[64];
+    int32_t x, y;
+    int32_t len;
+    int32_t width;
+    int32_t height;
+
+    /*
+     * Draw the big time digits centered
+     */
+
+    /* Normal Mono */
+    GrContextForegroundSetTranslated(&g_context, 1);
+    GrContextBackgroundSetTranslated(&g_context, 0);
+
+    if (g_sys.cfgSTC.showLongTime)
+    {
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        height = GrStringHeightGet(&g_context);
+
+        len = sprintf(buf, "%1u:%02u:%02u:",
+                 g_sys.tapeTime.hour,
+                 g_sys.tapeTime.mins,
+                 g_sys.tapeTime.secs);
+
+        width = GrStringWidthGet(&g_context, buf, len);
+
+        x = 12;
+        y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
+        GrStringDraw(&g_context, buf, len, x, y, 0);
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
+        len = sprintf(buf, "%02u", g_sys.tapeTime.frame);
+        GrStringDraw(&g_context, buf, len, x+width, y+1, 0);
+
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCm14); //g_psFontCmss12);
+        len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 6, y+6, 1);
+
+        y += height + 4;
+        x = 13;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, x, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
+        GrStringDraw(&g_context, "FRM", -1, x + 85, y, 0);
+    }
+    else
+    {
+        /*
+         * Standard hour, mins, secs time display format
+         */
+
+        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
+        height = GrStringHeightGet(&g_context);
+
+        len = sprintf(buf, "%1u:%02u:%02u:%1u",
+                 g_sys.tapeTime.hour,
+                 g_sys.tapeTime.mins,
+                 g_sys.tapeTime.secs,
+                 g_sys.tapeTime.tens);
+
+        x = (SCREEN_WIDTH / 2) - 3;
+        y = (SCREEN_HEIGHT / 2) - 5;
+        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
+
+        /* Draw the sign in a different font as 7-seg does not have these chars */
+        GrContextFontSet(&g_context, g_psFontCm14);
+        len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
+        GrStringDrawCentered(&g_context, buf, len, 6, y-3, FALSE);
+
+        y += height - 5;
+        x = 13;
+        GrContextFontSet(&g_context, g_psFontFixed6x8);
+        GrStringDraw(&g_context, "HR", -1, x, y, 0);
+        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
+        GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
+        GrStringDraw(&g_context, "TEN", -1, x + 85, y, 0);
+    }
+}
+
+
 void DrawTimeBottom(void)
 {
     char buf[64];
@@ -492,90 +576,6 @@ void DrawTimeBottom(void)
 
             GrRectFill(&g_context, &rect2);
         }
-    }
-}
-
-
-void DrawTimeMiddle(void)
-{
-    char buf[64];
-    int32_t x, y;
-    int32_t len;
-    int32_t width;
-    int32_t height;
-
-    /*
-     * Draw the big time digits centered
-     */
-
-    /* Normal Mono */
-    GrContextForegroundSetTranslated(&g_context, 1);
-    GrContextBackgroundSetTranslated(&g_context, 0);
-
-    if (g_sys.cfgSTC.showLongTime)
-    {
-        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
-        height = GrStringHeightGet(&g_context);
-
-        len = sprintf(buf, "%1u:%02u:%02u:",
-                 g_sys.tapeTime.hour,
-                 g_sys.tapeTime.mins,
-                 g_sys.tapeTime.secs);
-
-        width = GrStringWidthGet(&g_context, buf, len);
-
-        x = 12;
-        y = (SCREEN_HEIGHT / 2) - ((height / 2) + 5);
-        GrStringDraw(&g_context, buf, len, x, y, 0);
-
-        GrContextFontSet(&g_context, g_psFontWDseg7bold10pt);
-        len = sprintf(buf, "%02u", g_sys.tapeTime.frame);
-        GrStringDraw(&g_context, buf, len, x+width, y+1, 0);
-
-        /* Draw the sign in a different font as 7-seg does not have these chars */
-        GrContextFontSet(&g_context, g_psFontCm14); //g_psFontCmss12);
-        len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
-        GrStringDrawCentered(&g_context, buf, len, 6, y+6, 1);
-
-        y += height + 4;
-        x = 13;
-        GrContextFontSet(&g_context, g_psFontFixed6x8);
-        GrStringDraw(&g_context, "HR", -1, x, y, 0);
-        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
-        GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
-        GrStringDraw(&g_context, "FRM", -1, x + 85, y, 0);
-    }
-    else
-    {
-        /*
-         * Standard hour, mins, secs time display format
-         */
-
-        GrContextFontSet(&g_context, g_psFontWDseg7bold18pt);
-        height = GrStringHeightGet(&g_context);
-
-        len = sprintf(buf, "%1u:%02u:%02u:%1u",
-                 g_sys.tapeTime.hour,
-                 g_sys.tapeTime.mins,
-                 g_sys.tapeTime.secs,
-                 g_sys.tapeTime.tens);
-
-        x = (SCREEN_WIDTH / 2) - 3;
-        y = (SCREEN_HEIGHT / 2) - 5;
-        GrStringDrawCentered(&g_context, buf, len, x, y, FALSE);
-
-        /* Draw the sign in a different font as 7-seg does not have these chars */
-        GrContextFontSet(&g_context, g_psFontCm14);
-        len = sprintf(buf, "%c", (g_sys.tapeTime.flags & F_PLUS) ? '+' : '-');
-        GrStringDrawCentered(&g_context, buf, len, 6, y-3, FALSE);
-
-        y += height - 5;
-        x = 13;
-        GrContextFontSet(&g_context, g_psFontFixed6x8);
-        GrStringDraw(&g_context, "HR", -1, x, y, 0);
-        GrStringDraw(&g_context, "MIN", -1, x + 24, y, 0);
-        GrStringDraw(&g_context, "SEC", -1, x + 57, y, 0);
-        GrStringDraw(&g_context, "TEN", -1, x + 85, y, 0);
     }
 }
 
@@ -941,8 +941,8 @@ void DrawTrackSetAll(void)
 void DrawStandbyTracksSet(void)
 {
     static MenuOption menuOptions[] = {
-        CENTER_X, 25, "SET ALL",
-        CENTER_X, 35, "CLEAR ALL",
+        CENTER_X, 25, "CLEAR ALL",
+        CENTER_X, 35, "SET ALL",
     };
 
     MenuDraw("STANDBY MONITOR",
@@ -958,8 +958,8 @@ void DrawStandbyTracksSet(void)
 void DrawMasterMonSet(void)
 {
     static MenuOption menuOptions[] = {
-        CENTER_X, 25, "ENABLE",
-        CENTER_X, 35, "DISABLE",
+        CENTER_X, 25, "DISABLE",
+        CENTER_X, 35, "ENABLE",
     };
 
     MenuDraw("MASTER MONITOR",

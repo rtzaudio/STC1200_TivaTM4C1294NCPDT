@@ -95,6 +95,7 @@ static Void RemoteTaskFxn(UArg arg0, UArg arg1);
 static void RemoteSetMode(uint32_t mode);
 static void ResetDigitBuf(void);
 static int StrToTapeTime(char *digits, TAPETIME* tapetime);
+static bool IsDCSView(int32_t screen);
 static void CompleteEditTimeState();
 static void HandleButtonPress(uint32_t mask, uint32_t cue_flags);
 static void HandleDigitPress(size_t index, uint32_t cue_flags);
@@ -808,6 +809,32 @@ void HandleViewChange(int32_t view, bool select)
 }
 
 //*****************************************************************************
+// Returns true if the view screen number is a DCS function, false otherwise.
+//*****************************************************************************
+
+bool IsDCSView(int32_t screen)
+{
+    bool flag = false;
+
+    switch(screen)
+    {
+    case VIEW_TRACK_ASSIGN:
+    case VIEW_TRACK_SET_ALL:
+    case VIEW_STANDBY_SET_ALL:
+    case VIEW_MASTER_MON_SET:
+    case VIEW_TAPE_SPEED_SET:
+        flag = true;
+        break;
+
+    default:
+        flag = false;
+        break;
+    }
+
+    return flag;
+}
+
+//*****************************************************************************
 // This handler is called when the remote jog wheel is being turned by the
 // user. Direction and velocity of the jog wheel are passed to the handler.
 //*****************************************************************************
@@ -825,27 +852,22 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             /* next screen view */
             ++g_sys.remoteView;
 
-            if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TAPE_TIME))
-                g_sys.remoteView = VIEW_LAST - 1;
-
             if (g_sys.remoteView >= VIEW_LAST)
                 g_sys.remoteView = VIEW_TAPE_TIME;
+
+            if (!g_sys.dcsFound && IsDCSView(g_sys.remoteView))
+                g_sys.remoteView = VIEW_INFO;
         }
         else
         {
             /* previous screen view */
-            --g_sys.remoteView;
-
-            if (g_sys.remoteView < 0)
+            if (g_sys.remoteView <= 0)
                 g_sys.remoteView = VIEW_LAST - 1;
+            else
+                g_sys.remoteView--;
 
-            if ((g_sys.dcsFound == false) && (g_sys.remoteView == VIEW_TRACK_ASSIGN))
-            {
-                --g_sys.remoteView;
-
-                if (g_sys.remoteView < 0)
-                    g_sys.remoteView = 0;
-            }
+            if (!g_sys.dcsFound && IsDCSView(g_sys.remoteView))
+                g_sys.remoteView = VIEW_TAPE_TIME;
         }
 
         /* notify view change */
@@ -1118,15 +1140,6 @@ void HandleJogwheelClick(uint32_t switch_mask)
     {
         if (g_sys.remoteFieldIndex == 0)
         {
-            /* enable global standby monitor */
-            if (!g_sys.standbyMonitor)
-            {
-                g_sys.standbyMonitor = true;
-                Track_StandbyTransferAll(true);
-            }
-        }
-        else
-        {
             /* disable global standby monitor */
             if (g_sys.standbyMonitor)
             {
@@ -1134,13 +1147,22 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 Track_StandbyTransferAll(false);
             }
         }
+        else
+        {
+            /* enable global standby monitor */
+            if (!g_sys.standbyMonitor)
+            {
+                g_sys.standbyMonitor = true;
+                Track_StandbyTransferAll(true);
+            }
+        }
     }
     else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
     {
         if (g_sys.remoteFieldIndex == 0)
-            Track_MaskAll(STC_T_MONITOR, 0);
-        else
             Track_MaskAll(0, STC_T_MONITOR);
+        else
+            Track_MaskAll(STC_T_MONITOR, 0);
     }
     else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
     {
