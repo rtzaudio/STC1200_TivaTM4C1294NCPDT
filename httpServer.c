@@ -376,16 +376,35 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* TENSION Settings */
-
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Tension Settings</legend>\r\n");
-
+    /* Supply */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Supply</legend>\r\n");
+    System_sprintf(buf, "Stop:<br><input type=\"text\" name=\"stop_supply_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.stop_supply_tension);
+    html(buf);
+    System_sprintf(buf, "Shuttle:<br><input type=\"text\" name=\"shuttle_supply_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.shuttle_supply_tension);
+    html(buf);
+    System_sprintf(buf, "Play-LO:<br><input type=\"text\" name=\"play_lo_supply_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.play_lo_supply_tension);
+    html(buf);
+    System_sprintf(buf, "Play-HI:<br><input type=\"text\" name=\"play_hi_supply_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.play_hi_supply_tension);
+    html(buf);
+    System_sprintf(buf, "Thread:<br><input type=\"text\" name=\"thread_supply_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.thread_supply_tension);
+    html(buf);
     html("</fieldset><br />\r\n");
-
+    /* Takeup */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Takeup</legend>\r\n");
+    System_sprintf(buf, "Stop:<br><input type=\"text\" name=\"stop_takeup_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.stop_takeup_tension);
+    html(buf);
+    System_sprintf(buf, "Shuttle:<br><input type=\"text\" name=\"shuttle_takeup_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.shuttle_takeup_tension);
+    html(buf);
+    System_sprintf(buf, "Play-LO:<br><input type=\"text\" name=\"play_lo_takeup_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.play_lo_takeup_tension);
+    html(buf);
+    System_sprintf(buf, "Play-HI:<br><input type=\"text\" name=\"play_hi_takeup_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.play_hi_takeup_tension);
+    html(buf);
+    System_sprintf(buf, "Thread:<br><input type=\"text\" name=\"thread_takeup_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.thread_takeup_tension);
+    html(buf);
     html("</fieldset><br />\r\n");
 
     html("<fieldset>\r\n");
