@@ -102,6 +102,12 @@ static int cgiConfig(SOCKET htmlSock, int ContentLength, char *pArgs);
 static Int sendRemoteHtml(SOCKET htmlSock, int length);
 static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs);
 
+static void emitHeader(SOCKET htmlSock, int menu_active, char* page_title);
+static void emitFooter(SOCKET htmlSock);
+static char *getstrYesNo(int f);
+static char *getstrFPS(void);
+static char *getstrSMPTEMode(void);
+
 #define html(str) httpSendClientStr(htmlSock, (char *)str)
 
 //*****************************************************************************
@@ -130,7 +136,7 @@ Void RemoveWebFiles(Void)
 //
 //*****************************************************************************
 
-static char *getstrFPS(void)
+char* getstrFPS(void)
 {
     char *p;
 
@@ -156,7 +162,7 @@ static char *getstrFPS(void)
     return p;
 }
 
-static char *getstrSMPTEMode(void)
+char* getstrSMPTEMode(void)
 {
     char *p;
 
@@ -179,7 +185,7 @@ static char *getstrSMPTEMode(void)
     return p;
 }
 
-static char *getstrYesNo(int f)
+char* getstrYesNo(int f)
 {
     return f ? "\"yes\"" : "\"no\"";
 }
@@ -205,7 +211,7 @@ void emitHeader(SOCKET htmlSock, int menu_active, char* page_title)
     html("<div class=\"container wrapper\">\r\n");
     html("<div id=\"top\">\r\n");
     html("<h1>STC-1200</h1>\r\n");
-    html("<p>tape-op / admin server</p>\r\n");
+    html("<p>admin server</p>\r\n");
     html("</div>\r\n");
 
     if (menu_active >= 0)
@@ -226,6 +232,18 @@ void emitHeader(SOCKET htmlSock, int menu_active, char* page_title)
         html("</ul>\r\n");
         html("</div>\r\n");
     }
+}
+
+void emitFooter(SOCKET htmlSock)
+{
+    html("</div>\r\n");
+    html("</div>\r\n");
+    html("<div id=\"bottom\">\r\n");
+    html(strCopyright);
+    html("</div>\r\n");
+    html("</div>\r\n");
+    html("</body>\r\n");
+    html("</html>\r\n");
 }
 
 //*****************************************************************************
@@ -279,7 +297,6 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     else
         System_sprintf(buf, "N/A</p>\r\n");
     html(buf);
-
     html("<p>SMPTE time code card: ");
     if (g_sys.smpteFound)
     {
@@ -290,22 +307,15 @@ static Int sendIndexHtml(SOCKET htmlSock, int length)
     {
         html("N/A</p>\r\n");
     }
-
+    System_sprintf(buf, "<p>MIDI device ID: %d</p>\r\n", g_sys.cfgSTC.midiDevID);
+    html(buf);
     System_sprintf(buf, "<p>System date: %s</p>\r\n", datestr);
     html(buf);
     System_sprintf(buf, "<p>System time: %s</p>\r\n", timestr);
     html(buf);
-
     html("</fieldset><br /><br />\r\n");
 
-    html("</div>\r\n");
-    html("</div>\r\n");
-    html("<div id=\"bottom\">\r\n");
-    html(strCopyright);
-    html("</div>\r\n");
-    html("</div>\r\n");
-    html("</body>\r\n");
-    html("</html>\r\n");
+    emitFooter(htmlSock);
 
     return 1;
 }
@@ -325,6 +335,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<form action=\"config.cgi\" method=\"post\">\r\n");
 
     /* GENERAL Settings */
+
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">General Settings</legend>\r\n");
     System_sprintf(buf, "<input type=\"checkbox\" name=\"longtime\" value=\"yes\" %s> Wired remote displays time in timecode form<br />\r\n", g_sys.cfgSTC.showLongTime ? "checked" : "");
@@ -334,6 +345,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* MIDI Settings */
+
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">MIDI Settings</legend>\r\n");
     System_sprintf(buf, "Device ID:<br><input type=\"text\" name=\"devid\" value=\"%u\"> <br />\r\n", g_sys.cfgSTC.midiDevID);
@@ -341,6 +353,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* SMPTE Settings */
+
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">SMPTE Settings</legend>\r\n");
     html("<label for=\"smpteRef\">Master ref clock frequency:</label><br>\r\n");
@@ -352,6 +365,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* LOCATOR Settings */
+
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Locator Settings</legend>\r\n");
     System_sprintf(buf, "Jog near velocity:<br><input type=\"text\" name=\"jognear\" value=\"%u\"><br />\r\n", g_sys.cfgSTC.jog_vel_near);
@@ -363,6 +377,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* TRANSPORT Settings */
+
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Transport Settings</legend>\r\n");
     System_sprintf(buf, "Velocity detect threshold:<br><input type=\"text\" name=\"velDet\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.vel_detect_threshold);
@@ -376,6 +391,7 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("</fieldset><br />\r\n");
 
     /* TENSION Settings */
+
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Tension Settings</legend>\r\n");
     /* Supply */
@@ -516,14 +532,8 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     html("<input class=\"btn\" type=\"submit\" name=\"submit\" value=\"Save\">\r\n");
     html("<input class=\"btn\" type=\"reset\" name=\"submit\" value=\"Reset\">\r\n");
     html("</form>\r\n");
-    html("</div>\r\n");
-    html("</div>\r\n");
-    html("<div id=\"bottom\">\r\n");
-    html(strCopyright);
-    html("</div>\r\n");
-    html("</div>\r\n");
-    html("</body>\r\n");
-    html("</html>\r\n");
+
+    emitFooter(htmlSock);
 
     return 1;
 }
@@ -621,6 +631,9 @@ ERROR:
 
 static Int sendRemoteHtml(SOCKET htmlSock, int length)
 {
+    int i;
+    char ch;
+    uint32_t lampmask = L_LOC1;
     Char buf[MAX_RESPONSE_SIZE];
 
     emitHeader(htmlSock, -1, "remote");
@@ -656,6 +669,7 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 
     html("<fieldset>\r\n");
     html("<legend>Locate</legend>\r\n");
+#if 0
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sys.ledMaskRemote & L_LOC1) ? '1' : '0');
     html(buf);
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc2\" value=\"LOC-2\">\r\n", (g_sys.ledMaskRemote & L_LOC2) ? '1' : '0');
@@ -676,6 +690,21 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
     html(buf);
     System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sys.ledMaskRemote & L_LOC0) ? '1' : '0');
     html(buf);
+#endif
+
+    for(i=0; i < 10; i++)
+    {
+        ch = (g_sys.ledMaskRemote & lampmask) ? '1' : '0';
+
+        System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc%d\" value=\"LOC-%d\">\r\n", ch, i+1, i+1);
+        html(buf);
+
+        if (i == 4)
+            html("<br />\r\n");
+
+        lampmask <<= 1;
+    }
+
     html("</fieldset>\r\n");
     html("</form>\r\n");
     //html("</div>\r\n");
