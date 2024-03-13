@@ -638,11 +638,17 @@ ERROR:
 // CGI Remote Page Callback Function
 //*****************************************************************************
 
+static void emitLocateButton(SOCKET htmlSock, int btn, bool state)
+{
+    Char buf[80];
+
+    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc%d\" value=\"LOC-%d\">\r\n",
+                   state ? '1' : '0', btn, btn);
+    html(buf);
+}
+
 static Int sendRemoteHtml(SOCKET htmlSock, int length)
 {
-    int i;
-    char ch;
-    uint32_t lampmask = L_LOC1;
     Char buf[MAX_RESPONSE_SIZE];
 
     emitHeader(htmlSock, -1, "remote");
@@ -678,41 +684,17 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 
     html("<fieldset>\r\n");
     html("<legend>Locate</legend>\r\n");
-#if 0
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc1\" value=\"LOC-1\">\r\n", (g_sys.ledMaskRemote & L_LOC1) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc2\" value=\"LOC-2\">\r\n", (g_sys.ledMaskRemote & L_LOC2) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc3\" value=\"LOC-3\">\r\n", (g_sys.ledMaskRemote & L_LOC3) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc4\" value=\"LOC-4\">\r\n", (g_sys.ledMaskRemote & L_LOC4) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc5\" value=\"LOC-5\"><br />\r\n", (g_sys.ledMaskRemote & L_LOC5) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc6\" value=\"LOC-6\">\r\n", (g_sys.ledMaskRemote & L_LOC6) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc7\" value=\"LOC-7\">\r\n", (g_sys.ledMaskRemote & L_LOC7) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc8\" value=\"LOC-8\">\r\n", (g_sys.ledMaskRemote & L_LOC8) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc9\" value=\"LOC-9\">\r\n", (g_sys.ledMaskRemote & L_LOC9) ? '1' : '0');
-    html(buf);
-    System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc0\" value=\"LOC-0\">\r\n", (g_sys.ledMaskRemote & L_LOC0) ? '1' : '0');
-    html(buf);
-#endif
 
-    for(i=0; i < 10; i++)
-    {
-        ch = (g_sys.ledMaskRemote & lampmask) ? '1' : '0';
-
-        System_sprintf(buf, "<input class=\"btn%c\" type=\"submit\" name=\"loc%d\" value=\"LOC-%d\">\r\n", ch, i+1, i+1);
-        html(buf);
-
-        if (i == 4)
-            html("<br />\r\n");
-
-        lampmask <<= 1;
-    }
+    emitLocateButton(htmlSock, 1, (g_sys.ledMaskRemote & L_LOC1));
+    emitLocateButton(htmlSock, 2, (g_sys.ledMaskRemote & L_LOC2));
+    emitLocateButton(htmlSock, 3, (g_sys.ledMaskRemote & L_LOC3));
+    emitLocateButton(htmlSock, 4, (g_sys.ledMaskRemote & L_LOC4));
+    emitLocateButton(htmlSock, 5, (g_sys.ledMaskRemote & L_LOC5));
+    emitLocateButton(htmlSock, 6, (g_sys.ledMaskRemote & L_LOC6));
+    emitLocateButton(htmlSock, 7, (g_sys.ledMaskRemote & L_LOC7));
+    emitLocateButton(htmlSock, 8, (g_sys.ledMaskRemote & L_LOC8));
+    emitLocateButton(htmlSock, 9, (g_sys.ledMaskRemote & L_LOC9));
+    emitLocateButton(htmlSock, 0, (g_sys.ledMaskRemote & L_LOC0));
 
     html("</fieldset>\r\n");
     html("</form>\r\n");
@@ -724,7 +706,6 @@ static Int sendRemoteHtml(SOCKET htmlSock, int length)
 
     return 1;
 }
-
 
 static int cgiRemote(SOCKET htmlSock, int ContentLength, char *pArgs )
 {
