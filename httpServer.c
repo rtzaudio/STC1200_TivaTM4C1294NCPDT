@@ -422,15 +422,24 @@ static Int sendConfigHtml(SOCKET htmlSock, int length)
     System_sprintf(buf, "Thread:<br><input type=\"text\" name=\"thread_takeup_tension\" value=\"%u\"><br />\r\n", g_sys.cfgDTC.thread_takeup_tension);
     html(buf);
     html("</fieldset><br />\r\n");
-
+    /* Tension Sensor */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Tension Sensor</legend>\r\n");
+    System_sprintf(buf, "Tension sensor gain:<br><input type=\"text\" name=\"tension_sensor_gain\" value=\"%.1f\"><br />\r\n", g_sys.cfgDTC.tension_sensor_gain);
+    html(buf);
+    System_sprintf(buf, "ADC mid-scale offset 1\":<br><input type=\"text\" name=\"tension_sensor_midscale1\" value=\"%u\"><br />\r\n", (uint32_t)g_sys.cfgDTC.tension_sensor_midscale1);
+    html(buf);
+    System_sprintf(buf, "ADC mid-scale offset 2\":<br><input type=\"text\" name=\"tension_sensor_midscale2\" value=\"%u\"><br />\r\n", (uint32_t)g_sys.cfgDTC.tension_sensor_midscale2);
+    html(buf);
     html("</fieldset><br />\r\n");
-
+    /* Reeling Radius */
     html("<fieldset>\r\n");
     html("<legend class=\"bold\">Reeling Radius</legend>\r\n");
+    System_sprintf(buf, "Reeling radius gain:<br><input type=\"text\" name=\"reel_radius_gain\" value=\"%.1f\"><br />\r\n", g_sys.cfgDTC.reel_radius_gain);
+    html(buf);
+    System_sprintf(buf, "Reel offset gain:<br><input type=\"text\" name=\"reel_offset_gain\" value=\"%.1f\"><br />\r\n", g_sys.cfgDTC.reel_offset_gain);
+    html(buf);
     html("</fieldset><br />\r\n");
-
     html("</fieldset><br />\r\n");
 
     /* STOP Mode */
