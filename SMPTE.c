@@ -58,6 +58,7 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/knl/Swi.h>
 #include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
@@ -107,6 +108,8 @@ static SMPTE_Handle g_smpteHandle;
 /* Static Function Prototypes */
 static bool SMPTE_Write(uint16_t opcode);
 static bool SMPTE_Read(uint16_t opcode, uint16_t *result);
+static void gpioSMPTEHwi(unsigned int index);
+static void gpioSMPTESwi(unsigned int index);
 
 //*****************************************************************************
 // SMPTE Controller Construction/Destruction
@@ -165,11 +168,14 @@ Void SMPTE_Params_init(SMPTE_Params *params)
 // Initialize SPI0 to expansion connector for SMPTE daughter card
 //*****************************************************************************
 
+Swi_Handle mySwi;
+
 bool SMPTE_init(void)
 {
     SPI_Handle spiHandle;
     SPI_Params spiParams;
     SMPTE_Params smpteParams;
+    Error_Block eb;
 
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
@@ -193,7 +199,64 @@ bool SMPTE_init(void)
 
     g_smpteHandle = SMPTE_create(&smpteParams);
 
+    /* Create mySwi with default params */
+    mySwi = Swi_create(gpioSMPTESwi, NULL, &eb);
+    if (mySwi == NULL) {
+        System_abort("Swi create failed");
+    }
+
+    GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
+
 	return true;
+}
+
+
+void gpioSMPTEHwi(unsigned int index)
+{
+
+}
+
+
+void gpioSMPTESwi(unsigned int index)
+{
+    uint16_t txbuf[2];
+    uint16_t rxbuf[4];
+    SPI_Transaction transaction;
+    IArg key;
+
+    /* Serialize access to SMPTE controller */
+    key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
+
+    /* Set the read flag to send response */
+    txbuf[0] = SMPTE_REG_DATA | SMPTE_F_READ;
+    rxbuf[0] = 0;
+
+    /* Send the command */
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&txbuf[0];
+    transaction.rxBuf = (Ptr)&rxbuf[0];
+
+    /* Send the SPI transaction */
+    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
+    rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
+
+    /* Send the command */
+    transaction.count = 3;
+    transaction.txBuf = (Ptr)&txbuf[1];
+    transaction.rxBuf = (Ptr)&rxbuf[1];
+
+    /* Send the SPI transaction */
+    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
+
+
+    /* Leave thread safe access to SMPTE controller */
+    GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
 }
 
 //*****************************************************************************
