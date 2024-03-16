@@ -407,7 +407,9 @@ void Init_Application(void)
     if (SMPTE_probe())
     {
         g_sys.smpteFound = true;
-        SMPTE_generator_stop();
+
+        SMPTE_encoder_stop();
+        //SMPTE_decoder_stop();
     }
 
     /* Get number of tracks DCS is configured for. Note DIP

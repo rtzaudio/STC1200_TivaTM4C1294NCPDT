@@ -1868,7 +1868,7 @@ uint16_t HandleSMPTEEncoderCtrl(int fd, STC_COMMAND_SMPTE_ENCODER_CTRL* cmd)
         {
         case STC_SMPTE_ENCODER_CTRL_STOP:
             /* Stop the SMPTE generator */
-            SMPTE_generator_stop();
+            SMPTE_encoder_stop();
             break;
 
         case STC_SMPTE_ENCODER_CTRL_START:
@@ -1876,7 +1876,7 @@ uint16_t HandleSMPTEEncoderCtrl(int fd, STC_COMMAND_SMPTE_ENCODER_CTRL* cmd)
             if (cmd->flags & STC_ENCODER_CTRL_F_RESET)
                 reset = true;
             /* Start generator at time zero */
-            SMPTE_generator_start(reset);
+            SMPTE_encoder_start(reset);
             break;
 
         default:
@@ -1898,7 +1898,7 @@ uint16_t HandleSMPTETimeSet(int fd, STC_COMMAND_SMPTE_TIME_SET* cmd)
 {
     uint16_t status = 0;
 
-    SMPTE_generator_set_time(cmd->hours, cmd->mins, cmd->secs, cmd->frame);
+    SMPTE_encoder_set_time(cmd->hours, cmd->mins, cmd->secs, cmd->frame);
 
     /* Reply Header Data */
     cmd->hdr.length = sizeof(STC_COMMAND_SMPTE_TIME_SET);

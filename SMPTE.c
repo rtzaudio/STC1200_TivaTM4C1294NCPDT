@@ -401,13 +401,13 @@ bool SMPTE_get_revid(uint16_t *revid)
 /* Set the encoder starting time in HH:MM:SS:Frame.
  * The encoder must not be running when calling this.
  */
-bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
+bool SMPTE_encoder_set_time(uint8_t hours, uint8_t mins,
                               uint8_t secs, uint8_t frame)
 {
     uint16_t cmd;
 
     /* Encoder must be stopped before changing the time */
-    SMPTE_generator_stop();
+    SMPTE_encoder_stop();
 
     /* Set the hours register */
     cmd = SMPTE_REG_SET(SMPTE_REG_HOUR) | SMPTE_DATA_SET(hours);
@@ -428,7 +428,7 @@ bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
    return true;
 }
 
-bool SMPTE_generator_start(bool reset)
+bool SMPTE_encoder_start(bool reset)
 {
     uint16_t cmd;
 
@@ -447,12 +447,43 @@ bool SMPTE_generator_start(bool reset)
     return SMPTE_Write(cmd);
 }
 
-bool SMPTE_generator_stop()
+bool SMPTE_encoder_stop()
 {
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_ENCCTL) |
           SMPTE_ENCCTL_DISABLE;
+
+    g_sys.smpteMode = STC_SMPTE_OFF;
+
+    return SMPTE_Write(cmd);
+}
+
+bool SMPTE_decoder_start(bool reset)
+{
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_DECCTL) |
+          SMPTE_DECCTL_FPS(g_sys.cfgSTC.smpteFPS) |
+          SMPTE_DECCTL_ENABLE;
+
+    /* Reset start time to zero if reset flag specified,
+     * otherwise resume counting at the last stop time.
+     */
+    if (reset)
+        cmd |=  SMPTE_DECCTL_RESET;
+
+    //g_sys.smpteMode = STC_SMPTE_ENCODER;
+
+    return SMPTE_Write(cmd);
+}
+
+bool SMPTE_decoder_stop(void)
+{
+    uint16_t cmd;
+
+    cmd = SMPTE_REG_SET(SMPTE_REG_DECCTL) |
+          SMPTE_DECCTL_DISABLE;
 
     g_sys.smpteMode = STC_SMPTE_OFF;
 

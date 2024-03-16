@@ -966,17 +966,17 @@ void cmd_smpte(int argc, char *argv[])
 
     if (strcmp(argv[0], "start") == 0)
     {
-        SMPTE_generator_start(true);
+        SMPTE_encoder_start(true);
         CLI_puts("START\n");
     }
     else if (strcmp(argv[0], "stop") == 0)
     {
-        SMPTE_generator_stop();
+        SMPTE_encoder_stop();
         CLI_puts("STOP\n");
     }
     else if (strcmp(argv[0], "resume") == 0)
     {
-        SMPTE_generator_start(false);
+        SMPTE_encoder_start(false);
         CLI_puts("RESUME\n");
     }
     else if (strcmp(argv[0], "revid") == 0)

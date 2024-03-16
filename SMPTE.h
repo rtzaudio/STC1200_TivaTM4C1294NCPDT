@@ -34,6 +34,7 @@ typedef SMPTE_Object *SMPTE_Handle;
 
 SMPTE_Handle SMPTE_construct(SMPTE_Object *obj, SMPTE_Params *params);
 SMPTE_Handle SMPTE_create(SMPTE_Params *params);
+
 Void SMPTE_Params_init(SMPTE_Params *params);
 Void SMPTE_delete(SMPTE_Handle handle);
 Void SMPTE_destruct(SMPTE_Handle handle);
@@ -41,9 +42,13 @@ Void SMPTE_destruct(SMPTE_Handle handle);
 bool SMPTE_init(void);
 bool SMPTE_probe(void);
 bool SMPTE_get_revid(uint16_t* revid);
-bool SMPTE_generator_start(bool reset);
-bool SMPTE_generator_stop(void);
-bool SMPTE_generator_set_time(uint8_t hours, uint8_t mins,
-                              uint8_t secs, uint8_t frame);
+
+bool SMPTE_decoder_start(bool reset);
+bool SMPTE_decoder_stop(void);
+
+bool SMPTE_encoder_start(bool reset);
+bool SMPTE_encoder_stop(void);
+bool SMPTE_encoder_set_time(uint8_t hours, uint8_t mins,
+                            uint8_t secs, uint8_t frame);
 
 #endif  /* _SMPTE_H_ */
