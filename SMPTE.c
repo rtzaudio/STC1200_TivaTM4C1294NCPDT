@@ -210,7 +210,6 @@ bool SMPTE_init(void)
 
     /* Setup the GPIO pin interrupt handler and enable it */
     GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
-    GPIO_enableInt(Board_SMPTE_INT_N);
 
 	return true;
 }
@@ -398,35 +397,10 @@ bool SMPTE_get_revid(uint16_t *revid)
     return true;
 }
 
-/* Set the encoder starting time in HH:MM:SS:Frame.
- * The encoder must not be running when calling this.
- */
-bool SMPTE_encoder_set_time(uint8_t hours, uint8_t mins,
-                              uint8_t secs, uint8_t frame)
-{
-    uint16_t cmd;
+//*****************************************************************************
+// SMPTE Encoder Commands
+//*****************************************************************************
 
-    /* Encoder must be stopped before changing the time */
-    SMPTE_encoder_stop();
-
-    /* Set the hours register */
-    cmd = SMPTE_REG_SET(SMPTE_REG_HOUR) | SMPTE_DATA_SET(hours);
-    SMPTE_Write(cmd);
-
-    /* Set the minutes register */
-    cmd = SMPTE_REG_SET(SMPTE_REG_MINS) | SMPTE_DATA_SET(mins);
-    SMPTE_Write(cmd);
-
-    /* Set the seconds register */
-    cmd = SMPTE_REG_SET(SMPTE_REG_SECS) | SMPTE_DATA_SET(secs);
-    SMPTE_Write(cmd);
-
-    /* Set the frame register */
-    cmd = SMPTE_REG_SET(SMPTE_REG_FRAME) | SMPTE_DATA_SET(frame);
-    SMPTE_Write(cmd);
-
-   return true;
-}
 
 bool SMPTE_encoder_start(bool reset)
 {
@@ -459,21 +433,50 @@ bool SMPTE_encoder_stop()
     return SMPTE_Write(cmd);
 }
 
-bool SMPTE_decoder_start(bool reset)
+/* Set the encoder starting time in HH:MM:SS:Frame.
+ * The encoder must not be running when calling this.
+ */
+bool SMPTE_encoder_set_time(uint8_t hours, uint8_t mins,
+                              uint8_t secs, uint8_t frame)
+{
+    uint16_t cmd;
+
+    /* Encoder must be stopped before changing the time */
+    SMPTE_encoder_stop();
+
+    /* Set the hours register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_HOUR) | SMPTE_DATA_SET(hours);
+    SMPTE_Write(cmd);
+
+    /* Set the minutes register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_MINS) | SMPTE_DATA_SET(mins);
+    SMPTE_Write(cmd);
+
+    /* Set the seconds register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_SECS) | SMPTE_DATA_SET(secs);
+    SMPTE_Write(cmd);
+
+    /* Set the frame register */
+    cmd = SMPTE_REG_SET(SMPTE_REG_FRAME) | SMPTE_DATA_SET(frame);
+    SMPTE_Write(cmd);
+
+   return true;
+}
+
+//*****************************************************************************
+// SMPTE Decoder Commands
+//*****************************************************************************
+
+bool SMPTE_decoder_start(void)
 {
     uint16_t cmd;
 
     cmd = SMPTE_REG_SET(SMPTE_REG_DECCTL) |
           SMPTE_DECCTL_FPS(g_sys.cfgSTC.smpteFPS) |
+          SMPTE_DECCTL_INT |
           SMPTE_DECCTL_ENABLE;
 
-    /* Reset start time to zero if reset flag specified,
-     * otherwise resume counting at the last stop time.
-     */
-    if (reset)
-        cmd |=  SMPTE_DECCTL_RESET;
-
-    //g_sys.smpteMode = STC_SMPTE_ENCODER;
+    GPIO_enableInt(Board_SMPTE_INT_N);
 
     return SMPTE_Write(cmd);
 }
@@ -485,7 +488,7 @@ bool SMPTE_decoder_stop(void)
     cmd = SMPTE_REG_SET(SMPTE_REG_DECCTL) |
           SMPTE_DECCTL_DISABLE;
 
-    g_sys.smpteMode = STC_SMPTE_OFF;
+    GPIO_disableInt(Board_SMPTE_INT_N);
 
     return SMPTE_Write(cmd);
 }

@@ -404,14 +404,6 @@ void Init_Application(void)
     /* Initialize SMPTE daughter card if installed */
     SMPTE_init();
 
-    if (SMPTE_probe())
-    {
-        g_sys.smpteFound = true;
-
-        SMPTE_encoder_stop();
-        //SMPTE_decoder_stop();
-    }
-
     /* Get number of tracks DCS is configured for. Note DIP
      * switch #1 must be on to enable using the track controller.
      */
@@ -479,6 +471,17 @@ void Init_Application(void)
         {
             memset(&g_sys.cfgDTC, 0, sizeof(DTC_CONFIG_DATA));
         }
+    }
+
+    /* Startup SMPTE card if found */
+
+    if (SMPTE_probe())
+    {
+        g_sys.smpteFound = true;
+
+        SMPTE_encoder_stop();
+
+        SMPTE_decoder_start();
     }
 
     /*

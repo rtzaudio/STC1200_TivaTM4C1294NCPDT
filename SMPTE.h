@@ -43,7 +43,7 @@ bool SMPTE_init(void);
 bool SMPTE_probe(void);
 bool SMPTE_get_revid(uint16_t* revid);
 
-bool SMPTE_decoder_start(bool reset);
+bool SMPTE_decoder_start(void);
 bool SMPTE_decoder_stop(void);
 
 bool SMPTE_encoder_start(bool reset);
