@@ -3,7 +3,7 @@
  * DTC-1200 & STC-1200 Digital Transport Controllers for
  * Ampex MM-1200 Tape Machines
  *
- * Copyright (C) 2016-2020, RTZ Professional Audio, LLC
+ * Copyright (C) 2016-2024, RTZ Professional Audio, LLC
  * All Rights Reserved
  *
  * RTZ is registered trademark of RTZ Professional Audio, LLC
@@ -68,6 +68,7 @@
 #include <ti/drivers/SDSPI.h>
 #include <ti/drivers/UART.h>
 
+/* Standard C library header files */
 #include <file.h>
 #include <stdio.h>
 #include <string.h>
@@ -76,25 +77,9 @@
 #include <stdlib.h>
 
 /* STC1200 Board Header file */
-
 #include "STC1200.h"
 #include "Board.h"
 #include "SMPTE.h"
-
-/* SMPTE CONTROLLER SPI SLAVE REGISTERS
- *
- * All registers are 16-bits with the upper word containing the command
- * and flag bits. The lower 8-bits contains any associated data byte.
- *
- *   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- *   | R | A | A | A | C | C | C | C | B | B | B | B | B | B | B | B |
- *   | W | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
- *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- *     |   |       |   |           |   |                           |
- *     |   +---+---+   +-----+-----+   +-------------+-------------+
- *     |       |             |                       |
- *    R/W     RSVD          REG                  DATA/FLAGS
- */
 
 /* Default AT45DB parameters structure */
 const SMPTE_Params SMPTE_defaultParams = {
@@ -104,7 +89,6 @@ const SMPTE_Params SMPTE_defaultParams = {
 
 /* Static Data Items */
 static SMPTE_Handle g_smpteHandle;
-
 
 static TAPETIME tapeTime;
 
