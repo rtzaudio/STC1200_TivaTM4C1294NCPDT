@@ -394,15 +394,15 @@ void Init_Application(void)
     /* Set default reference frequency */
     g_sys.ref_freq = g_sys.cfgSTC.ref_freq;
 
+    /* Startup the IPC server tasks */
+    IPC_Server_startup();
+
     /* Reset the capstan reference clock and set the default
      * output frequency to 9600Hz to the capstan board. The
      * AD9837 hardware is located on the SMPTE daughter card.
      */
     AD9837_init();
     AD9837_reset();
-
-    /* Initialize SMPTE daughter card if installed */
-    SMPTE_init();
 
     /* Get number of tracks DCS is configured for. Note DIP
      * switch #1 must be on to enable using the track controller.
@@ -436,15 +436,6 @@ void Init_Application(void)
         }
     }
 
-    /* Startup the debug console task */
-    CLI_init();
-
-    /* Startup the IPC server tasks */
-    IPC_Server_startup();
-
-    /* Startup the wired remote task */
-    Remote_Task_startup();
-
     /* Open the IPC channel on UART-B to the DTC */
     g_sys.ipcToDTC = IPCToDTC_Open();
 
@@ -473,16 +464,24 @@ void Init_Application(void)
         }
     }
 
-    /* Startup SMPTE card if found */
+    /* Startup the debug console task */
+    CLI_init();
 
+    /* Initialize SMPTE card if found */
+    SMPTE_init();
+
+    /* Initialize SMPTE daughter card if installed */
     if (SMPTE_probe())
     {
         g_sys.smpteFound = true;
 
-        SMPTE_encoder_stop();
+        //SMPTE_encoder_stop();
 
-        SMPTE_decoder_start();
+        //SMPTE_decoder_start();
     }
+
+    /* Startup the wired remote task */
+    Remote_Task_startup();
 
     /*
      * Create the various system tasks
