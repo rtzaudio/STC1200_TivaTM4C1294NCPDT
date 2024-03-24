@@ -102,7 +102,7 @@ extern "C" {
 
 /* I/O Expansion Port to SMPTE daughter card */
 #define Board_AD9732_FSYNC          STC1200_EXPIO_PF2_SSI3FS
-#define Board_SMPTE_FS              STC1200_EXPIO_PA3_SSI0FS
+//#define Board_SMPTE_FS              STC1200_EXPIO_PA3_SSI0FS
 #define Board_SMPTE_CHANGE          STC1200_EXPIO_PP5
 #define Board_SMPTE_FRAMESYNC       STC1200_EXPIO_PP3
 #define Board_SMPTE_DIRECTION       STC1200_EXPIO_PP2

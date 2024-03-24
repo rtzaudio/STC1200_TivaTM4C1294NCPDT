@@ -61,6 +61,7 @@
 #include <ti/sysbios/knl/Task.h>
 #include <ti/sysbios/knl/Clock.h>
 #include <ti/sysbios/knl/Queue.h>
+#include <ti/sysbios/knl/Swi.h>
 #include <ti/sysbios/gates/GateMutex.h>
 #include <ti/sysbios/family/arm/m3/Hwi.h>
 
@@ -125,6 +126,8 @@ Mailbox_Handle g_mailboxLocate  = NULL;
 Mailbox_Handle g_mailboxRemote  = NULL;
 Mailbox_Handle g_mailboxCommand = NULL;
 
+Swi_Handle mySwi;
+
 /* Static Function Prototypes */
 static void Init_Hardware();
 static void Init_Peripherals(void);
@@ -138,6 +141,8 @@ static void gpioButtonStopHwi(unsigned int index);
 static void EnableClockDivOutput(uint32_t div);
 #endif
 
+extern Void gpioSMPTESwi(UArg arg0, UArg arg1);
+
 //*****************************************************************************
 // Main Entry Point
 //*****************************************************************************
@@ -147,6 +152,7 @@ int main(void)
     Error_Block eb;
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
+    Swi_Params swiParams;
 
     /* default GUID values */
     memset(g_sys.ui8SerialNumberSTC, 0xFF, 16);
@@ -196,6 +202,16 @@ int main(void)
     if (g_mailboxRemote == NULL) {
         System_abort("Mailbox create failed\n");
     }
+
+    /* Create Swi for SMPTE hardware interrupts  */
+    Swi_Params_init(&swiParams);
+    swiParams.arg0     = 1;
+    swiParams.arg1     = 0;
+    swiParams.priority = 2;
+    swiParams.trigger  = 0;
+    mySwi = Swi_create(gpioSMPTESwi, &swiParams, &eb);
+    if (mySwi == NULL)
+        System_abort("Swi create failed");
 
     /* Allocate IPC server resources */
     IPC_Server_init();
@@ -475,9 +491,9 @@ void Init_Application(void)
     {
         g_sys.smpteFound = true;
 
-        //SMPTE_encoder_stop();
+        SMPTE_encoder_stop();
 
-        //SMPTE_decoder_start();
+        SMPTE_decoder_start();
     }
 
     /* Startup the wired remote task */

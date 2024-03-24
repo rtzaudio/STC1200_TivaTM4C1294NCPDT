@@ -84,7 +84,7 @@
 /* Default AT45DB parameters structure */
 const SMPTE_Params SMPTE_defaultParams = {
     NULL,
-    Board_SMPTE_FS
+    0
 };
 
 /* Static Data Items */
@@ -96,7 +96,8 @@ static TAPETIME tapeTime;
 static bool SMPTE_Write(uint16_t opcode);
 static bool SMPTE_Read(uint16_t opcode, uint16_t *result);
 static Void gpioSMPTEHwi(unsigned int index);
-static Void gpioSMPTESwi(UArg arg0, UArg arg1);
+
+Void gpioSMPTESwi(UArg arg0, UArg arg1);
 
 //*****************************************************************************
 // SMPTE Controller Construction/Destruction
@@ -155,14 +156,13 @@ Void SMPTE_Params_init(SMPTE_Params *params)
 // Initialize SPI0 to expansion connector for SMPTE daughter card
 //*****************************************************************************
 
-Swi_Handle mySwi;
+extern Swi_Handle mySwi;
 
 bool SMPTE_init(void)
 {
     SPI_Handle spiHandle;
     SPI_Params spiParams;
     SMPTE_Params smpteParams;
-    Error_Block eb;
 
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
@@ -182,15 +182,9 @@ bool SMPTE_init(void)
     SMPTE_Params_init(&smpteParams);
 
     smpteParams.spiHandle = spiHandle;
-    smpteParams.gpioCS    = Board_SMPTE_FS;
+    smpteParams.gpioCS    = 0;  //Board_SMPTE_FS;
 
     g_smpteHandle = SMPTE_create(&smpteParams);
-
-    /* Create mySwi with default params */
-    mySwi = Swi_create(gpioSMPTESwi, NULL, &eb);
-
-    if (mySwi == NULL)
-        System_abort("Swi create failed");
 
     /* Setup the GPIO pin interrupt handler and enable it */
     GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
@@ -217,31 +211,30 @@ Void gpioSMPTEHwi(unsigned int index)
  */
 Void gpioSMPTESwi(UArg arg0, UArg arg1)
 {
-    uint16_t txbuf[2];
+    uint16_t txbuf[4];
     uint16_t rxbuf[4];
     SPI_Transaction transaction;
     IArg key;
 
     /* Serialize access to SMPTE controller */
     key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
-
+#if 0
     /* Set the read flag to send response */
     txbuf[0] = SMPTE_REG_SET(SMPTE_REG_DATA) | SMPTE_F_READ;
     rxbuf[0] = 0;
 
     /* Send the command */
-    transaction.count = 1;
+    transaction.count = 3;
     transaction.txBuf = (Ptr)&txbuf[0];
     transaction.rxBuf = (Ptr)&rxbuf[0];
 
     /* Send the SPI transaction */
-    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
     SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
 
     rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
-
-    Task_sleep(5);
 
     /* Send the command */
     transaction.count = 3;
@@ -249,9 +242,10 @@ Void gpioSMPTESwi(UArg arg0, UArg arg1)
     transaction.rxBuf = (Ptr)&rxbuf[1];
 
     /* Send the SPI transaction */
-    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
     SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+
 
     /* Pull out time members into local struct buffer */
     tapeTime.flags = (uint8_t)(rxbuf[0] & 0xFF);
@@ -260,7 +254,7 @@ Void gpioSMPTESwi(UArg arg0, UArg arg1)
     tapeTime.secs  = (uint8_t)((rxbuf[1] >> 8) & 0xFF);
     tapeTime.mins  = (uint8_t)((rxbuf[2]) & 0xFF);
     tapeTime.hour  = (uint8_t)((rxbuf[2] >> 8) & 0xFF);
-
+#endif
     /* Leave thread safe access to SMPTE controller */
     GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
 }
@@ -284,13 +278,13 @@ static bool SMPTE_Write(uint16_t opcode)
     transaction.rxBuf = (Ptr)&reply;
 
     /* Assert the SPI chip select */
-    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
 
     /* Send the SPI transaction */
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
 
     /* Release the chip select to high */
-    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     /* Leave safe access to SMPTE controller */
     GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
@@ -319,28 +313,12 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
     transaction.rxBuf = (Ptr)&rxbuf[0];
 
     /* Send the SPI transaction */
-    GPIO_write(Board_SMPTE_FS, PIN_LOW);
+    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
-
-    /* Set the read flag to send response */
-    txbuf[1] = opcode;
-    rxbuf[1] = 0;
-
-    /* Send the command */
-    transaction.count = 1;
-    transaction.txBuf = (Ptr)&txbuf[1];
-    transaction.rxBuf = (Ptr)&rxbuf[1];
-
-    Task_sleep(5);
-
-    /* Send the SPI transaction */
-    GPIO_write(Board_SMPTE_FS, PIN_LOW);
-    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    GPIO_write(Board_SMPTE_FS, PIN_HIGH);
+    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     if (success)
-        *result = rxbuf[1];
+        *result = rxbuf[0];
 
     /* Leave thread safe access to SMPTE controller */
     GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
