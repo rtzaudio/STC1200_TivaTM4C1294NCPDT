@@ -381,8 +381,6 @@ GPIO_PinConfig gpioPinConfigs[STC1200_GPIOCOUNT] = {
     GPIOTiva_PF_4 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_LOW,
     /* STC1200_EXPIO_PF2_SSI3FS */
     GPIOTiva_PF_2 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
-    /* STC1200_EXPIO_PA3_SSI0FS*/
-    //GPIOTiva_PA_3 | GPIO_CFG_OUTPUT | GPIO_CFG_OUT_HIGH,
 };
 
 /*
@@ -415,9 +413,6 @@ const GPIOTiva_Config GPIOTiva_config = {
  */
 void STC1200_initGPIO(void)
 {
-    // Enable pin PA3 for GPIOOutput
-    //GPIOPinTypeGPIOOutput(GPIO_PORTA_BASE, GPIO_PIN_3);
-
     // Enable pin PD4 for GPIOInput
     GPIOPinTypeGPIOInput(GPIO_PORTD_BASE, GPIO_PIN_4);
     // Enable pin PD5 for GPIOInput

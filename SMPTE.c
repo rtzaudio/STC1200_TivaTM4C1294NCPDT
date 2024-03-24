@@ -98,6 +98,7 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result);
 static Void gpioSMPTEHwi(unsigned int index);
 
 Void gpioSMPTESwi(UArg arg0, UArg arg1);
+Void SPI_SMPTECallbackFxn(SPI_Handle handle, SPI_Transaction* transaction);
 
 //*****************************************************************************
 // SMPTE Controller Construction/Destruction
@@ -167,11 +168,12 @@ bool SMPTE_init(void)
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
 
-    spiParams.transferMode  = SPI_MODE_BLOCKING;
-    spiParams.mode          = SPI_MASTER;
-    spiParams.frameFormat   = SPI_POL1_PHA0;
-    spiParams.bitRate       = 250000;
-    spiParams.dataSize      = 16;
+    spiParams.transferMode          = SPI_MODE_BLOCKING;
+    spiParams.mode                  = SPI_MASTER;   //SPI_MODE_CALLBACK
+    spiParams.frameFormat           = SPI_POL1_PHA0;
+    spiParams.bitRate               = 250000;
+    spiParams.dataSize              = 16;
+    spiParams.transferCallbackFxn   = SPI_SMPTECallbackFxn;
 
     spiHandle = SPI_open(Board_SPI_EXPIO_SMPTE, &spiParams);
 
@@ -182,7 +184,7 @@ bool SMPTE_init(void)
     SMPTE_Params_init(&smpteParams);
 
     smpteParams.spiHandle = spiHandle;
-    smpteParams.gpioCS    = 0;  //Board_SMPTE_FS;
+    smpteParams.gpioCS    = 0;
 
     g_smpteHandle = SMPTE_create(&smpteParams);
 
@@ -190,6 +192,11 @@ bool SMPTE_init(void)
     GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
 
 	return true;
+}
+
+Void SPI_SMPTECallbackFxn(SPI_Handle handle, SPI_Transaction* transaction)
+{
+
 }
 
 /* The SMPTE board INT pin handler gets called when the pin goes low. This indicates
@@ -229,10 +236,7 @@ Void gpioSMPTESwi(UArg arg0, UArg arg1)
     transaction.rxBuf = (Ptr)&rxbuf[0];
 
     /* Send the SPI transaction */
-    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
     SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
-
 
     rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
 
@@ -242,10 +246,7 @@ Void gpioSMPTESwi(UArg arg0, UArg arg1)
     transaction.rxBuf = (Ptr)&rxbuf[1];
 
     /* Send the SPI transaction */
-    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
     SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
-
 
     /* Pull out time members into local struct buffer */
     tapeTime.flags = (uint8_t)(rxbuf[0] & 0xFF);
@@ -277,14 +278,8 @@ static bool SMPTE_Write(uint16_t opcode)
     transaction.txBuf = (Ptr)&opcode;
     transaction.rxBuf = (Ptr)&reply;
 
-    /* Assert the SPI chip select */
-    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
-
     /* Send the SPI transaction */
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-
-    /* Release the chip select to high */
-    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     /* Leave safe access to SMPTE controller */
     GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
@@ -313,9 +308,7 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
     transaction.rxBuf = (Ptr)&rxbuf[0];
 
     /* Send the SPI transaction */
-    //GPIO_write(Board_SMPTE_FS, PIN_LOW);
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-    //GPIO_write(Board_SMPTE_FS, PIN_HIGH);
 
     if (success)
         *result = rxbuf[0];
@@ -362,7 +355,6 @@ bool SMPTE_get_revid(uint16_t *revid)
 //*****************************************************************************
 // SMPTE Encoder Commands
 //*****************************************************************************
-
 
 bool SMPTE_encoder_start(bool reset)
 {
@@ -422,7 +414,7 @@ bool SMPTE_encoder_set_time(uint8_t hours, uint8_t mins,
     cmd = SMPTE_REG_SET(SMPTE_REG_FRAME) | SMPTE_DATA_SET(frame);
     SMPTE_Write(cmd);
 
-   return true;
+    return true;
 }
 
 //*****************************************************************************
