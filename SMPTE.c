@@ -90,15 +90,15 @@ const SMPTE_Params SMPTE_defaultParams = {
 /* Static Data Items */
 static SMPTE_Handle g_smpteHandle;
 
+static Semaphore_Handle g_smpteIntSemaphore;
+
 static TAPETIME tapeTime;
 
 /* Static Function Prototypes */
 static bool SMPTE_Write(uint16_t opcode);
 static bool SMPTE_Read(uint16_t opcode, uint16_t *result);
 static Void gpioSMPTEHwi(unsigned int index);
-
-Void gpioSMPTESwi(UArg arg0, UArg arg1);
-Void SPI_SMPTECallbackFxn(SPI_Handle handle, SPI_Transaction* transaction);
+static Void SMPTEReadTask(UArg arg0, UArg arg1);
 
 //*****************************************************************************
 // SMPTE Controller Construction/Destruction
@@ -157,28 +157,24 @@ Void SMPTE_Params_init(SMPTE_Params *params)
 // Initialize SPI0 to expansion connector for SMPTE daughter card
 //*****************************************************************************
 
-extern Swi_Handle mySwi;
-
 bool SMPTE_init(void)
 {
     SPI_Handle spiHandle;
     SPI_Params spiParams;
     SMPTE_Params smpteParams;
+    Task_Params taskParams;
+    Error_Block eb;
 
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
 
-    spiParams.transferMode          = SPI_MODE_BLOCKING;
-    spiParams.mode                  = SPI_MASTER;   //SPI_MODE_CALLBACK
-    spiParams.frameFormat           = SPI_POL1_PHA0;
-    spiParams.bitRate               = 250000;
-    spiParams.dataSize              = 16;
-    spiParams.transferCallbackFxn   = SPI_SMPTECallbackFxn;
+    spiParams.transferMode = SPI_MODE_BLOCKING;
+    spiParams.mode         = SPI_MASTER;
+    spiParams.frameFormat  = SPI_POL1_PHA0;
+    spiParams.bitRate      = 250000;
+    spiParams.dataSize     = 16;
 
     spiHandle = SPI_open(Board_SPI_EXPIO_SMPTE, &spiParams);
-
-    if (spiHandle == NULL)
-        System_abort("Error initializing SPI0\n");
 
     /* Create the SMPTE object handle */
     SMPTE_Params_init(&smpteParams);
@@ -191,12 +187,17 @@ bool SMPTE_init(void)
     /* Setup the GPIO pin interrupt handler and enable it */
     GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
 
+    /* Create semaphore for smpte interrupt signal */
+    g_smpteIntSemaphore = Semaphore_create(32, NULL, NULL);
+
+    /* Create interrupt read task */
+    Error_init(&eb);
+    Task_Params_init(&taskParams);
+    taskParams.stackSize = 1024;
+    taskParams.priority  = 10;
+    Task_create((Task_FuncPtr)SMPTEReadTask, &taskParams, &eb);
+
 	return true;
-}
-
-Void SPI_SMPTECallbackFxn(SPI_Handle handle, SPI_Transaction* transaction)
-{
-
 }
 
 /* The SMPTE board INT pin handler gets called when the pin goes low. This indicates
@@ -207,57 +208,62 @@ Void SPI_SMPTECallbackFxn(SPI_Handle handle, SPI_Transaction* transaction)
  * between decode interrupts and other tasks sending commands to the SMPTE
  * board processor.
  */
+
 Void gpioSMPTEHwi(unsigned int index)
 {
-    /* INT pin went low, trigger swi to handle it */
-    Swi_post(mySwi);
+    /* wake up the SPI read task to read the SMPTE time code packet data */
+    Semaphore_post(g_smpteIntSemaphore);
 }
 
-/* The SWI handles the SPI bus communication with gate mutex protection
- * from other tasks that might be making calls to the SPI module.
- */
-Void gpioSMPTESwi(UArg arg0, UArg arg1)
+Void SMPTEReadTask(UArg arg0, UArg arg1)
 {
     uint16_t txbuf[4];
     uint16_t rxbuf[4];
     SPI_Transaction transaction;
     IArg key;
 
-    /* Serialize access to SMPTE controller */
-    key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
-#if 0
-    /* Set the read flag to send response */
-    txbuf[0] = SMPTE_REG_SET(SMPTE_REG_DATA) | SMPTE_F_READ;
-    rxbuf[0] = 0;
+    while (TRUE)
+    {
+        /* Block until a semaphore is posted indicating a SMPTE
+         * time code packet has been decoded and available to read.
+         */
+        Semaphore_pend(g_smpteIntSemaphore, BIOS_WAIT_FOREVER);
 
-    /* Send the command */
-    transaction.count = 3;
-    transaction.txBuf = (Ptr)&txbuf[0];
-    transaction.rxBuf = (Ptr)&rxbuf[0];
+        /* Serialize access to SMPTE controller */
+        key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
 
-    /* Send the SPI transaction */
-    SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+        /* Set the read flag to send response */
+        txbuf[0] = SMPTE_REG_SET(SMPTE_REG_DATA) | SMPTE_F_READ;
+        rxbuf[0] = 0;
 
-    rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
+        /* Send the command */
+        transaction.count = 1;
+        transaction.txBuf = (Ptr)&txbuf[0];
+        transaction.rxBuf = (Ptr)&rxbuf[0];
 
-    /* Send the command */
-    transaction.count = 3;
-    transaction.txBuf = (Ptr)&txbuf[1];
-    transaction.rxBuf = (Ptr)&rxbuf[1];
+        /* Send the SPI transaction */
+        SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+        rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
 
-    /* Send the SPI transaction */
-    SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+        /* Send the command */
+        transaction.count = 3;
+        transaction.txBuf = (Ptr)&txbuf[1];
+        transaction.rxBuf = (Ptr)&rxbuf[1];
 
-    /* Pull out time members into local struct buffer */
-    tapeTime.flags = (uint8_t)(rxbuf[0] & 0xFF);
-    tapeTime.tens  = 0;
-    tapeTime.frame = (uint8_t)((rxbuf[1]) & 0xFF);
-    tapeTime.secs  = (uint8_t)((rxbuf[1] >> 8) & 0xFF);
-    tapeTime.mins  = (uint8_t)((rxbuf[2]) & 0xFF);
-    tapeTime.hour  = (uint8_t)((rxbuf[2] >> 8) & 0xFF);
-#endif
-    /* Leave thread safe access to SMPTE controller */
-    GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
+        /* Send the SPI transaction */
+        SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+
+        /* Pull out time members into local struct buffer */
+        tapeTime.flags = (uint8_t)(rxbuf[0] & 0xFF);
+        tapeTime.tens  = 0;
+        tapeTime.frame = (uint8_t)((rxbuf[1]) & 0xFF);
+        tapeTime.secs  = (uint8_t)((rxbuf[1] >> 8) & 0xFF);
+        tapeTime.mins  = (uint8_t)((rxbuf[2]) & 0xFF);
+        tapeTime.hour  = (uint8_t)((rxbuf[2] >> 8) & 0xFF);
+
+        /* Leave thread safe access to SMPTE controller */
+        GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
+    }
 }
 
 //*****************************************************************************
