@@ -95,8 +95,8 @@ static Semaphore_Handle g_smpteIntSemaphore;
 static TAPETIME tapeTime;
 
 /* Static Function Prototypes */
-static bool SMPTE_Write(uint16_t opcode);
-static bool SMPTE_Read(uint16_t opcode, uint16_t *result);
+static bool SMPTE_WriteReg(uint16_t opcode);
+static bool SMPTE_ReadReg(uint16_t opcode, uint16_t *result);
 static Void gpioSMPTEHwi(unsigned int index);
 static Void SMPTEReadTask(UArg arg0, UArg arg1);
 
@@ -168,8 +168,8 @@ bool SMPTE_init(void)
     /* 1 Mhz, Moto fmt, polarity 1, phase 0 */
     SPI_Params_init(&spiParams);
 
-    spiParams.transferMode = SPI_MODE_BLOCKING;
     spiParams.mode         = SPI_MASTER;
+    spiParams.transferMode = SPI_MODE_BLOCKING;
     spiParams.frameFormat  = SPI_POL1_PHA0;
     spiParams.bitRate      = 250000;
     spiParams.dataSize     = 16;
@@ -271,7 +271,7 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
 // Read/Write a command to the SMPTE slave board
 //*****************************************************************************
 
-static bool SMPTE_Write(uint16_t opcode)
+static bool SMPTE_WriteReg(uint16_t opcode)
 {
     bool success;
     uint16_t reply = 0;
@@ -294,7 +294,7 @@ static bool SMPTE_Write(uint16_t opcode)
     return success;
 }
 
-static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
+static bool SMPTE_ReadReg(uint16_t opcode, uint16_t *result)
 {
     bool success;
     uint16_t txbuf[2];
@@ -316,6 +316,8 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
 
     /* Send the SPI transaction */
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+
+    txbuf[0] = rxbuf[0] = 0;
 
     /* Read the response */
     transaction.count = 1;
@@ -347,7 +349,7 @@ bool SMPTE_probe(void)
 
     cmd = SMPTE_REG_SET(SMPTE_REG_REVID);
 
-    if (!SMPTE_Read(cmd, &revid))
+    if (!SMPTE_ReadReg(cmd, &revid))
         return false;
 
     return (revid == SMPTE_REVID) ? true : false;
@@ -361,7 +363,7 @@ bool SMPTE_get_revid(uint16_t *revid)
 
     cmd = SMPTE_REG_SET(SMPTE_REG_REVID);
 
-    if (!SMPTE_Read(cmd, revid))
+    if (!SMPTE_ReadReg(cmd, revid))
         return false;
 
     return true;
@@ -387,7 +389,7 @@ bool SMPTE_encoder_start(bool reset)
 
     g_sys.smpteMode = STC_SMPTE_ENCODER;
 
-    return SMPTE_Write(cmd);
+    return SMPTE_WriteReg(cmd);
 }
 
 bool SMPTE_encoder_stop()
@@ -399,7 +401,7 @@ bool SMPTE_encoder_stop()
 
     g_sys.smpteMode = STC_SMPTE_OFF;
 
-    return SMPTE_Write(cmd);
+    return SMPTE_WriteReg(cmd);
 }
 
 /* Set the encoder starting time in HH:MM:SS:Frame.
@@ -415,19 +417,19 @@ bool SMPTE_encoder_set_time(uint8_t hours, uint8_t mins,
 
     /* Set the hours register */
     cmd = SMPTE_REG_SET(SMPTE_REG_HOUR) | SMPTE_DATA_SET(hours);
-    SMPTE_Write(cmd);
+    SMPTE_WriteReg(cmd);
 
     /* Set the minutes register */
     cmd = SMPTE_REG_SET(SMPTE_REG_MINS) | SMPTE_DATA_SET(mins);
-    SMPTE_Write(cmd);
+    SMPTE_WriteReg(cmd);
 
     /* Set the seconds register */
     cmd = SMPTE_REG_SET(SMPTE_REG_SECS) | SMPTE_DATA_SET(secs);
-    SMPTE_Write(cmd);
+    SMPTE_WriteReg(cmd);
 
     /* Set the frame register */
     cmd = SMPTE_REG_SET(SMPTE_REG_FRAME) | SMPTE_DATA_SET(frame);
-    SMPTE_Write(cmd);
+    SMPTE_WriteReg(cmd);
 
     return true;
 }
@@ -447,7 +449,7 @@ bool SMPTE_decoder_start(void)
 
     //GPIO_enableInt(Board_SMPTE_INT_N);
 
-    return SMPTE_Write(cmd);
+    return SMPTE_WriteReg(cmd);
 }
 
 bool SMPTE_decoder_stop(void)
@@ -459,7 +461,7 @@ bool SMPTE_decoder_stop(void)
 
     //GPIO_disableInt(Board_SMPTE_INT_N);
 
-    return SMPTE_Write(cmd);
+    return SMPTE_WriteReg(cmd);
 }
 
 /* End-Of-File */
