@@ -184,11 +184,8 @@ bool SMPTE_init(void)
 
     g_smpteHandle = SMPTE_create(&smpteParams);
 
-    /* Setup the GPIO pin interrupt handler and enable it */
-    GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
-
     /* Create semaphore for smpte interrupt signal */
-    g_smpteIntSemaphore = Semaphore_create(32, NULL, NULL);
+    g_smpteIntSemaphore = Semaphore_create(0, NULL, NULL);
 
     /* Create interrupt read task */
     Error_init(&eb);
@@ -196,6 +193,10 @@ bool SMPTE_init(void)
     taskParams.stackSize = 1024;
     taskParams.priority  = 10;
     Task_create((Task_FuncPtr)SMPTEReadTask, &taskParams, &eb);
+
+    /* Setup the GPIO pin interrupt handler and enable it */
+    GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
+    GPIO_enableInt(Board_SMPTE_INT_N);
 
 	return true;
 }
@@ -237,16 +238,16 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
         rxbuf[0] = 0;
 
         /* Send the command */
-        transaction.count = 1;
-        transaction.txBuf = (Ptr)&txbuf[0];
-        transaction.rxBuf = (Ptr)&rxbuf[0];
+        //transaction.count = 1;
+        //transaction.txBuf = (Ptr)&txbuf[0];
+        //transaction.rxBuf = (Ptr)&rxbuf[0];
 
         /* Send the SPI transaction */
-        SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+        //SPI_transfer(g_smpteHandle->spiHandle, &transaction);
         rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
 
         /* Send the command */
-        transaction.count = 3;
+        transaction.count = 4;
         transaction.txBuf = (Ptr)&txbuf[1];
         transaction.rxBuf = (Ptr)&rxbuf[1];
 
@@ -436,7 +437,7 @@ bool SMPTE_decoder_start(void)
           SMPTE_DECCTL_INT |
           SMPTE_DECCTL_ENABLE;
 
-    GPIO_enableInt(Board_SMPTE_INT_N);
+    //GPIO_enableInt(Board_SMPTE_INT_N);
 
     return SMPTE_Write(cmd);
 }
@@ -448,7 +449,7 @@ bool SMPTE_decoder_stop(void)
     cmd = SMPTE_REG_SET(SMPTE_REG_DECCTL) |
           SMPTE_DECCTL_DISABLE;
 
-    GPIO_disableInt(Board_SMPTE_INT_N);
+    //GPIO_disableInt(Board_SMPTE_INT_N);
 
     return SMPTE_Write(cmd);
 }

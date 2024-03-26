@@ -206,8 +206,7 @@ int main(void)
     /* Allocate MIDI server resources */
     MIDI_Server_init();
 
-    /* Create task with priority 15 */
-
+    /* Create task with priority 5 */
     Error_init(&eb);
     Task_Params_init(&taskParams);
     taskParams.stackSize = 2048;
@@ -477,9 +476,7 @@ void Init_Application(void)
     if (SMPTE_probe())
     {
         g_sys.smpteFound = true;
-
         SMPTE_encoder_stop();
-
         SMPTE_decoder_start();
     }
 
