@@ -263,10 +263,6 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
 
         /* Pull out time members into local struct buffer */
 
-        // uiData[0] = 0xBEEF; //uReply;
-        // uiData[1] = 0x1122; //(((uint16_t)g_rxTime.secs  << 8) | ((uint16_t)g_rxTime.frame & 0xFF));
-        // uiData[2] = 0x3344; //(((uint16_t)g_rxTime.hours << 8) | ((uint16_t)g_rxTime.mins  & 0xFF));
-
         tapeTime.flags = (uint8_t)((rxbuf2[0]) & 0xFF);
         tapeTime.frame = (uint8_t)((rxbuf2[1]) & 0xFF);
         tapeTime.secs  = (uint8_t)((rxbuf2[1] >> 8) & 0xFF);
