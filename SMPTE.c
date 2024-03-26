@@ -244,7 +244,7 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
 
         /* Send the SPI transaction */
         SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-
+#if 1
         /* Send the command */
         transaction.count = 3;
         transaction.txBuf = (Ptr)&txbuf[1];
@@ -255,14 +255,15 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
 
         /* Send the SPI transaction */
         SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-
+#endif
         /* Pull out time members into local struct buffer */
-        tapeTime.flags = (uint8_t)(rxbuf[0] & 0xFF);
-        tapeTime.tens  = 0;
-        tapeTime.frame = (uint8_t)((rxbuf[1]) & 0xFF);
-        tapeTime.secs  = (uint8_t)((rxbuf[1] >> 8) & 0xFF);
+
+        tapeTime.flags = (uint8_t)(rxbuf[1] & 0xFF);
+        tapeTime.frame = (uint8_t)((rxbuf[3]) & 0xFF);
+        tapeTime.secs  = (uint8_t)((rxbuf[3] >> 8) & 0xFF);
         tapeTime.mins  = (uint8_t)((rxbuf[2]) & 0xFF);
         tapeTime.hour  = (uint8_t)((rxbuf[2] >> 8) & 0xFF);
+        tapeTime.tens  = 0;
 
         /* Leave thread safe access to SMPTE controller */
         GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
