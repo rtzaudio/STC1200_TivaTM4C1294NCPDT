@@ -220,7 +220,10 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
 {
     uint16_t txbuf[4];
     uint16_t rxbuf[4];
-    SPI_Transaction transaction;
+    uint16_t txbuf2[4];
+    uint16_t rxbuf2[4];
+    SPI_Transaction transaction1;
+    SPI_Transaction transaction2;
     IArg key;
 
     while (TRUE)
@@ -233,36 +236,42 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
         /* Serialize access to SMPTE controller */
         key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
 
-        /* Send the command */
-        transaction.count = 1;
-        transaction.txBuf = (Ptr)&txbuf[0];
-        transaction.rxBuf = (Ptr)&rxbuf[0];
+        /*** Send the command ***/
+
+        transaction1.count = 1;
+        transaction1.txBuf = (Ptr)&txbuf[0];
+        transaction1.rxBuf = (Ptr)&rxbuf[0];
 
         /* Set the read flag to send response */
         txbuf[0] = SMPTE_REG_SET(SMPTE_REG_DATA) | SMPTE_F_READ;
         rxbuf[0] = 0;
 
         /* Send the SPI transaction */
-        SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-#if 1
-        /* Send the command */
-        transaction.count = 3;
-        transaction.txBuf = (Ptr)&txbuf[1];
-        transaction.rxBuf = (Ptr)&rxbuf[1];
+        SPI_transfer(g_smpteHandle->spiHandle, &transaction1);
 
-        txbuf[1] = txbuf[2] = txbuf[3] = 0;
-        rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
+        /*** Read the data ***/
+
+        transaction2.count = 3;
+        transaction2.txBuf = (Ptr)&txbuf2[0];
+        transaction2.rxBuf = (Ptr)&rxbuf2[0];
+
+        txbuf2[0] = txbuf2[2] = txbuf2[3] = 0;
+        rxbuf2[1] = rxbuf2[2] = rxbuf2[3] = 0;
 
         /* Send the SPI transaction */
-        SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-#endif
+        SPI_transfer(g_smpteHandle->spiHandle, &transaction2);
+
         /* Pull out time members into local struct buffer */
 
-        tapeTime.flags = (uint8_t)(rxbuf[1] & 0xFF);
-        tapeTime.frame = (uint8_t)((rxbuf[3]) & 0xFF);
-        tapeTime.secs  = (uint8_t)((rxbuf[3] >> 8) & 0xFF);
-        tapeTime.mins  = (uint8_t)((rxbuf[2]) & 0xFF);
-        tapeTime.hour  = (uint8_t)((rxbuf[2] >> 8) & 0xFF);
+        // uiData[0] = 0xBEEF; //uReply;
+        // uiData[1] = 0x1122; //(((uint16_t)g_rxTime.secs  << 8) | ((uint16_t)g_rxTime.frame & 0xFF));
+        // uiData[2] = 0x3344; //(((uint16_t)g_rxTime.hours << 8) | ((uint16_t)g_rxTime.mins  & 0xFF));
+
+        tapeTime.flags = (uint8_t)((rxbuf2[0]) & 0xFF);
+        tapeTime.frame = (uint8_t)((rxbuf2[1]) & 0xFF);
+        tapeTime.secs  = (uint8_t)((rxbuf2[1] >> 8) & 0xFF);
+        tapeTime.mins  = (uint8_t)((rxbuf2[2]) & 0xFF);
+        tapeTime.hour  = (uint8_t)((rxbuf2[2] >> 8) & 0xFF);
         tapeTime.tens  = 0;
 
         /* Leave thread safe access to SMPTE controller */
