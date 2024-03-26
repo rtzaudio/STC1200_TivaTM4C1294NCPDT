@@ -317,6 +317,14 @@ static bool SMPTE_Read(uint16_t opcode, uint16_t *result)
     /* Send the SPI transaction */
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
 
+    /* Read the response */
+    transaction.count = 1;
+    transaction.txBuf = (Ptr)&txbuf[0];
+    transaction.rxBuf = (Ptr)&rxbuf[0];
+
+    /* Send the SPI transaction */
+    success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
+
     if (success)
         *result = rxbuf[0];
 
