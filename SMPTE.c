@@ -233,23 +233,25 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
         /* Serialize access to SMPTE controller */
         key = GateMutex_enter(GateMutex_handle(&(g_smpteHandle->gate)));
 
+        /* Send the command */
+        transaction.count = 1;
+        transaction.txBuf = (Ptr)&txbuf[0];
+        transaction.rxBuf = (Ptr)&rxbuf[0];
+
         /* Set the read flag to send response */
         txbuf[0] = SMPTE_REG_SET(SMPTE_REG_DATA) | SMPTE_F_READ;
         rxbuf[0] = 0;
 
-        /* Send the command */
-        //transaction.count = 1;
-        //transaction.txBuf = (Ptr)&txbuf[0];
-        //transaction.rxBuf = (Ptr)&rxbuf[0];
-
         /* Send the SPI transaction */
-        //SPI_transfer(g_smpteHandle->spiHandle, &transaction);
-        rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
+        SPI_transfer(g_smpteHandle->spiHandle, &transaction);
 
         /* Send the command */
-        transaction.count = 4;
+        transaction.count = 3;
         transaction.txBuf = (Ptr)&txbuf[1];
         transaction.rxBuf = (Ptr)&rxbuf[1];
+
+        txbuf[1] = txbuf[2] = txbuf[3] = 0;
+        rxbuf[1] = rxbuf[2] = rxbuf[3] = 0;
 
         /* Send the SPI transaction */
         SPI_transfer(g_smpteHandle->spiHandle, &transaction);
@@ -264,6 +266,12 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
 
         /* Leave thread safe access to SMPTE controller */
         GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
+
+        System_printf("%2.2u:%2.2u:%2.2u:%2.2u\n",
+                      tapeTime.hour, tapeTime.mins,
+                      tapeTime.secs, tapeTime.frame);
+        System_flush();
+
     }
 }
 
