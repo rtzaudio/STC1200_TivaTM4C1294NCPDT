@@ -103,14 +103,14 @@ extern "C" {
 /* I/O Expansion Port to SMPTE daughter card */
 #define Board_AD9732_FSYNC          STC1200_EXPIO_PF2_SSI3FS
 #define Board_SMPTE_CHANGE          STC1200_EXPIO_PP5
-#define Board_SMPTE_FRAMESYNC       STC1200_EXPIO_PP3
 #define Board_SMPTE_DIRECTION       STC1200_EXPIO_PP2
+#define Board_SMPTE_FRAMESYNC       STC1200_EXPIO_PP3
+#define Board_SMPTE_SLOWCODE        STC1200_EXPIO_PP4
 #define Board_SMPTE_INT_N           STC1200_EXPIO_PK3
+#define Board_SMPTE_BUSY_N          STC1200_EXPIO_PD4
 /* Not used on SMPTE expansion connector */
-#define Board_EXPIO_PD4             STC1200_EXPIO_PD4
 #define Board_EXPIO_PD5             STC1200_EXPIO_PD5
 #define Board_EXPIO_PK2             STC1200_EXPIO_PK2
-#define Board_EXPIO_PP4             STC1200_EXPIO_PP4
 
 #define Board_RS422_RE_N			STC1200_RS422_RE_N
 #define Board_RS422_DE				STC1200_RS422_DE

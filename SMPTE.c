@@ -258,6 +258,9 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
         txbuf2[0] = txbuf2[2] = txbuf2[3] = 0;
         rxbuf2[1] = rxbuf2[2] = rxbuf2[3] = 0;
 
+        /* Allow time for slave to enable its receiver */
+        Task_sleep(6);
+
         /* Send the SPI transaction */
         SPI_transfer(g_smpteHandle->spiHandle, &transaction2);
 
@@ -332,6 +335,9 @@ static bool SMPTE_ReadReg(uint16_t opcode, uint16_t *result)
     success = SPI_transfer(g_smpteHandle->spiHandle, &transaction);
 
     txbuf[0] = rxbuf[0] = 0;
+
+    /* Allow time for slave to enable its receiver */
+    Task_sleep(6);
 
     /* Read the response */
     transaction.count = 1;
