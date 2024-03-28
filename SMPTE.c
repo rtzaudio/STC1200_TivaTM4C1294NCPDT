@@ -171,7 +171,7 @@ bool SMPTE_init(void)
     spiParams.mode         = SPI_MASTER;
     spiParams.transferMode = SPI_MODE_BLOCKING;
     spiParams.frameFormat  = SPI_POL1_PHA0;
-    spiParams.bitRate      = 250000;
+    spiParams.bitRate      = 1000000;   //250000;
     spiParams.dataSize     = 16;
 
     spiHandle = SPI_open(Board_SPI_EXPIO_SMPTE, &spiParams);
