@@ -225,7 +225,8 @@ typedef struct _STC_STATE_MSG {
     uint8_t     hardwareFlags;          /* optional hardware status   */
     uint8_t     smpteMode;              /* SMPTE master/slave mode    */
     uint8_t     smpteFPS;               /* SMPTE frame rate id        */
-    uint8_t     reserved[32];           /* reserved for future use    */
+    TAPETIME    smpteTime;              /* smpte tape time position   */
+    uint8_t     reserved[24];           /* reserved for future use    */
     uint8_t     trackState[STC_MAX_TRACKS];
     uint8_t     cueState[STC_MAX_CUE_POINTS];
 } STC_STATE_MSG;
