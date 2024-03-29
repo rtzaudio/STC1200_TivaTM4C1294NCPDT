@@ -107,6 +107,7 @@ typedef struct _SYSDAT
     bool            varispeedMode;              /* jog wheel varispeed active */
     float           ref_freq;                   /* master ref freq 9600 Hz    */
     TAPETIME        tapeTime;                   /* current tape time position */
+    TAPETIME        smpteTime;                  /* current SMPTE tape time    */
     size_t          cueIndex;                   /* current cue table index    */
     CUE_POINT	    cuePoint[MAX_CUE_POINTS];	/* array of cue point data    */
     uint8_t         trackState[MAX_TRACKS];

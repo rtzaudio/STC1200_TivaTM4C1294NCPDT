@@ -92,8 +92,6 @@ static SMPTE_Handle g_smpteHandle;
 
 static Semaphore_Handle g_smpteIntSemaphore;
 
-static TAPETIME tapeTime;
-
 /* Static Function Prototypes */
 static bool SMPTE_WriteReg(uint16_t opcode);
 static bool SMPTE_ReadReg(uint16_t opcode, uint16_t *result);
@@ -196,7 +194,7 @@ bool SMPTE_init(void)
 
     /* Setup the GPIO pin interrupt handler and enable it */
     GPIO_setCallback(Board_SMPTE_INT_N, gpioSMPTEHwi);
-    GPIO_enableInt(Board_SMPTE_INT_N);
+    //GPIO_enableInt(Board_SMPTE_INT_N);
 
 	return true;
 }
@@ -224,7 +222,7 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
     uint16_t rxbuf2[4];
     SPI_Transaction transaction1;
     SPI_Transaction transaction2;
-    IArg key;
+    uint32_t key;
 
     while (TRUE)
     {
@@ -264,21 +262,22 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
         /* Send the SPI transaction */
         SPI_transfer(g_smpteHandle->spiHandle, &transaction2);
 
-        /* Pull out time members into local struct buffer */
-
-        tapeTime.flags = (uint8_t)((rxbuf2[0]) & 0xFF);
-        tapeTime.frame = (uint8_t)((rxbuf2[1]) & 0xFF);
-        tapeTime.secs  = (uint8_t)((rxbuf2[1] >> 8) & 0xFF);
-        tapeTime.mins  = (uint8_t)((rxbuf2[2]) & 0xFF);
-        tapeTime.hour  = (uint8_t)((rxbuf2[2] >> 8) & 0xFF);
-        tapeTime.tens  = 0;
+        /* Pull out time members into global data buffer */
+        key = Hwi_disable();
+        g_sys.smpteTime.flags = (uint8_t)((rxbuf2[0]) & 0xFF);
+        g_sys.smpteTime.frame = (uint8_t)((rxbuf2[1]) & 0xFF);
+        g_sys.smpteTime.secs  = (uint8_t)((rxbuf2[1] >> 8) & 0xFF);
+        g_sys.smpteTime.mins  = (uint8_t)((rxbuf2[2]) & 0xFF);
+        g_sys.smpteTime.hour  = (uint8_t)((rxbuf2[2] >> 8) & 0xFF);
+        g_sys.smpteTime.tens  = 0;
+        Hwi_restore(key);
 
         /* Leave thread safe access to SMPTE controller */
         GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
 
         System_printf("%2.2u:%2.2u:%2.2u:%2.2u\n",
-                      tapeTime.hour, tapeTime.mins,
-                      tapeTime.secs, tapeTime.frame);
+                      g_sys.smpteTime.hour, g_sys.smpteTime.mins,
+                      g_sys.smpteTime.secs, g_sys.smpteTime.frame);
         System_flush();
 
     }
@@ -467,7 +466,7 @@ bool SMPTE_decoder_start(void)
           SMPTE_DECCTL_INT |
           SMPTE_DECCTL_ENABLE;
 
-    //GPIO_enableInt(Board_SMPTE_INT_N);
+    GPIO_enableInt(Board_SMPTE_INT_N);
 
     return SMPTE_WriteReg(cmd);
 }
@@ -479,7 +478,7 @@ bool SMPTE_decoder_stop(void)
     cmd = SMPTE_REG_SET(SMPTE_REG_DECCTL) |
           SMPTE_DECCTL_DISABLE;
 
-    //GPIO_disableInt(Board_SMPTE_INT_N);
+    GPIO_disableInt(Board_SMPTE_INT_N);
 
     return SMPTE_WriteReg(cmd);
 }
