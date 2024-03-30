@@ -275,11 +275,14 @@ Void SMPTEReadTask(UArg arg0, UArg arg1)
         /* Leave thread safe access to SMPTE controller */
         GateMutex_leave(GateMutex_handle(&(g_smpteHandle->gate)), key);
 
-        System_printf("%2.2u:%2.2u:%2.2u:%2.2u\n",
-                      g_sys.smpteTime.hour, g_sys.smpteTime.mins,
-                      g_sys.smpteTime.secs, g_sys.smpteTime.frame);
-        System_flush();
+        //System_printf("%2.2u:%2.2u:%2.2u:%2.2u\n",
+        //              g_sys.smpteTime.hour, g_sys.smpteTime.mins,
+        //              g_sys.smpteTime.secs, g_sys.smpteTime.frame);
+        //System_flush();
 
+
+        /* Signal the TCP worker thread that position has changed */
+        Event_post(g_eventTransport, Event_Id_00);
     }
 }
 
