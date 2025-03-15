@@ -134,7 +134,7 @@ int32_t AD9837_init(void)
 
 void AD9837_reset()
 {
-  uint32_t defaultFreq = AD9837_freqCalc(9600.0);
+  uint32_t defaultFreq = AD9837_freqCalc(9600.0f);
 
   SPIWrite(AD9837_CTRLRESET);
   Task_sleep(200);

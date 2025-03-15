@@ -160,10 +160,13 @@ int main(void)
     g_sys.dcsFound       = false;
     g_sys.smpteFound     = false;
     g_sys.smpteMode      = 0;
-    g_sys.varispeedMode  = false;
+
     g_sys.standbyActive  = false;
     g_sys.standbyMonitor = false;
     g_sys.trackCount     = 0;
+
+    g_sys.varispeedMode  = VARI_SPEED_OFF;
+    g_sys.toneIndex      = 4;
 
     /* Now call all the board initialization functions for TI-RTOS */
     Board_initGeneral();

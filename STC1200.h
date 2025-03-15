@@ -39,7 +39,7 @@
  * to be reset or not.
  */
 #define FIRMWARE_VER        3           /* firmware version */
-#define FIRMWARE_REV        4           /* firmware revision */
+#define FIRMWARE_REV        5           /* firmware revision */
 #define FIRMWARE_BUILD      1           /* firmware build number */
 #define FIRMWARE_MIN_BUILD  1           /* min build req'd to force reset */
 
@@ -61,6 +61,10 @@
 //*****************************************************************************
 // GLOBAL SHARED MEMORY & REAL-TIME DATA
 //*****************************************************************************
+
+#define VARI_SPEED_OFF      0
+#define VARI_SPEED_STEP     1
+#define VARI_SPEED_TONE     2
 
 #define MAX_DIGITS_BUF      8
 
@@ -104,7 +108,8 @@ typedef struct _SYSDAT
     char            digitBuf[MAX_DIGITS_BUF+1]; /* input digits buffer        */
     bool            autoMode;                   /* auto mode active flag      */
     /* Locate and Position data */
-    bool            varispeedMode;              /* jog wheel varispeed active */
+    int32_t         varispeedMode;              /* jog wheel varispeed active */
+    int32_t         toneIndex;                  /* vari-speed tone tab index  */
     float           ref_freq;                   /* master ref freq 9600 Hz    */
     TAPETIME        tapeTime;                   /* current tape time position */
     TAPETIME        smpteTime;                  /* current SMPTE tape time    */

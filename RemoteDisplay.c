@@ -268,6 +268,7 @@ void DrawTapeTime(void)
 void DrawTimeTop(void)
 {
     char buf[64];
+    char txt[8];
     int32_t x, y;
     int32_t len;
     int32_t width;
@@ -340,7 +341,15 @@ void DrawTimeTop(void)
     /* Draw current tape speed active */
     if (g_sys.varispeedMode)
     {
-        len = sprintf(buf, "%u", (uint32_t)g_sys.ref_freq);
+        if (g_sys.varispeedMode == VARI_SPEED_TONE)
+        {
+            GetToneText(txt);
+            len = sprintf(buf, "%s", txt);
+        }
+        else
+        {
+            len = sprintf(buf, "%u", (uint32_t)g_sys.ref_freq);
+        }
     }
     else
     {

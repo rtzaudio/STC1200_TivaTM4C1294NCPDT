@@ -103,6 +103,35 @@ static void HandleJogwheelClick(uint32_t switch_mask);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static void HandleViewChange(int32_t view, bool select);
 
+/*
+ * Vari-Speed Master clock frequencies for tone step mode
+ */
+
+typedef struct _DDS_TONE_TAB {
+    float   toneFreq;               /* ref freq in hertz */
+    char    toneText[5];            /* step label text   */
+} DDS_TONE_TAB;
+
+static const DDS_TONE_TAB toneTable[] =
+{
+     { 10776.0f,    { '+', '1', '\0', '\0', '\0' }},       /*  +1  */
+     { 10469.0f,    { '+', '3', '\\', '4',  '\0' }},       /* +3/4 */
+     { 10171.0f,    { '+', '1', '\\', '2',  '\0' }},       /* +1/2 */
+     { 9681.0f,     { '+', '1', '\\', '4',  '\0' }},       /* +1/4 */
+     { 9600.0f,     { 'T', 'O', 'N',  'E',  '\0' }},       /*   0  */
+     { 9327.0f ,    { '-', '1', '\\', '4',  '\0' }},       /* -1/4 */
+     { 9061.0f,     { '-', '1', '\\', '2',  '\0' }},       /* -1/2 */
+     { 8803.0f,     { '-', '3', '\\', '4',  '\0' }},       /* -3/4 */
+     { 8553.0f,     { '-', '1', '\0', '\0', '\0' }},       /*  -1  */
+};
+
+#define MAX_TONE_TAB    (sizeof(toneTable)/sizeof(DDS_TONE_TAB))
+
+void GetToneText(char* buf)
+{
+    strcpy(buf, toneTable[g_sys.toneIndex].toneText);
+}
+
 //*****************************************************************************
 // Initialize the remote display task
 //*****************************************************************************
@@ -841,6 +870,9 @@ bool IsDCSView(int32_t screen)
 
 void HandleJogwheelMotion(uint32_t velocity, int direction)
 {
+    float freq = 9600.0f;
+    float step;
+
     if (g_sys.remoteViewSelect)
     {
         /* Reset field being edited since the screen changed */
@@ -875,38 +907,59 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     }
     else if (g_sys.varispeedMode)
     {
-        float freq;
-        float step;
-
-        if (velocity >= 12)
-            step = 1000.0f;
-        else if (velocity >= 8)
-            step = 500.0f;
-        else if (velocity >= 5)
-            step = 100.0f;
-        else if (velocity >= 3)
-            step = 10.0f;
-        else
-            step = 1.0f;
-
-        freq = g_sys.ref_freq;
-
-        if (direction > 0)
+        if (g_sys.varispeedMode == VARI_SPEED_TONE)
         {
-            if ((freq + step) < REF_FREQ_MAX)
-                freq += step;
+            if (direction > 0)
+            {
+                ++g_sys.toneIndex;
+
+                if (g_sys.toneIndex >= MAX_TONE_TAB)
+                    g_sys.toneIndex = 0;
+            }
             else
-                freq = REF_FREQ_MAX;
+            {
+                if (g_sys.toneIndex == 0)
+                    g_sys.toneIndex =  MAX_TONE_TAB - 1;
+                else
+                    --g_sys.toneIndex;
+            }
+
+            freq = toneTable[g_sys.toneIndex].toneFreq;
         }
-        else
+        else if (g_sys.varispeedMode == VARI_SPEED_STEP)
         {
-            if (step > freq)
-                freq = REF_FREQ_MIN;
-            else if ((freq - step) > REF_FREQ_MIN)
-                freq -= step;
+            if (velocity >= 12)
+                step = 1000.0f;
+            else if (velocity >= 8)
+                step = 500.0f;
+            else if (velocity >= 5)
+                step = 100.0f;
+            else if (velocity >= 3)
+                step = 10.0f;
             else
-                freq = REF_FREQ_MIN;
+                step = 1.0f;
+
+            freq = g_sys.ref_freq;
+
+            if (direction > 0)
+            {
+                if ((freq + step) < REF_FREQ_MAX)
+                    freq += step;
+                else
+                    freq = REF_FREQ_MAX;
+            }
+            else
+            {
+                if (step > freq)
+                    freq = REF_FREQ_MIN;
+                else if ((freq - step) > REF_FREQ_MIN)
+                    freq -= step;
+                else
+                    freq = REF_FREQ_MIN;
+            }
         }
+
+        g_sys.ref_freq = freq;
 
         /* Calculate the 32-bit frequency divisor */
         uint32_t freqCalc = AD9837_freqCalc(freq);
@@ -914,8 +967,6 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
         /* Program the DSS ref clock with new value */
         AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
         AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
-
-        g_sys.ref_freq = freq;
     }
     else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
@@ -979,7 +1030,7 @@ void HandleJogwheelClick(uint32_t switch_mask)
         SetButtonLedMask(0, L_MENU);
 
         /* notify view change */
-        HandleViewChange(g_sys.remoteView, 0);
+        HandleViewChange(g_sys.remoteView, false);
         return;
     }
 
@@ -992,14 +1043,15 @@ void HandleJogwheelClick(uint32_t switch_mask)
             break;
 
         default:
-            if (!g_sys.varispeedMode)
+            if (g_sys.varispeedMode == VARI_SPEED_OFF)
             {
-                /* Enable vari-speed mode */
-                g_sys.varispeedMode = true;
+                /* Enter vari-speed mode */
+                g_sys.varispeedMode = (switch_mask & SW_ALT) ? VARI_SPEED_TONE : VARI_SPEED_STEP;
+                g_sys.toneIndex = 4;
             }
             else
             {
-                /* Reset ref frequency to default */
+                /* Exit vari-speed mode, set ref to default */
                 g_sys.ref_freq = REF_FREQ;
 
                 /* Calculate the 32-bit frequency divisor */
@@ -1010,7 +1062,8 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
 
                 /* Disable vari-speed mode */
-                g_sys.varispeedMode = false;
+                g_sys.varispeedMode = VARI_SPEED_OFF;
+                g_sys.toneIndex = 4;
             }
             break;
         }

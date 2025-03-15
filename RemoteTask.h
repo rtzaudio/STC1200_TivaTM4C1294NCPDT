@@ -65,8 +65,8 @@ Bool Remote_Task_startup();
 void SetLocateButtonLED(size_t index);
 void SetButtonLedMask(uint32_t setMask, uint32_t clearMask);
 uint32_t xlate_to_dtc_transport_switch_mask(uint32_t mask);
-
 void Remote_PostSwitchPress(uint32_t mode, uint32_t flags);
+void GetToneText(char* buf);
 
 /* RemoteDisplay.c */
 void ClearDisplay(void);
