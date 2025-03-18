@@ -102,6 +102,7 @@ static void HandleDigitPress(size_t index, uint32_t cue_flags);
 static void HandleJogwheelClick(uint32_t switch_mask);
 static void HandleJogwheelMotion(uint32_t velocity, int direction);
 static void HandleViewChange(int32_t view, bool select);
+static void SetMasterRefClock(float freq);
 
 /*
  * Vari-Speed Master clock frequencies for tone step mode
@@ -109,27 +110,43 @@ static void HandleViewChange(int32_t view, bool select);
 
 typedef struct _DDS_TONE_TAB {
     float   toneFreq;               /* ref freq in hertz */
-    char    toneText[5];            /* step label text   */
+    char    toneText[5];            /* tone label text   */
 } DDS_TONE_TAB;
 
-static const DDS_TONE_TAB toneTable[] =
-{
-     { 10776.0f,    { '+', '1', '\0', '\0', '\0' }},       /*  +1  */
-     { 10469.0f,    { '+', '3', '\\', '4',  '\0' }},       /* +3/4 */
-     { 10171.0f,    { '+', '1', '\\', '2',  '\0' }},       /* +1/2 */
-     { 9681.0f,     { '+', '1', '\\', '4',  '\0' }},       /* +1/4 */
-     { 9600.0f,     { 'T', 'O', 'N',  'E',  '\0' }},       /*   0  */
-     { 9327.0f ,    { '-', '1', '\\', '4',  '\0' }},       /* -1/4 */
-     { 9061.0f,     { '-', '1', '\\', '2',  '\0' }},       /* -1/2 */
-     { 8803.0f,     { '-', '3', '\\', '4',  '\0' }},       /* -3/4 */
-     { 8553.0f,     { '-', '1', '\0', '\0', '\0' }},       /*  -1  */
+static const DDS_TONE_TAB toneTable[] = {
+     { 10776.0f,    { '+', '1', '\0', '\0', '\0' }},    /*  +1  */
+     { 10469.0f,    { '+', '3', '\\', '4',  '\0' }},    /* +3/4 */
+     { 10171.0f,    { '+', '1', '\\', '2',  '\0' }},    /* +1/2 */
+     { 9681.0f,     { '+', '1', '\\', '4',  '\0' }},    /* +1/4 */
+     { 9600.0f,     { 'R', 'E', 'F',  '0',  '\0' }},    /*   0  */
+     { 9327.0f ,    { '-', '1', '\\', '4',  '\0' }},    /* -1/4 */
+     { 9061.0f,     { '-', '1', '\\', '2',  '\0' }},    /* -1/2 */
+     { 8803.0f,     { '-', '3', '\\', '4',  '\0' }},    /* -3/4 */
+     { 8553.0f,     { '-', '1', '\0', '\0', '\0' }},    /*  -1  */
 };
 
 #define MAX_TONE_TAB    (sizeof(toneTable)/sizeof(DDS_TONE_TAB))
 
 void GetToneText(char* buf)
 {
-    strcpy(buf, toneTable[g_sys.toneIndex].toneText);
+    strncpy(buf, toneTable[g_sys.toneIndex].toneText, 5);
+    buf[4] = '\0';
+}
+
+//*****************************************************************************
+// Set the master reference clock frequency. The default is clock is 9600 Hz.
+//*****************************************************************************
+
+void SetMasterRefClock(float freq)
+{
+    /* Calculate the 32-bit frequency divisor */
+    uint32_t freqCalc = AD9837_freqCalc(freq);
+
+    /* Program the DSS ref clock with new value */
+    AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
+    AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+
+    g_sys.ref_freq = freq;
 }
 
 //*****************************************************************************
@@ -925,6 +942,9 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             }
 
             freq = toneTable[g_sys.toneIndex].toneFreq;
+
+            /* Set the new ref clock speed */
+            SetMasterRefClock(freq);
         }
         else if (g_sys.varispeedMode == VARI_SPEED_STEP)
         {
@@ -957,16 +977,10 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
                 else
                     freq = REF_FREQ_MIN;
             }
+
+            /* Set the new ref clock speed */
+            SetMasterRefClock(freq);
         }
-
-        g_sys.ref_freq = freq;
-
-        /* Calculate the 32-bit frequency divisor */
-        uint32_t freqCalc = AD9837_freqCalc(freq);
-
-        /* Program the DSS ref clock with new value */
-        AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-        AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
     }
     else if (g_sys.remoteView == VIEW_TRACK_ASSIGN)
     {
@@ -1017,6 +1031,7 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
 
 void HandleJogwheelClick(uint32_t switch_mask)
 {
+    float freq;
     uint8_t mode;
     uint8_t trackState;
     int32_t trackNum;
@@ -1046,24 +1061,45 @@ void HandleJogwheelClick(uint32_t switch_mask)
             if (g_sys.varispeedMode == VARI_SPEED_OFF)
             {
                 /* Enter vari-speed mode */
-                g_sys.varispeedMode = (switch_mask & SW_ALT) ? VARI_SPEED_TONE : VARI_SPEED_STEP;
-                g_sys.toneIndex = 4;
+                if (switch_mask & SW_ALT)
+                {
+                    /* tone increment mode */
+                    g_sys.toneIndex = 4;
+                    g_sys.varispeedMode = VARI_SPEED_TONE;
+
+                    freq = toneTable[g_sys.toneIndex].toneFreq;
+                }
+                else
+                {
+                    /* frequency step mode */
+                    g_sys.varispeedMode = VARI_SPEED_STEP;
+
+                    freq = REF_FREQ;
+                }
+
+                /* Set the new ref clock speed */
+                SetMasterRefClock(freq);
             }
             else
             {
-                /* Exit vari-speed mode, set ref to default */
-                g_sys.ref_freq = REF_FREQ;
-
-                /* Calculate the 32-bit frequency divisor */
-                uint32_t freqCalc = AD9837_freqCalc(g_sys.ref_freq);
-
-                /* Program the DSS ref clock with new value */
-                AD9837_adjustFreqMode32(FREQ0, FULL, freqCalc);
-                AD9837_adjustFreqMode32(FREQ1, FULL, freqCalc);
+                if (g_sys.varispeedMode == VARI_SPEED_TONE)
+                {
+                    if (!(switch_mask & SW_ALT))
+                    {
+                        /* Exit tone increment mode to frequency step mode.
+                         * The next click will exit vari-speed mode.
+                         */
+                        g_sys.varispeedMode = VARI_SPEED_STEP;
+                        break;
+                    }
+                }
 
                 /* Disable vari-speed mode */
-                g_sys.varispeedMode = VARI_SPEED_OFF;
                 g_sys.toneIndex = 4;
+                g_sys.varispeedMode = VARI_SPEED_OFF;
+
+                /* Exit vari-speed mode, set ref to default */
+                SetMasterRefClock(REF_FREQ);
             }
             break;
         }
