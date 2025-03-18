@@ -29,6 +29,10 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 3.04(06/18/2024) ==============================================
+
+New menu options in DRC wired remote. Updates for SMPTE/NCO card support. 
+
 === VERSION 3.03(03/26/2024) ==============================================
 
 Additions to support DCS track assignment setting via the DRC wired remote.
