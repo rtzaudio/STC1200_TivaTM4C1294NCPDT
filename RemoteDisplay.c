@@ -344,7 +344,7 @@ void DrawTimeTop(void)
         if (g_sys.varispeedMode == VARI_SPEED_TONE)
         {
             GetToneText(txt);
-            len = sprintf(buf, "%s", txt);
+            len = sprintf(buf, "INC %s", txt);
         }
         else
         {

@@ -113,16 +113,17 @@ typedef struct _DDS_TONE_TAB {
     char    toneText[5];            /* tone label text   */
 } DDS_TONE_TAB;
 
-static const DDS_TONE_TAB toneTable[] = {
-     { 10776.0f,    { '+', '1', '\0', '\0', '\0' }},    /*  +1  */
-     { 10469.0f,    { '+', '3', '\\', '4',  '\0' }},    /* +3/4 */
-     { 10171.0f,    { '+', '1', '\\', '2',  '\0' }},    /* +1/2 */
-     { 9681.0f,     { '+', '1', '\\', '4',  '\0' }},    /* +1/4 */
-     { 9600.0f,     { 'R', 'E', 'F',  '0',  '\0' }},    /*   0  */
-     { 9327.0f ,    { '-', '1', '\\', '4',  '\0' }},    /* -1/4 */
-     { 9061.0f,     { '-', '1', '\\', '2',  '\0' }},    /* -1/2 */
-     { 8803.0f,     { '-', '3', '\\', '4',  '\0' }},    /* -3/4 */
-     { 8553.0f,     { '-', '1', '\0', '\0', '\0' }},    /*  -1  */
+static const DDS_TONE_TAB toneTable[] =
+{
+     { 8553.0f,     { '-', '1', '.',  '0', '\0' }},    /*  -1  */
+     { 8803.0f,     { '-', '3', '\\', '4', '\0' }},    /* -3/4 */
+     { 9061.0f,     { '-', '1', '\\', '2', '\0' }},    /* -1/2 */
+     { 9327.0f,     { '-', '1', '\\', '4', '\0' }},    /* -1/4 */
+     { 9600.0f,     { '0', ' ', ' ',  ' ', '\0' }},    /*   0  */
+     { 9681.0f,     { '+', '1', '\\', '4', '\0' }},    /* +1/4 */
+     { 10171.0f,    { '+', '1', '\\', '2', '\0' }},    /* +1/2 */
+     { 10469.0f,    { '+', '3', '\\', '4', '\0' }},    /* +3/4 */
+     { 10776.0f,    { '+', '1', '.',  '0', '\0' }},    /*  +1  */
 };
 
 #define MAX_TONE_TAB    (sizeof(toneTable)/sizeof(DDS_TONE_TAB))
@@ -931,13 +932,11 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
                 ++g_sys.toneIndex;
 
                 if (g_sys.toneIndex >= MAX_TONE_TAB)
-                    g_sys.toneIndex = 0;
+                    g_sys.toneIndex = MAX_TONE_TAB - 1;
             }
             else
             {
-                if (g_sys.toneIndex == 0)
-                    g_sys.toneIndex =  MAX_TONE_TAB - 1;
-                else
+                if (g_sys.toneIndex > 0)
                     --g_sys.toneIndex;
             }
 
