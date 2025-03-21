@@ -272,6 +272,7 @@ void DrawTimeTop(void)
     int32_t x, y;
     int32_t len;
     int32_t width;
+    float percent;
 
     /*
      * Draw the current transport mode text on top line
@@ -348,7 +349,14 @@ void DrawTimeTop(void)
         }
         else
         {
-            len = sprintf(buf, "%u", (uint32_t)g_sys.ref_freq);
+            percent = 0.0f;
+
+            if (g_sys.ref_freq)
+            {
+                percent = (g_sys.ref_freq / 9600.0f) * 100.0f;
+            }
+
+            len = sprintf(buf, "%u %.1f%%", (uint32_t)g_sys.ref_freq, percent);
         }
     }
     else
