@@ -126,8 +126,8 @@ static const DDS_TONE_TAB toneTable[] =
      { 10776.0f,    { '+', '1', '.',  '0', '\0' }},    /*  +1   (112.2%) */
 };
 
-#define MAX_TONE_TAB    (sizeof(toneTable)/sizeof(DDS_TONE_TAB))
-#define TONE_TAB_ZERO   4
+#define TONE_TAB_MAX        (sizeof(toneTable)/sizeof(DDS_TONE_TAB))
+#define TONE_TAB_ZERO       4
 
 void GetToneText(char* buf)
 {
@@ -935,8 +935,8 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
             {
                 ++g_sys.toneIndex;
 
-                if (g_sys.toneIndex >= MAX_TONE_TAB)
-                    g_sys.toneIndex = MAX_TONE_TAB - 1;
+                if (g_sys.toneIndex >= TONE_TAB_MAX)
+                    g_sys.toneIndex = TONE_TAB_MAX - 1;
             }
             else
             {
@@ -1063,10 +1063,10 @@ void HandleJogwheelClick(uint32_t switch_mask)
         default:
             if (g_sys.varispeedMode == VARI_SPEED_OFF)
             {
-                /* Enter vari-speed mode */
-                if (switch_mask & SW_ALT)
+                /* Enable vari-speed mode */
+                if ((switch_mask & SW_ALT) == 0)
                 {
-                    /* tone increment mode */
+                    /* Enable tone increment mode */
                     g_sys.toneIndex = TONE_TAB_ZERO;
                     g_sys.varispeedMode = VARI_SPEED_TONE;
 
@@ -1074,7 +1074,7 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 }
                 else
                 {
-                    /* frequency step mode */
+                    /* Enable frequency step mode */
                     g_sys.varispeedMode = VARI_SPEED_STEP;
 
                     freq = REF_FREQ;
@@ -1085,6 +1085,7 @@ void HandleJogwheelClick(uint32_t switch_mask)
             }
             else
             {
+                /* Vari-Speed Mode is Active! */
                 if (g_sys.varispeedMode == VARI_SPEED_TONE)
                 {
                     if (!(switch_mask & SW_ALT))
@@ -1176,18 +1177,19 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 /* Get the current standby monitor state */
                 Track_GetState(trackNum, &trackState);
 
-                // Toggle monitor enable flag for the track
+                /* Toggle monitor enable flag for the track */
                 trackState ^= STC_T_MONITOR;
 
-                // If not in monitor mode, clear standby bit!
+                /* If not in monitor mode, clear standby bit! */
                 if (!(trackState & STC_T_MONITOR))
                 {
                     trackState &= ~(STC_T_STANDBY);
                 }
                 else
                 {
-                    // If master monitor enabled, enable standby mode for
-                    // the track so it will switch to standby input mode.
+                    /* If master monitor enabled, enable standby mode for
+                     * the track so it will switch to standby input mode.
+                     */
                     if (g_sys.standbyMonitor)
                         trackState |= STC_T_STANDBY;
                 }
