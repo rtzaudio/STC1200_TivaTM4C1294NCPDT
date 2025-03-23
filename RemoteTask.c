@@ -127,6 +127,7 @@ static const DDS_TONE_TAB toneTable[] =
 };
 
 #define MAX_TONE_TAB    (sizeof(toneTable)/sizeof(DDS_TONE_TAB))
+#define TONE_TAB_ZERO   4
 
 void GetToneText(char* buf)
 {
@@ -158,6 +159,9 @@ Bool Remote_Task_startup(void)
 {
     Error_Block eb;
     Task_Params taskParams;
+
+    g_sys.varispeedMode  = VARI_SPEED_OFF;
+    g_sys.toneIndex      = TONE_TAB_ZERO;
 
     Error_init(&eb);
 
@@ -1063,7 +1067,7 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 if (switch_mask & SW_ALT)
                 {
                     /* tone increment mode */
-                    g_sys.toneIndex = 4;
+                    g_sys.toneIndex = TONE_TAB_ZERO;
                     g_sys.varispeedMode = VARI_SPEED_TONE;
 
                     freq = toneTable[g_sys.toneIndex].toneFreq;
@@ -1094,7 +1098,7 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 }
 
                 /* Disable vari-speed mode */
-                g_sys.toneIndex = 4;
+                g_sys.toneIndex = TONE_TAB_ZERO;
                 g_sys.varispeedMode = VARI_SPEED_OFF;
 
                 /* Exit vari-speed mode, set ref to default */
