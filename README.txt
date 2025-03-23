@@ -29,9 +29,18 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
+=== VERSION 3.05(03/23/2025) ==============================================
+
+Added new tone increment functions, like Ampex VSO unit, for vari-speed
+in incremental tone steps. Second click changes to fine/course frequency
+step mode vari-speed operation. This allows for fine tuning at each of 
+the tone step increment frequencies.
+ 
 === VERSION 3.04(06/18/2024) ==============================================
 
 New menu options in DRC wired remote. Updates for SMPTE/NCO card support. 
+The DRC wired remote now supports all track and channel assignment
+functions to support full stand alone operation from the DRC remote.
 
 === VERSION 3.03(03/26/2024) ==============================================
 
