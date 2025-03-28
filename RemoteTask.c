@@ -113,6 +113,15 @@ typedef struct _DDS_TONE_TAB {
     char    toneText[5];            /* tone label text   */
 } DDS_TONE_TAB;
 
+/* Since the frequency ratio of a semitone is close to 106%, increasing
+ * or decreasing the playback speed of a recording by 6% will shift the
+ * pitch up or down by about one semitone, or "half-step". Upscale
+ * reel-to-reel magnetic tape recorders typically have pitch adjustments
+ * of up to ±6%, generally used to match the playback or recording pitch
+ * to other music sources having slightly different tunings (or possibly
+ * recorded on equipment that was not running at quite the right speed).
+ */
+
 static const DDS_TONE_TAB toneTable[] =
 {
      { 8553.0f,     { '-', '1', '.',  '0', '\0' }},    /*  -1   (89.1%)  */
