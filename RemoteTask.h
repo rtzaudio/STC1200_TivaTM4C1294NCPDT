@@ -37,12 +37,15 @@ typedef enum ViewNumberType {
     VIEW_TAPE_TIME,
     VIEW_TRACK_ASSIGN,
     VIEW_TRACK_SET_ALL,
-    VIEW_STANDBY_SET_ALL,
-    VIEW_MASTER_MON_SET,
-    VIEW_TAPE_SPEED_SET,
+    VIEW_SET_STANDBY_ALL,
+    VIEW_SET_MASTER_MON,
+    VIEW_SET_TAPE_SPEED,
     VIEW_INFO,
+    VIEW_SET_LONGTIME,
+    VIEW_SET_BLINK7SEG,
     VIEW_LAST
 } ViewNumberType;
+
 
 /* Display View Types */
 typedef enum FieldNumberType {

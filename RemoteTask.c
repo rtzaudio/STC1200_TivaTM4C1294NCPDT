@@ -113,6 +113,15 @@ typedef struct _DDS_TONE_TAB {
     char    toneText[5];            /* tone label text   */
 } DDS_TONE_TAB;
 
+/* Since the frequency ratio of a semitone is close to 106%, increasing
+ * or decreasing the playback speed of a recording by 6% will shift the
+ * pitch up or down by about one semitone, or "half-step". Upscale
+ * reel-to-reel magnetic tape recorders typically have pitch adjustments
+ * of up to ±6%, generally used to match the playback or recording pitch
+ * to other music sources having slightly different tunings (or possibly
+ * recorded on equipment that was not running at quite the right speed).
+ */
+
 static const DDS_TONE_TAB toneTable[] =
 {
      { 8553.0f,     { '-', '1', '.',  '0', '\0' }},    /*  -1   (89.1%)  */
@@ -844,14 +853,24 @@ void HandleViewChange(int32_t view, bool select)
 {
     switch(view)
     {
-    case VIEW_TAPE_SPEED_SET:
+    case VIEW_SET_TAPE_SPEED:
         if (select)
             g_sys.remoteFieldIndex = (g_sys.tapeSpeed == 30) ? 1 : 0;
         break;
 
-    case VIEW_MASTER_MON_SET:
+    case VIEW_SET_MASTER_MON:
         if (select)
             g_sys.remoteFieldIndex = (g_sys.standbyMonitor) ? 1 : 0;
+        break;
+
+    case VIEW_SET_LONGTIME:
+        if (select)
+            g_sys.remoteFieldIndex = (g_sys.cfgSTC.showLongTime) ? 1 : 0;
+        break;
+
+    case VIEW_SET_BLINK7SEG:
+        if (select)
+            g_sys.remoteFieldIndex = (g_sys.cfgSTC.searchBlink) ? 1 : 0;
         break;
 
     default:
@@ -871,9 +890,9 @@ bool IsDCSView(int32_t screen)
     {
     case VIEW_TRACK_ASSIGN:
     case VIEW_TRACK_SET_ALL:
-    case VIEW_STANDBY_SET_ALL:
-    case VIEW_MASTER_MON_SET:
-    case VIEW_TAPE_SPEED_SET:
+    case VIEW_SET_STANDBY_ALL:
+    case VIEW_SET_MASTER_MON:
+    case VIEW_SET_TAPE_SPEED:
         flag = true;
         break;
 
@@ -1013,15 +1032,23 @@ void HandleJogwheelMotion(uint32_t velocity, int direction)
     {
         AdvanceFieldIndex(direction, 0, 4);
     }
-    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    else if (g_sys.remoteView == VIEW_SET_STANDBY_ALL)
     {
         AdvanceFieldIndex(direction, 0, 1);
     }
-    else if (g_sys.remoteView == VIEW_MASTER_MON_SET)
+    else if (g_sys.remoteView == VIEW_SET_MASTER_MON)
     {
         AdvanceFieldIndex(direction, 0, 1);
     }
-    else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
+    else if (g_sys.remoteView == VIEW_SET_TAPE_SPEED)
+    {
+        AdvanceFieldIndex(direction, 0, 1);
+    }
+    else if (g_sys.remoteView == VIEW_SET_LONGTIME)
+    {
+        AdvanceFieldIndex(direction, 0, 1);
+    }
+    else if (g_sys.remoteView == VIEW_SET_BLINK7SEG)
     {
         AdvanceFieldIndex(direction, 0, 1);
     }
@@ -1038,6 +1065,7 @@ void HandleJogwheelClick(uint32_t switch_mask)
     uint8_t mode;
     uint8_t trackState;
     int32_t trackNum;
+    bool back2viewselect = false;
 
     if (g_sys.remoteViewSelect)
     {
@@ -1229,8 +1257,10 @@ void HandleJogwheelClick(uint32_t switch_mask)
             Track_MaskAll(STC_T_READY, 0);
             break;
         }
+
+        back2viewselect = true;
     }
-    else if (g_sys.remoteView == VIEW_MASTER_MON_SET)
+    else if (g_sys.remoteView == VIEW_SET_MASTER_MON)
     {
         if (g_sys.remoteFieldIndex == 0)
         {
@@ -1250,20 +1280,48 @@ void HandleJogwheelClick(uint32_t switch_mask)
                 Track_StandbyTransferAll(true);
             }
         }
+
+        back2viewselect = true;
     }
-    else if (g_sys.remoteView == VIEW_STANDBY_SET_ALL)
+    else if (g_sys.remoteView == VIEW_SET_STANDBY_ALL)
     {
         if (g_sys.remoteFieldIndex == 0)
             Track_MaskAll(0, STC_T_MONITOR);
         else
             Track_MaskAll(STC_T_MONITOR, 0);
+
+        back2viewselect = true;
     }
-    else if (g_sys.remoteView == VIEW_TAPE_SPEED_SET)
+    else if (g_sys.remoteView == VIEW_SET_TAPE_SPEED)
     {
         if (g_sys.remoteFieldIndex == 0)
             Track_SetTapeSpeed(15);
         else
             Track_SetTapeSpeed(30);
+
+        back2viewselect = true;
+    }
+    else if (g_sys.remoteView == VIEW_SET_LONGTIME)
+    {
+        g_sys.cfgSTC.showLongTime = (g_sys.remoteFieldIndex == 0) ? false : true;
+
+        back2viewselect = true;
+    }
+    else if (g_sys.remoteView == VIEW_SET_BLINK7SEG)
+    {
+        g_sys.cfgSTC.searchBlink = (g_sys.remoteFieldIndex == 0) ? false : true;
+
+        back2viewselect = true;
+    }
+
+    /* Return back to view navigation mode if view select flat is set */
+
+    if (back2viewselect)
+    {
+        /* turn on menu button led */
+        SetButtonLedMask(L_MENU, 0);
+        /* return to view select mode */
+        g_sys.remoteViewSelect = true;
     }
 }
 

@@ -96,9 +96,11 @@ static void DrawTimeMiddle(void);
 static void DrawTimeEdit(void);
 static void DrawTimeBottom(void);
 static void DrawTrackSetAll(void);
-static void DrawTapeSpeedSet(void);
-static void DrawStandbyTracksSet(void);
-static void DrawMasterMonSet(void);
+static void DrawSetTapeSpeed(void);
+static void DrawSetStandbyTracks(void);
+static void DrawSetMasterMon(void);
+static void DrawSetBlink7Seg(void);
+static void DrawSetLongTime(void);
 
 /* Helpers */
 static void GrSetRect(tRectangle* rect,
@@ -178,20 +180,28 @@ void DrawScreen(uint32_t uScreenNum)
         DrawTrackSetAll();
         break;
 
-    case VIEW_STANDBY_SET_ALL:
-        DrawStandbyTracksSet();
+    case VIEW_SET_STANDBY_ALL:
+        DrawSetStandbyTracks();
         break;
 
-    case VIEW_MASTER_MON_SET:
-        DrawMasterMonSet();
+    case VIEW_SET_MASTER_MON:
+        DrawSetMasterMon();
         break;
 
-    case VIEW_TAPE_SPEED_SET:
-        DrawTapeSpeedSet();
+    case VIEW_SET_TAPE_SPEED:
+        DrawSetTapeSpeed();
         break;
 
     case VIEW_INFO:
         DrawInfo();
+        break;
+
+    case VIEW_SET_LONGTIME:
+        DrawSetLongTime();
+        break;
+
+    case VIEW_SET_BLINK7SEG:
+        DrawSetBlink7Seg();
         break;
 
     default:
@@ -876,7 +886,7 @@ void DrawTrackAssign(void)
 }
 
 //*****************************************************************************
-//
+// Helper simple menu options drawing function.
 //*****************************************************************************
 
 void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
@@ -892,11 +902,11 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
 
+    GrSetRect(&rect, 0, 0, SCREEN_WIDTH-1, 10);
+
     if (g_sys.remoteViewSelect)
     {
-        GrSetRect(&rect, 0, 0, SCREEN_WIDTH, 10);
         GrRectFill(&g_context, &rect);
-
         /* Normal Mono */
         GrContextForegroundSetTranslated(&g_context, 0);
         GrContextBackgroundSetTranslated(&g_context, 1);
@@ -907,6 +917,9 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
 
     GrContextForegroundSetTranslated(&g_context, 1);
     GrContextBackgroundSetTranslated(&g_context, 0);
+
+    //if (g_sys.remoteViewSelect)
+        GrRectDraw(&g_context, &rect);
 
     for (i=0, mp=menu; i < count; i++, mp++)
     {
@@ -924,7 +937,7 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
         /* Don't show menu item highlight box if view
          * select is currently active.
          */
-        if (!g_sys.remoteViewSelect)
+        //if (!g_sys.remoteViewSelect)
         {
             w = (maxwidth >> 1) + 10;
             mp = menu + index;
@@ -958,7 +971,7 @@ void DrawTrackSetAll(void)
 //
 //*****************************************************************************
 
-void DrawStandbyTracksSet(void)
+void DrawSetStandbyTracks(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "CLEAR ALL",
@@ -975,7 +988,7 @@ void DrawStandbyTracksSet(void)
 //
 //*****************************************************************************
 
-void DrawMasterMonSet(void)
+void DrawSetMasterMon(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "DISABLE",
@@ -992,7 +1005,7 @@ void DrawMasterMonSet(void)
 //
 //*****************************************************************************
 
-void DrawTapeSpeedSet(void)
+void DrawSetTapeSpeed(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "LO-SPEED",
@@ -1000,6 +1013,40 @@ void DrawTapeSpeedSet(void)
     };
 
     MenuDraw("TAPE SPEED SELECT",
+             menuOptions,
+             sizeof(menuOptions)/sizeof(MenuOption),
+             g_sys.remoteFieldIndex);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawSetLongTime(void)
+{
+    static MenuOption menuOptions[] = {
+        CENTER_X, 25, "SHORT",
+        CENTER_X, 35, "LONG",
+    };
+
+    MenuDraw("TIME DISPLAY FMT",
+             menuOptions,
+             sizeof(menuOptions)/sizeof(MenuOption),
+             g_sys.remoteFieldIndex);
+}
+
+//*****************************************************************************
+//
+//*****************************************************************************
+
+void DrawSetBlink7Seg(void)
+{
+    static MenuOption menuOptions[] = {
+        CENTER_X, 25, "NORMAL",
+        CENTER_X, 35, "BLINK",
+    };
+
+    MenuDraw("LOCATE BLINK 7-SEG",
              menuOptions,
              sizeof(menuOptions)/sizeof(MenuOption),
              g_sys.remoteFieldIndex);

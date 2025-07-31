@@ -2,7 +2,7 @@
 
  STC-1200 Search Timer Controller for Ampex MM-1200 Tape Machines
 
- Copyright (C) 2016-2019, RTZ Professional Audio, LLC
+ Copyright (C) 2016-2025, RTZ Professional Audio, LLC
 
  All Rights Reserved
 
@@ -28,6 +28,11 @@ Download and install the LMFLASH utility. Follow the STC bootloader firmware
 update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
+
+=== VERSION 3.06(07/31/2025) ==============================================
+
+Improved menu function operations on DRC wired remote. Navigation and
+option selection are easier driven with the jog and click options.
 
 === VERSION 3.05(03/23/2025) ==============================================
 
