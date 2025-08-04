@@ -88,19 +88,19 @@
 #include "RemoteTask.h"
 
 /* Static Function Prototypes */
-static void DrawInfo(void);
-static void DrawTapeTime(void);
-static void DrawTrackAssign(void);
-static void DrawTimeTop(void);
-static void DrawTimeMiddle(void);
-static void DrawTimeEdit(void);
-static void DrawTimeBottom(void);
-static void DrawTrackSetAll(void);
-static void DrawSetTapeSpeed(void);
-static void DrawSetStandbyTracks(void);
-static void DrawSetMasterMon(void);
-static void DrawSetBlink7Seg(void);
-static void DrawSetLongTime(void);
+static void drawInfoScreen(void);
+static void drawTrackAssign(void);
+static void drawTimeScreen(void);
+static void drawTimeTop(void);
+static void drawTimeMiddle(void);
+static void drawTimeEdit(void);
+static void drawTimeBottom(void);
+static void drawMenuTrackSetAll(void);
+static void drawMenuSetTapeSpeed(void);
+static void drawMenuSetStandbyAll(void);
+static void drawMenuSetMasterMon(void);
+static void drawMenuSetBlink7Seg(void);
+static void drawMenuSetLongTime(void);
 
 /* Helpers */
 static void GrSetRect(tRectangle* rect,
@@ -150,7 +150,7 @@ void GrInflateRect(tRectangle* rect,
 // Clear the display screen
 //*****************************************************************************
 
-void ClearDisplay()
+void ClearScreen()
 {
     tRectangle rect = {0, 0, SCREEN_WIDTH - 1, SCREEN_HEIGHT - 1};
     GrContextForegroundSetTranslated(&g_context, 0);
@@ -164,44 +164,44 @@ void ClearDisplay()
 
 void DrawScreen(uint32_t uScreenNum)
 {
-    ClearDisplay();
+    ClearScreen();
 
     switch(uScreenNum)
     {
     case VIEW_TAPE_TIME:
-        DrawTapeTime();
+        drawTimeScreen();
         break;
 
     case VIEW_TRACK_ASSIGN:
-        DrawTrackAssign();
+        drawTrackAssign();
         break;
 
     case VIEW_TRACK_SET_ALL:
-        DrawTrackSetAll();
+        drawMenuTrackSetAll();
         break;
 
     case VIEW_SET_STANDBY_ALL:
-        DrawSetStandbyTracks();
+        drawMenuSetStandbyAll();
         break;
 
     case VIEW_SET_MASTER_MON:
-        DrawSetMasterMon();
+        drawMenuSetMasterMon();
         break;
 
     case VIEW_SET_TAPE_SPEED:
-        DrawSetTapeSpeed();
+        drawMenuSetTapeSpeed();
         break;
 
     case VIEW_INFO:
-        DrawInfo();
+        drawInfoScreen();
         break;
 
     case VIEW_SET_LONGTIME:
-        DrawSetLongTime();
+        drawMenuSetLongTime();
         break;
 
     case VIEW_SET_BLINK7SEG:
-        DrawSetBlink7Seg();
+        drawMenuSetBlink7Seg();
         break;
 
     default:
@@ -215,7 +215,7 @@ void DrawScreen(uint32_t uScreenNum)
 //
 //*****************************************************************************
 
-void DrawInfo(void)
+void drawInfoScreen(void)
 {
     char buf[64];
     int32_t x, y;
@@ -259,23 +259,23 @@ void DrawInfo(void)
 // screen that users see in normal operation mode.
 //*****************************************************************************
 
-void DrawTapeTime(void)
+void drawTimeScreen(void)
 {
     /* Draw the top line showing current mode/speed */
-    DrawTimeTop();
+    drawTimeTop();
 
     /* Draw the current tape position time in the middle */
     if (g_sys.remoteMode == REMOTE_MODE_EDIT)
-        DrawTimeEdit();
+        drawTimeEdit();
     else
-        DrawTimeMiddle();
+        drawTimeMiddle();
 
     /* Draw bottom line with current locate point time */
-    DrawTimeBottom();
+    drawTimeBottom();
 }
 
 
-void DrawTimeTop(void)
+void drawTimeTop(void)
 {
     char buf[64];
     char txt[8];
@@ -383,7 +383,7 @@ void DrawTimeTop(void)
 }
 
 
-void DrawTimeMiddle(void)
+void drawTimeMiddle(void)
 {
     char buf[64];
     int32_t x, y;
@@ -467,7 +467,7 @@ void DrawTimeMiddle(void)
 }
 
 
-void DrawTimeBottom(void)
+void drawTimeBottom(void)
 {
     char buf[64];
     int32_t x, y;
@@ -610,7 +610,7 @@ void DrawTimeBottom(void)
 }
 
 
-void DrawTimeEdit(void)
+void drawTimeEdit(void)
 {
     char buf[64];
     int32_t x, y;
@@ -662,7 +662,7 @@ void DrawTimeEdit(void)
 // Draw the track assignment screen for the current channel.
 //*****************************************************************************
 
-void DrawTrackAssign(void)
+void drawTrackAssign(void)
 {
     int32_t x, y;
     int32_t len;
@@ -951,7 +951,7 @@ void MenuDraw(char* heading, MenuOption* menu, size_t count, size_t index)
 //
 //*****************************************************************************
 
-void DrawTrackSetAll(void)
+void drawMenuTrackSetAll(void)
 {
     static MenuOption menuOptions[] = {
         30, 25, "INPUT",
@@ -971,7 +971,7 @@ void DrawTrackSetAll(void)
 //
 //*****************************************************************************
 
-void DrawSetStandbyTracks(void)
+void drawMenuSetStandbyAll(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "CLEAR ALL",
@@ -988,7 +988,7 @@ void DrawSetStandbyTracks(void)
 //
 //*****************************************************************************
 
-void DrawSetMasterMon(void)
+void drawMenuSetMasterMon(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "DISABLE",
@@ -1005,7 +1005,7 @@ void DrawSetMasterMon(void)
 //
 //*****************************************************************************
 
-void DrawSetTapeSpeed(void)
+void drawMenuSetTapeSpeed(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "LO-SPEED",
@@ -1022,7 +1022,7 @@ void DrawSetTapeSpeed(void)
 //
 //*****************************************************************************
 
-void DrawSetLongTime(void)
+void drawMenuSetLongTime(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "SHORT",
@@ -1039,12 +1039,14 @@ void DrawSetLongTime(void)
 //
 //*****************************************************************************
 
-void DrawSetBlink7Seg(void)
+void drawMenuSetBlink7Seg(void)
 {
     static MenuOption menuOptions[] = {
         CENTER_X, 25, "NORMAL",
         CENTER_X, 35, "BLINK",
     };
+
+#define MENUSIZ (sizeof(menuOptions)/sizeof(MenuOption))
 
     MenuDraw("LOCATE BLINK 7-SEG",
              menuOptions,

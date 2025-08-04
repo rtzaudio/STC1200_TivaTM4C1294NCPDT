@@ -72,7 +72,7 @@ void Remote_PostSwitchPress(uint32_t mode, uint32_t flags);
 void GetToneText(char* buf);
 
 /* RemoteDisplay.c */
-void ClearDisplay(void);
+void ClearScreen(void);
 void DrawScreen(uint32_t uScreenNum);
 
 #endif /* _REMOTETASK_H_ */
