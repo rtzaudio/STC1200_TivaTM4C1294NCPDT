@@ -313,21 +313,21 @@ void drawTimeTop(void)
 
         case MODE_PLAY:
             if (g_sys.transportMode & M_RECORD)
-                len = sprintf(buf, "PLAY (REC)");
+                len = sprintf(buf, "PLAY+REC");
             else
                 len = sprintf(buf, "PLAY");
             break;
 
         case MODE_FWD:
             if (g_sys.transportMode & M_LIBWIND)
-                len = sprintf(buf, "FWD (LIB)");
+                len = sprintf(buf, "FWD+LIB");
             else
                 len = sprintf(buf, "FWD");
             break;
 
         case MODE_REW:
             if (g_sys.transportMode & M_LIBWIND)
-                len = sprintf(buf, "REW (LIB)");
+                len = sprintf(buf, "REW+LIB");
             else
                 len = sprintf(buf, "REW");
             break;

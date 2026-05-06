@@ -2,7 +2,7 @@
 
  STC-1200 Search Timer Controller for Ampex MM-1200 Tape Machines
 
- Copyright (C) 2016-2025, RTZ Professional Audio, LLC
+ Copyright (C) 2016-2026, RTZ Professional Audio, LLC
 
  All Rights Reserved
 
@@ -29,10 +29,42 @@ update instructions in the owners manual for instructions. You will need to
 download the LMFLASH utility from the link on the RTZ page, or search the
 web and download free from TI.
 
-=== VERSION 3.06(07/31/2025) ==============================================
+=== VERSION 3.06(02/15/2026) ==============================================
 
 Improved menu function operations on DRC wired remote. Navigation and
-option selection are easier driven with the jog and click options.
+options selection are easier driven by the jog click/select function.
+
+Added exteneded tone step increments for vari-speed option with the
+DRC remote. The tone steps supported by this release are listed below:  
+
+    /*  -5 1/2 (53.0%)  */
+    /*  -5     (56.2%)  */
+    /*  -4 1/2 (59.5%)  */
+    /*  -4     (63.0%)  */
+    /*  -3 1/2 (66.8%)  */
+    /*  -3     (70.8%)  */
+    /*  -2 1/2 (75.0%)  */
+    /*  -2     (79.4%)  */
+    /*  -1 1/2 (84.1%)  */
+    /* start of standard Ampex varispeed tones */
+    /*  -1     (89.1%)  */
+    /* -3/4    (91.7%)  */
+    /* -1/2    (94.3%)  */
+    /* -1/4    (97.1%)  */
+    /*   0     (100%)   */
+    /* +1/4    (102.9%) */
+    /* +1/2    (105.9%) */
+    /* +3/4    (109.1%) */
+    /*  +1     (112.2%) */
+    /* end of standard Ampex varispeed tones */
+    /*  +1 1/2 (118.9%) */
+    /*  +2     (125.9%) */
+    /*  +2 1/2 (133.4%) */
+    /*  +3     (141.4%) */
+    /*  +3 1/2 (149.8%) */
+    /*  +4     (158.7%) */
+    /*  +4 1/2 (168.1%) */
+    /*  +5     (178.1%) */
 
 === VERSION 3.05(03/23/2025) ==============================================
 
