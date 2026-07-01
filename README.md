@@ -11,8 +11,9 @@ recorders.
 ## Building the Firmware
 
 This firmware builds with with Texas Instruments Code Composer Studio (CCS) v9.3.0.00012
-and uses the TI-RTOS v2.16.0.08 real-time kernel add on package. You must install CCS
-and the add on TI-RTOS package, see the "View->Resource Explorer" menu option in CCS.
+and uses the TI-RTOS v2.16.0.08 real-time kernel add on package. You must install CCS v9,
+the TivaWare libraries, and the add on TI-RTOS package, see the "View->Resource Explorer"
+menu option in CCS.
 
 The SD disk driver provided with TI-RTOS must be configured and rebuilt to include
 all the interface functions needed from the FATFS file system driver. By default, the
