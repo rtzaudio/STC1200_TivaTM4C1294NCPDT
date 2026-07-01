@@ -8,7 +8,7 @@ The **STC-1200** project contains the source code for the RTZ Audio STC-1200
 digitial search/timer/cue card for vintage Ampex MM-1200 professional studio
 recorders.
 
-## BUILD NOTES
+## Building the Firmware
 
 This firmware builds with with Texas Instruments Code Composer Studio (CCS) v9.3.0.00012
 and uses the TI-RTOS v2.16.0.08 real-time kernel add on package. You must install CCS
@@ -34,6 +34,7 @@ Execute the following commands at the prompt to rebuild TI-RTOS driver libraries
 with the additional features enabled in the FATFS driver library.
 
 ..\ccs930\xdctools_3_32_00_06_core\gmake -f tirtos.mak clean-drivers
+
 ..\ccs930\xdctools_3_32_00_06_core\gmake -f tirtos.mak drivers
 
 Once the driver libs have been successfully rebuilt with the new FATFS configuration
