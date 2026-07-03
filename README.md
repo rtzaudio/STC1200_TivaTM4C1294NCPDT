@@ -55,7 +55,7 @@ the Tiva ARM processors.
 
 ## License
 
-Copyright (C) 2016-2021, RTZ Professional Audio, LLC
+Copyright (C) 2016-2026, RTZ Professional Audio, LLC
 
 All Rights Reserved
 
