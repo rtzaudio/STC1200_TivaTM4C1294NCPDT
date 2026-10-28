@@ -49,7 +49,7 @@
  *                 HOUR                             MINS
  */
 
-#include "..\STC_SMPTE_TivaTM4C123AE6PM\STC_SMPTE_SPI.h"
+#include "../STC_SMPTE_TivaTM4C123AE6PM/STC_SMPTE_SPI.h"
 
 /*** DATA STRUCTURES *******************************************************/
 

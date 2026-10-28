@@ -80,7 +80,7 @@
 #include <ti/sysbios/hal/Seconds.h>
 
 #include "xmodem.h"
-#include "board.h"
+#include "Board.h"
 
 /* Various definitions. */
 #define PKT_SIZE    128

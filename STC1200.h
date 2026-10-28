@@ -20,8 +20,8 @@
 
 #include "IPCFrame.h"
 #include "IPCCMD.h"
-#include "..\DCS1200_TivaTM4C123AE6PM2\IPCCMD_DCS1200.h"
-#include "..\DTC1200_TivaTM4C123AE6PM\IPCCMD_DTC1200.h"
+#include "../DCS1200_TivaTM4C123AE6PM2/IPCCMD_DCS1200.h"
+#include "../DTC1200_TivaTM4C123AE6PM/IPCCMD_DTC1200.h"
 #include "IPCToDTC.h"
 #include "TrackCtrl.h"
 #include "STC1200TCP.h"
