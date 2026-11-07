@@ -493,7 +493,7 @@ const WCHAR Tbl[] = {	/*  CP1258(0x80-0xFF) to Unicode conversion table */
 #endif
 
 
-#if !_TBLDEF || !_USE_LFN
+#if (!_TBLDEF || !_USE_LFN)
 #error This file is not needed in current configuration. Remove from the project.
 #endif
 
