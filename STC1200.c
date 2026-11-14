@@ -151,6 +151,8 @@ int main(void)
 	Task_Params taskParams;
     Mailbox_Params mboxParams;
 
+    memset(&g_sys, 0, sizeof(g_sys));
+
     /* default GUID values */
     memset(g_sys.ui8SerialNumberSTC, 0xFF, 16);
     memset(g_sys.ui8SerialNumberDTC, 0xFF, 16);
